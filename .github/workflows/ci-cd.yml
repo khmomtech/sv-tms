@@ -153,6 +153,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Set up Flutter ${{ env.FLUTTER_VERSION }}
         uses: subosito/flutter-action@v2
@@ -356,10 +358,14 @@ jobs:
             GIT_COMMIT=${{ github.sha }}
             BUILD_DATE=${{ github.event.repository.updated_at }}
 
+      - name: Compute short SHA
+        id: short-sha
+        run: echo "value=$(echo '${{ github.sha }}' | cut -c1-7)" >> "$GITHUB_OUTPUT"
+
       - name: Trivy – scan pushed image
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.IMAGE_BASE }}/${{ matrix.image }}:sha-${{ github.sha }}
+          image-ref: ${{ env.IMAGE_BASE }}/${{ matrix.image }}:sha-${{ steps.short-sha.outputs.value }}
           format: table
           severity: CRITICAL
           exit-code: '1'
@@ -411,6 +417,13 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.STAGING_DEPLOY_SSH_KEY }}
 
+      - name: Add staging host to known hosts
+        env:
+          DEPLOY_HOST: ${{ secrets.STAGING_DEPLOY_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "${DEPLOY_HOST}" >> ~/.ssh/known_hosts
+
       - name: Sync infra + deploy scripts
         env:
           DEPLOY_HOST: ${{ secrets.STAGING_DEPLOY_HOST }}
@@ -431,26 +444,41 @@ jobs:
           REGISTRY_USERNAME: ${{ github.actor }}
           REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          ssh -o StrictHostKeyChecking=no ${DEPLOY_USER}@${DEPLOY_HOST} \
+          ssh ${DEPLOY_USER}@${DEPLOY_HOST} \
             "IMAGE_REGISTRY='${IMAGE_REGISTRY}' IMAGE_TAG='${IMAGE_TAG}' \
              REGISTRY_USERNAME='${REGISTRY_USERNAME}' REGISTRY_PASSWORD='${REGISTRY_PASSWORD}' \
              bash -s" <<'REMOTE'
           set -euo pipefail
           cd /opt/sv-tms
           echo "${REGISTRY_PASSWORD}" | docker login ghcr.io -u "${REGISTRY_USERNAME}" --password-stdin
-          sed -i "s|image:.*tms-core-api:.*|image: ${IMAGE_REGISTRY}/tms-core-api:${IMAGE_TAG}|g" infra/docker-compose.prod.yml || true
-          docker compose --env-file infra/.env -f infra/docker-compose.prod.yml pull
-          docker compose --env-file infra/.env -f infra/docker-compose.prod.yml up -d --remove-orphans
+          IMAGE_REGISTRY="${IMAGE_REGISTRY}" IMAGE_TAG="${IMAGE_TAG}" \
+            docker compose --env-file infra/.env -f infra/docker-compose.prod.yml pull
+          IMAGE_REGISTRY="${IMAGE_REGISTRY}" IMAGE_TAG="${IMAGE_TAG}" \
+            docker compose --env-file infra/.env -f infra/docker-compose.prod.yml up -d --remove-orphans
           REMOTE
 
       - name: Health check (staging)
+        timeout-minutes: 5
         env:
           DEPLOY_HOST: ${{ secrets.STAGING_DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.STAGING_DEPLOY_USER }}
         run: |
-          sleep 20
-          ssh -o StrictHostKeyChecking=no ${DEPLOY_USER}@${DEPLOY_HOST} \
-            "curl -fsS --retry 6 --retry-delay 8 http://127.0.0.1:8080/actuator/health | grep '\"status\":\"UP\"'"
+          ssh ${DEPLOY_USER}@${DEPLOY_HOST} bash <<'REMOTE'
+          set -euo pipefail
+          RETRIES=10
+          DELAY=10
+          for i in $(seq 1 ${RETRIES}); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 "http://127.0.0.1:8080/actuator/health" 2>/dev/null || echo "000")
+            if [[ "${code}" =~ ^(200|401|403)$ ]]; then
+              echo "✅ core-api healthy (HTTP ${code})"
+              exit 0
+            fi
+            echo "  Waiting for core-api... (${i}/${RETRIES}) HTTP ${code}"
+            sleep ${DELAY}
+          done
+          echo "❌ core-api failed health check after $((RETRIES * DELAY))s"
+          exit 1
+          REMOTE
 
       - name: Notify failure
         if: failure()
@@ -461,92 +489,5 @@ jobs:
           payload: |
             {"text": ":warning: *Staging deploy failed* – <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>"}
 
-# ── deploy-production ─────────────────────────────────────────────────────────
-  deploy-production:
-    name: Deploy – Production (approval required)
-    runs-on: ubuntu-latest
-    needs: [docker-build]
-    if: |
-      github.ref == 'refs/heads/main' &&
-      github.event_name == 'push'
-    environment:
-      name: production
-      url: https://svtms.svtrucking.biz
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install SSH key
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.PROD_DEPLOY_SSH_KEY }}
-
-      - name: Sync infra + deploy scripts
-        env:
-          DEPLOY_HOST: ${{ secrets.PROD_DEPLOY_HOST }}
-          DEPLOY_USER: ${{ secrets.PROD_DEPLOY_USER }}
-        run: |
-          rsync -az \
-            infra/docker-compose.prod.yml \
-            deploy/post_deploy_smoke_check_vps.sh \
-            deploy/prod_rollback_vps.sh \
-            ${DEPLOY_USER}@${DEPLOY_HOST}:/opt/sv-tms/infra/
-
-      - name: Deploy to production
-        id: deploy
-        env:
-          DEPLOY_HOST: ${{ secrets.PROD_DEPLOY_HOST }}
-          DEPLOY_USER: ${{ secrets.PROD_DEPLOY_USER }}
-          IMAGE_REGISTRY: ${{ env.IMAGE_BASE }}
-          IMAGE_TAG: ${{ needs.docker-build.outputs.image_tag }}
-          REGISTRY_USERNAME: ${{ github.actor }}
-          REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          ssh -o StrictHostKeyChecking=no ${DEPLOY_USER}@${DEPLOY_HOST} \
-            "IMAGE_REGISTRY='${IMAGE_REGISTRY}' IMAGE_TAG='${IMAGE_TAG}' \
-             REGISTRY_USERNAME='${REGISTRY_USERNAME}' REGISTRY_PASSWORD='${REGISTRY_PASSWORD}' \
-             bash -s" <<'REMOTE'
-          set -euo pipefail
-          cd /opt/sv-tms
-          echo "${REGISTRY_PASSWORD}" | docker login ghcr.io -u "${REGISTRY_USERNAME}" --password-stdin
-          docker compose --env-file infra/.env -f infra/docker-compose.prod.yml pull
-          docker compose --env-file infra/.env -f infra/docker-compose.prod.yml up -d --remove-orphans
-          REMOTE
-
-      - name: Post-deploy health check
-        id: smoke
-        env:
-          DEPLOY_HOST: ${{ secrets.PROD_DEPLOY_HOST }}
-          DEPLOY_USER: ${{ secrets.PROD_DEPLOY_USER }}
-        run: |
-          sleep 30
-          ssh -o StrictHostKeyChecking=no ${DEPLOY_USER}@${DEPLOY_HOST} \
-            "curl -fsS --retry 8 --retry-delay 10 http://127.0.0.1:8080/actuator/health | grep '\"status\":\"UP\"'"
-
-      - name: Auto-rollback on health check failure
-        if: failure() && steps.deploy.outcome == 'success'
-        env:
-          DEPLOY_HOST: ${{ secrets.PROD_DEPLOY_HOST }}
-          DEPLOY_USER: ${{ secrets.PROD_DEPLOY_USER }}
-        run: |
-          echo "Health check failed – auto-rollback triggered"
-          ssh -o StrictHostKeyChecking=no ${DEPLOY_USER}@${DEPLOY_HOST} \
-            "cd /opt/sv-tms && bash deploy/prod_rollback_vps.sh --skip-db-backup || true"
-
-      - name: Notify success
-        if: success()
-        uses: slackapi/slack-github-action@v2
-        with:
-          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
-          webhook-type: incoming-webhook
-          payload: |
-            {"text": ":rocket: *Production deploy succeeded* – `${{ needs.docker-build.outputs.image_tag }}` | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|Run>"}
-
-      - name: Notify failure + rollback
-        if: failure()
-        uses: slackapi/slack-github-action@v2
-        with:
-          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
-          webhook-type: incoming-webhook
-          payload: |
-            {"text": ":fire: *Production deploy FAILED* – auto-rollback attempted | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|Run>"}
+# Production deploys are handled exclusively by deploy-vps.yml which provides
+# rollback, SSL management, per-service health checks, and a proper CI gate.
