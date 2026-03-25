@@ -55,7 +55,7 @@ jobs:
         uses: lewagon/wait-on-check-action@v1.3.4
         with:
           ref: ${{ github.sha }}
-          check-name: 'Build & Test'
+          check-name: 'Release – Deploy Bundle'
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           wait-interval: 30
           allowed-conclusions: success
@@ -297,13 +297,13 @@ jobs:
       # ── Health check ───────────────────────────────────────────────────────
       - name: Health check — all services
         id: health-check
-        timeout-minutes: 5
+        timeout-minutes: 15
         run: |
           echo "Waiting for services to become healthy..."
           ssh ${{ secrets.PROD_DEPLOY_USER }}@${{ secrets.PROD_DEPLOY_HOST }} bash <<'REMOTE'
           set -euo pipefail
-          RETRIES=20
-          DELAY=15
+          RETRIES=10
+          DELAY=10
 
           check_service() {
             local name="$1"; local url="$2"
@@ -425,7 +425,7 @@ jobs:
   renew-ssl:
     name: Renew SSL Certificate
     runs-on: ubuntu-latest
-    needs: []
+    needs: [deploy]
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.rollback == 'false'
     continue-on-error: true
     steps:
