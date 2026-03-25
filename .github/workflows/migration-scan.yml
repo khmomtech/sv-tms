@@ -1,0 +1,55 @@
+name: Migration dump scan
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches:
+      - updateimprove/configures
+
+jobs:
+  scan-dump:
+    name: Scan large SQL dump and produce summary
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: rootpass
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=5s
+          --health-timeout=2s
+          --health-retries=10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Wait for MySQL
+        run: |
+          for i in {1..30}; do
+            if mysql -uroot -prootpass -h127.0.0.1 -e 'select 1' >/dev/null 2>&1; then
+              echo 'MySQL ready'; break
+            fi
+            sleep 2
+          done
+
+      - name: Install mysql client and coreutils
+        run: sudo apt-get update && sudo apt-get install -y mysql-client coreutils grep gawk
+
+      - name: Run migration scan script
+        env:
+          DUMP_PATH: driver-app/src/main/resources/db/migration/svlogistics_tms_db_2025-11-07_211828.sql
+          OUT_PATH: driver-app/tmp/sv_dump_summary_ci.txt
+        run: |
+          chmod +x driver-app/tools/migration_scan.sh || true
+          driver-app/tools/migration_scan.sh "$DUMP_PATH" "$OUT_PATH"
+
+      - name: Upload summary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sv-dump-summary
+          path: driver-app/tmp/sv_dump_summary_ci.txt

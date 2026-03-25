@@ -1,0 +1,240 @@
+name: Smoke Test — Production
+
+# =============================================================================
+# Post-deploy smoke test against https://svtms.svtrucking.biz
+# =============================================================================
+# Triggers:
+#   - Automatically called by deploy-vps.yml after every successful deploy
+#   - Manually via workflow_dispatch (for ad-hoc checks)
+#   - Scheduled every 30 minutes (continuous uptime monitoring)
+#
+# Tests:
+#   1.  TLS certificate validity & expiry
+#   2.  HTTP → HTTPS redirect
+#   3.  Admin Web UI loads (Angular app bootstrap)
+#   4.  Security headers (HSTS, X-Frame-Options, X-Content-Type-Options)
+#   5.  API Gateway health
+#   6.  Auth API health + login endpoint responds correctly
+#   7.  Core API health + protected routes return 401 (not 500)
+#   8.  Driver App API health
+#   9.  Telematics API health
+#   10. Safety API health
+#   11. Message API health
+#   12. WebSocket endpoint reachable
+#   13. Response time baselines (UI < 3s, API < 1s)
+#   14. No version leakage in Server headers
+# =============================================================================
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Target URL to test'
+        required: false
+        default: 'https://svtms.svtrucking.biz'
+  workflow_call:
+    inputs:
+      base_url:
+        description: 'Target URL to test'
+        required: false
+        type: string
+        default: 'https://svtms.svtrucking.biz'
+  schedule:
+    # Every 30 minutes — uptime monitoring
+    - cron: '*/30 * * * *'
+
+env:
+  BASE_URL: ${{ inputs.base_url || 'https://svtms.svtrucking.biz' }}
+
+jobs:
+  smoke-test:
+    name: Smoke Test — ${{ inputs.base_url || 'https://svtms.svtrucking.biz' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── Wait for DNS + nginx to stabilize ──────────────────────────────────
+      - name: Wait for server to be reachable
+        run: |
+          echo "Waiting for ${BASE_URL} to respond..."
+          for i in $(seq 1 20); do
+            code=$(curl -sk -o /dev/null -w "%{http_code}" --max-time 8 "${BASE_URL}/" 2>/dev/null || echo "000")
+            if [[ "${code}" =~ ^(200|301|302|401|403)$ ]]; then
+              echo "Server reachable (HTTP ${code}) after ${i} attempts"
+              break
+            fi
+            echo "  Attempt ${i}/20 — HTTP ${code} — waiting 10s..."
+            sleep 10
+          done
+
+      # ── Core smoke test script ──────────────────────────────────────────────
+      - name: Run smoke tests
+        id: smoke
+        run: |
+          chmod +x deploy/smoke_test.sh
+          BASE_URL="${BASE_URL}" TIMEOUT=15 MAX_RETRIES=3 RETRY_DELAY=5 \
+            deploy/smoke_test.sh 2>&1 | tee smoke_results.txt
+        continue-on-error: true
+
+      # ── Detailed per-endpoint checks ────────────────────────────────────────
+      - name: Check all API health endpoints
+        id: health-checks
+        run: |
+          set +e
+          PASS=0; FAIL=0
+
+          check() {
+            local name="$1"; local url="$2"; local expect="${3:-200}"
+            code=$(curl -sk -o /dev/null -w "%{http_code}" --max-time 10 "${url}" 2>/dev/null || echo "000")
+            body=$(curl -sk --max-time 10 "${url}" 2>/dev/null || echo "")
+            time=$(curl -sk -o /dev/null -w "%{time_total}" --max-time 10 "${url}" 2>/dev/null || echo "?")
+
+            if [[ "${code}" == "${expect}" ]] && echo "${body}" | grep -q '"status":"UP"\|"UP"\|up'; then
+              echo "  ✅ ${name}  [HTTP ${code}] [${time}s]"
+              ((PASS++))
+            elif [[ "${code}" == "${expect}" ]]; then
+              echo "  ✅ ${name}  [HTTP ${code}] [${time}s]"
+              ((PASS++))
+            else
+              echo "  ❌ ${name}  [HTTP ${code}] expected ${expect}"
+              echo "     Body: $(echo ${body} | head -c 200)"
+              ((FAIL++))
+            fi
+          }
+
+          echo ""
+          echo "=== API Health Endpoints ==="
+          check "Admin Web UI"       "${BASE_URL}/"
+          check "API Gateway"        "${BASE_URL}/actuator/health"
+          check "Auth API"           "${BASE_URL}/auth/actuator/health"
+          check "Core API"           "${BASE_URL}/api/actuator/health"
+          check "Driver App API"     "${BASE_URL}/driver/actuator/health"
+          check "Telematics API"     "${BASE_URL}/telematics/actuator/health"
+          check "Safety API"         "${BASE_URL}/safety/actuator/health"
+          check "Message API"        "${BASE_URL}/message/actuator/health"
+          echo ""
+
+          echo "=== Authentication ==="
+          login_code=$(curl -sk -o /dev/null -w "%{http_code}" \
+            --max-time 10 \
+            -X POST "${BASE_URL}/api/v1/auth/login" \
+            -H 'Content-Type: application/json' \
+            -d '{"username":"smoke@test.invalid","password":"invalid-smoke-test"}' \
+            2>/dev/null || echo "000")
+          if [[ "${login_code}" =~ ^(400|401|403|422)$ ]]; then
+            echo "  ✅ Login endpoint — rejects invalid creds correctly  [HTTP ${login_code}]"
+            ((PASS++))
+          else
+            echo "  ❌ Login endpoint  [HTTP ${login_code}] — unexpected"
+            ((FAIL++))
+          fi
+
+          echo ""
+          echo "=== Security ==="
+          headers=$(curl -skI --max-time 10 "${BASE_URL}/" 2>/dev/null || echo "")
+          for header in "Strict-Transport-Security" "X-Frame-Options" "X-Content-Type-Options"; do
+            if echo "${headers}" | grep -qi "^${header}:"; then
+              echo "  ✅ Header present: ${header}"
+              ((PASS++))
+            else
+              echo "  ⚠️  Header missing: ${header}"
+            fi
+          done
+
+          echo ""
+          echo "=== TLS Certificate ==="
+          domain="${BASE_URL//https:\/\//}"
+          domain="${domain%%/*}"
+          cert_expiry=$(echo | timeout 8 openssl s_client -connect "${domain}:443" -servername "${domain}" 2>/dev/null \
+            | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2 || echo "UNKNOWN")
+          if [[ "${cert_expiry}" != "UNKNOWN" ]]; then
+            expiry_epoch=$(date -d "${cert_expiry}" +%s 2>/dev/null || echo "0")
+            days_left=$(( (expiry_epoch - $(date +%s)) / 86400 ))
+            if [[ "${days_left}" -gt 14 ]]; then
+              echo "  ✅ TLS cert valid — expires ${cert_expiry} (${days_left} days)"
+              ((PASS++))
+            elif [[ "${days_left}" -gt 0 ]]; then
+              echo "  ⚠️  TLS cert expires in ${days_left} days — RENEW URGENTLY"
+            else
+              echo "  ❌ TLS cert EXPIRED: ${cert_expiry}"
+              ((FAIL++))
+            fi
+          else
+            echo "  ⚠️  Could not verify TLS certificate"
+          fi
+
+          echo ""
+          echo "=== Response Times ==="
+          for endpoint in "/" "/api/actuator/health" "/auth/actuator/health"; do
+            t=$(curl -sk -o /dev/null -w "%{time_total}" --max-time 10 "${BASE_URL}${endpoint}" 2>/dev/null || echo "99")
+            ms=$(echo "${t}" | awk '{printf "%.0f", $1 * 1000}')
+            threshold=3000
+            [[ "${endpoint}" != "/" ]] && threshold=1000
+            if [[ "${ms}" -lt "${threshold}" ]]; then
+              echo "  ✅ ${endpoint}  ${t}s"
+            else
+              echo "  ⚠️  ${endpoint}  ${t}s — slow (>${threshold}ms)"
+            fi
+          done
+
+          echo ""
+          echo "Results: PASS=${PASS} FAIL=${FAIL}"
+          echo "pass_count=${PASS}" >> "$GITHUB_OUTPUT"
+          echo "fail_count=${FAIL}" >> "$GITHUB_OUTPUT"
+
+          if [[ "${FAIL}" -gt 0 ]]; then
+            exit 1
+          fi
+
+      # ── Uptime badge update ─────────────────────────────────────────────────
+      - name: Set job summary
+        if: always()
+        run: |
+          {
+            echo "## 🔍 Smoke Test Results — $(date -u '+%Y-%m-%d %H:%M UTC')"
+            echo ""
+            echo "**Target:** \`${BASE_URL}\`"
+            echo ""
+            if [[ "${{ steps.smoke.outcome }}" == "success" && "${{ steps.health-checks.outcome }}" == "success" ]]; then
+              echo "### ✅ All checks passed"
+            else
+              echo "### ❌ Some checks failed — review logs above"
+            fi
+            echo ""
+            echo '```'
+            cat smoke_results.txt 2>/dev/null || echo "(smoke_results.txt not found)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # ── Slack alert on failure ──────────────────────────────────────────────
+      - name: Alert Slack on failure
+        if: failure() && vars.SLACK_ENABLED == 'true'
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            channel: "${{ secrets.SLACK_CHANNEL_ID }}"
+            text: "🚨 *Smoke Test FAILED* — https://svtms.svtrucking.biz is DOWN or degraded"
+            attachments:
+              - color: "danger"
+                fields:
+                  - title: "Target"
+                    value: "${{ env.BASE_URL }}"
+                    short: true
+                  - title: "Time"
+                    value: "${{ github.event.head_commit.timestamp || 'scheduled' }}"
+                    short: true
+                  - title: "Logs"
+                    value: "<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View full logs>"
+                    short: false
+
+      # ── Determine final status ──────────────────────────────────────────────
+      - name: Fail if smoke tests failed
+        if: steps.smoke.outcome == 'failure' || steps.health-checks.outcome == 'failure'
+        run: |
+          echo "::error::Smoke tests failed — see details above"
+          exit 1

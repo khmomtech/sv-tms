@@ -1,0 +1,6 @@
+SELECT CONCAT('INSERT INTO roles (name,description,permissions) VALUES (', QUOTE(name), ',', QUOTE(COALESCE(description, '')), ',', QUOTE(COALESCE(permissions, '')), ') ON DUPLICATE KEY UPDATE description=VALUES(description), permissions=VALUES(permissions);') FROM roles;
+
+SELECT CONCAT('INSERT INTO users (email,password,username,account_non_expired,account_non_locked,credentials_non_expired,enabled,driver_id) VALUES (', QUOTE(email), ',', QUOTE(password), ',', QUOTE(username), ',', (account_non_expired+0), ',', (account_non_locked+0), ',', (credentials_non_expired+0), ',', (enabled+0), ',', IF(driver_id IS NULL, 'NULL', driver_id), ') ON DUPLICATE KEY UPDATE email=VALUES(email), password=VALUES(password), account_non_expired=VALUES(account_non_expired), account_non_locked=VALUES(account_non_locked), credentials_non_expired=VALUES(credentials_non_expired), enabled=VALUES(enabled), driver_id=VALUES(driver_id);') FROM users;
+
+SELECT DISTINCT CONCAT('INSERT INTO user_roles (user_id, role_id) SELECT u.id, r.id FROM users u JOIN roles r WHERE u.username = ', QUOTE(m.username), ' AND r.name = ', QUOTE(m.role_name), ' ON DUPLICATE KEY UPDATE user_id = user_id;')
+FROM (SELECT u.username AS username, r.name AS role_name FROM user_roles ur JOIN users u ON ur.user_id = u.id JOIN roles r ON ur.role_id = r.id) AS m;

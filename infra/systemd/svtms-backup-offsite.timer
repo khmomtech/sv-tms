@@ -1,0 +1,11 @@
+[Unit]
+Description=Run SV-TMS off-site backup sync nightly
+
+[Timer]
+OnCalendar=*-*-* 01:30:00
+Persistent=true
+RandomizedDelaySec=15m
+Unit=svtms-backup-offsite.service
+
+[Install]
+WantedBy=timers.target

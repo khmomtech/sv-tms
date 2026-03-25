@@ -1,0 +1,614 @@
+{
+  "info": {
+    "_postman_id": "e9a6c0b3-9d8d-4f72-90c7-6b6b30c8b2d1",
+    "name": "SV TMS PM E2E",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "adminToken",
+      "value": ""
+    },
+    {
+      "key": "workshopToken",
+      "value": ""
+    },
+    {
+      "key": "driverToken",
+      "value": ""
+    },
+    {
+      "key": "pmRunId",
+      "value": ""
+    },
+    {
+      "key": "pmPlanId",
+      "value": ""
+    },
+    {
+      "key": "relatedWoId",
+      "value": ""
+    },
+    {
+      "key": "mrId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Admin - Plans",
+      "item": [
+        {
+          "name": "List plans",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/pm/plans"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () { pm.response.to.have.status(200); });",
+                  "var json = pm.response.json();",
+                  "pm.test('has data', function () { pm.expect(json.data).to.be.ok; });",
+                  "var content = (json.data && json.data.content) ? json.data.content : [];",
+                  "if (content.length) {",
+                  "  var plan = content.find(p => p.checklistTemplateId) || content[0];",
+                  "  pm.environment.set('pmPlanId', plan.pmPlanId);",
+                  "  pm.environment.set('vehicleId', plan.vehicleId);",
+                  "  if (plan.checklistTemplateId) { pm.environment.set('checklistTemplateId', plan.checklistTemplateId); }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create plan",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vehicleId\": {{vehicleId}},\n  \"planName\": \"QA Engine Oil\",\n  \"itemCode\": \"QA_ENGINE_OIL\",\n  \"itemName\": \"QA Engine Oil\",\n  \"description\": \"QA plan for checklist enforcement\",\n  \"triggerType\": \"DATE\",\n  \"intervalDays\": 1,\n  \"graceDays\": 0,\n  \"autoCreateWo\": true,\n  \"defaultPriority\": \"MED\",\n  \"status\": \"ACTIVE\",\n  \"checklistTemplateId\": {{checklistTemplateId}}\n}"
+            },
+            "url": "{{baseUrl}}/api/admin/pm/plans"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', function () { pm.response.to.have.status(201); });",
+                  "var json = pm.response.json();",
+                  "if (json.data && json.data.pmPlanId) { pm.environment.set('pmPlanId', json.data.pmPlanId); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update plan (set lastCompletedAt to 2026-02-02)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lastCompletedAt\": \"2026-02-02T00:00:00\"\n}"
+            },
+            "url": "{{baseUrl}}/api/admin/pm/plans/{{pmPlanId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Pause plan",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/pm/plans/{{pmPlanId}}/pause"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Resume plan",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/pm/plans/{{pmPlanId}}/resume"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Admin - Runs",
+      "item": [
+        {
+          "name": "Generate runs",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lookaheadDays\": 7\n}"
+            },
+            "url": "{{baseUrl}}/api/admin/pm/runs/generate"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () { pm.response.to.have.status(200); });",
+                  "var json = pm.response.json();",
+                  "pm.test('has data', function () { pm.expect(json.data).to.be.ok; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List DUE runs (vehicle)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/pm/runs?status=DUE&vehicleId={{vehicleId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () { pm.response.to.have.status(200); });",
+                  "var json = pm.response.json();",
+                  "var content = (json.data && json.data.content) ? json.data.content : [];",
+                  "var run = content.find(r => r.pmPlanId == pm.environment.get('pmPlanId')) || content[0];",
+                  "if (run) {",
+                  "  pm.environment.set('pmRunId', run.pmRunId);",
+                  "  if (run.relatedWoId) pm.environment.set('relatedWoId', run.relatedWoId);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get run detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/pm/runs/{{pmRunId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () { pm.response.to.have.status(200); });",
+                  "var json = pm.response.json();",
+                  "var items = json.data && json.data.checklistItems ? json.data.checklistItems : [];",
+                  "if (items.length) {",
+                  "  pm.environment.set('checklistItemId1', items[0].checklistItemId);",
+                  "  if (items[1]) pm.environment.set('checklistItemId2', items[1].checklistItemId);",
+                  "  if (items[2]) pm.environment.set('checklistItemId3', items[2].checklistItemId);",
+                  "  if (items[3]) pm.environment.set('checklistItemId4', items[3].checklistItemId);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create WO from run",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/pm/runs/{{pmRunId}}/create-wo"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () { pm.response.to.have.status(200); });",
+                  "var json = pm.response.json();",
+                  "if (json.data && json.data.relatedWoId) pm.environment.set('relatedWoId', json.data.relatedWoId);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Workshop - Execution",
+      "item": [
+        {
+          "name": "Start run",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{workshopToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/workshop/pm/runs/{{pmRunId}}/start"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Complete run (valid checklist)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{workshopToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"performedAt\": \"2026-02-04T10:00:00\",\n  \"performedKm\": 196900,\n  \"notes\": \"QA completion\",\n  \"checklistResults\": [\n    {\n      \"checklistItemId\": {{checklistItemId1}},\n      \"checkedBool\": true\n    },\n    {\n      \"checklistItemId\": {{checklistItemId2}},\n      \"checkedBool\": true\n    },\n    {\n      \"checklistItemId\": {{checklistItemId3}},\n      \"checkedBool\": true\n    },\n    {\n      \"checklistItemId\": {{checklistItemId4}},\n      \"checkedBool\": true\n    }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/api/workshop/pm/runs/{{pmRunId}}/complete"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () { pm.response.to.have.status(200); });",
+                  "var json = pm.response.json();",
+                  "pm.test('status COMPLETED', function () { pm.expect(json.data.status).to.eql('COMPLETED'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Complete run (invalid checklist -> 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{workshopToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"performedAt\": \"2026-02-04T10:30:00\",\n  \"performedKm\": 196920,\n  \"notes\": \"QA invalid completion\",\n  \"checklistResults\": [\n    {\n      \"checklistItemId\": {{checklistItemId1}},\n      \"checkedBool\": true\n    }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/api/workshop/pm/runs/{{pmRunId}}/complete"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('required error', function () { pm.expect(pm.response.text()).to.include('required'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Skip run (reason required)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{workshopToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"skipReason\": \"QA skip for parts\"\n}"
+            },
+            "url": "{{baseUrl}}/api/workshop/pm/runs/{{pmRunId}}/skip"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reschedule run",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{workshopToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rescheduledToDate\": \"2026-02-10\",\n  \"note\": \"QA reschedule\"\n}"
+            },
+            "url": "{{baseUrl}}/api/workshop/pm/runs/{{pmRunId}}/reschedule"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Admin - Dashboard/Calendar",
+      "item": [
+        {
+          "name": "Dashboard KPI",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/pm/dashboard"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () { pm.response.to.have.status(200); });",
+                  "var json = pm.response.json();",
+                  "pm.test('has KPI fields', function () { pm.expect(json.data).to.have.property('okCount'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Calendar month view",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/pm/calendar?month=2026-02"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Driver - Inspection",
+      "item": [
+        {
+          "name": "Submit inspection - all OK",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vehicleId\": {{vehicleId}},\n  \"notes\": \"QA inspection OK\",\n  \"items\": [\n    {\n      \"category\": \"Brakes\",\n      \"itemKey\": \"BRAKE_AIR\",\n      \"itemLabelKm\": \"Brake air pressure\",\n      \"result\": \"OK\",\n      \"severity\": \"LOW\"\n    }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/api/driver/inspections/daily"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () { pm.response.to.have.status(200); });",
+                  "var json = pm.response.json();",
+                  "pm.test('no MR created', function () { pm.expect(json.data.maintenanceRequest).to.be.null; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Submit inspection - ISSUE creates MR",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vehicleId\": {{vehicleId}},\n  \"notes\": \"QA inspection issue\",\n  \"items\": [\n    {\n      \"category\": \"Brakes\",\n      \"itemKey\": \"BRAKE_AIR\",\n      \"itemLabelKm\": \"Brake air pressure\",\n      \"result\": \"ISSUE\",\n      \"severity\": \"HIGH\",\n      \"remark\": \"Air pressure low\"\n    }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/api/driver/inspections/daily"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', function () { pm.response.to.have.status(200); });",
+                  "var json = pm.response.json();",
+                  "if (json.data && json.data.maintenanceRequest && json.data.maintenanceRequest.id) {",
+                  "  pm.environment.set('mrId', json.data.maintenanceRequest.id);",
+                  "}",
+                  "pm.test('MR created', function () { pm.expect(json.data.maintenanceRequest).to.be.ok; });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

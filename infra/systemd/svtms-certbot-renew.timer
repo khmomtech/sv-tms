@@ -1,0 +1,11 @@
+[Unit]
+Description=Run SV-TMS TLS renewal twice daily
+
+[Timer]
+OnCalendar=*-*-* 03,15:00:00
+Persistent=true
+RandomizedDelaySec=15m
+Unit=svtms-certbot-renew.service
+
+[Install]
+WantedBy=timers.target

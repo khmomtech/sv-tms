@@ -1,0 +1,91 @@
+version: '3.8'
+
+services:
+  # MySQL test database
+  mysql-test:
+    image: mysql:8.0
+    container_name: tms-mysql-test
+    environment:
+      MYSQL_ROOT_PASSWORD: test_root_password
+      MYSQL_DATABASE: tms_test
+      MYSQL_USER: tms_test
+      MYSQL_PASSWORD: test_password
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql-test-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - test-network
+
+  # Redis test cache
+  redis-test:
+    image: redis:7-alpine
+    container_name: tms-redis-test
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - test-network
+
+  # Core API test service
+  core-api-test:
+    build:
+      context: ./tms-core-api
+      dockerfile: Dockerfile
+    container_name: tms-core-api-test
+    environment:
+      SPRING_PROFILES_ACTIVE: test
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-test:3306/tms_test
+      SPRING_DATASOURCE_USERNAME: tms_test
+      SPRING_DATASOURCE_PASSWORD: test_password
+      SPRING_DATA_REDIS_HOST: redis-test
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_JPA_HIBERNATE_DDL_AUTO: create-drop
+      SERVER_PORT: 8080
+    ports:
+      - "8081:8080"
+    depends_on:
+      mysql-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    networks:
+      - test-network
+
+  # Admin web UI test service
+  admin-web-ui-test:
+    build:
+      context: ./tms-admin-web-ui
+      dockerfile: Dockerfile
+    container_name: tms-admin-web-ui-test
+    environment:
+      NODE_ENV: test
+      API_BASE_URL: http://core-api-test:8080
+    ports:
+      - "4201:4200"
+    depends_on:
+      core-api-test:
+        condition: service_healthy
+    networks:
+      - test-network
+
+volumes:
+  mysql-test-data:
+
+networks:
+  test-network:
+    driver: bridge

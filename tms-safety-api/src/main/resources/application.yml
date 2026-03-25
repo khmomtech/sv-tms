@@ -1,0 +1,21 @@
+
+app:
+  driver:
+    skip-device-check: true
+    login-bypass: true
+  security:
+    jwt:
+      access-ttl-ms: ${JWT_ACCESS_TTL_MS:900000}
+      refresh-ttl-ms: ${JWT_REFRESH_TTL_MS:1209600000}
+      allowed-clock-skew-seconds: ${JWT_SKEW_SECONDS:60}
+
+spring:
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    deserialization:
+      adjust-dates-to-context-time-zone: false
+    date-format: yyyy-MM-dd'T'HH:mm:ss
+    time-zone: UTC
+  jpa:
+    open-in-view: false

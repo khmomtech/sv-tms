@@ -1,0 +1,103 @@
+name: Monorepo CI
+
+# NOTE: This workflow is superseded by ci-cd.yml.
+# Redirects to the authoritative workflow via workflow_call.
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+# Redirect to the authoritative ci-cd.yml pipeline.
+# All CI logic lives in ci-cd.yml to avoid duplicate runs.
+jobs:
+  backend:
+    name: Backend (Spring Boot)
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ciroot
+          MYSQL_DATABASE: svtms_test
+          MYSQL_USER: svtms
+          MYSQL_PASSWORD: svtms
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -uroot -pciroot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Build & Test
+        env:
+          SPRING_DATASOURCE_URL: jdbc:mysql://127.0.0.1:3306/svtms_test?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+          SPRING_DATASOURCE_USERNAME: svtms
+          SPRING_DATASOURCE_PASSWORD: svtms
+          SPRING_DATA_REDIS_HOST: 127.0.0.1
+          SPRING_DATA_REDIS_PORT: 6379
+          SPRING_PROFILES_ACTIVE: test
+        run: mvn -B -ntp -T 1C verify --fail-at-end
+
+  angular:
+    name: Angular Web (lint + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tms-admin-web-ui
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: tms-admin-web-ui/package-lock.json
+      - name: Install deps
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Build
+        run: npm run build -- --configuration production
+
+  flutter:
+    name: Flutter Driver App
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tms_driver_app
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Flutter 3.24.5
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.5'
+          channel: stable
+          cache: true
+      - name: Flutter pub get
+        run: flutter pub get
+      - name: Analyze
+        run: flutter analyze --no-pub
+      - name: Test
+        run: flutter test --no-pub

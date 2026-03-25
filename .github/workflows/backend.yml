@@ -1,0 +1,110 @@
+name: Backend CI
+
+# Scoped workflow for Java backend modules.
+# Triggers on changes to any Java module under the monorepo root.
+# Superseded by ci-cd.yml for full platform builds; this workflow
+# is kept for fast per-module feedback on PRs.
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'tms-core-api/**'
+      - 'tms-auth-api/**'
+      - 'tms-driver-app-api/**'
+      - 'tms-message-api/**'
+      - 'tms-safety-api/**'
+      - 'tms-telematics-api/**'
+      - 'api-gateway/**'
+      - 'tms-backend-shared/**'
+      - 'pom.xml'
+  pull_request:
+    paths:
+      - 'tms-core-api/**'
+      - 'tms-auth-api/**'
+      - 'tms-driver-app-api/**'
+      - 'tms-message-api/**'
+      - 'tms-safety-api/**'
+      - 'tms-telematics-api/**'
+      - 'api-gateway/**'
+      - 'tms-backend-shared/**'
+      - 'pom.xml'
+  workflow_call: {}
+
+jobs:
+  build-and-test:
+    name: Build & Test (Maven verify)
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ciroot
+          MYSQL_DATABASE: svtms_test
+          MYSQL_USER: svtms
+          MYSQL_PASSWORD: svtms
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -uroot -pciroot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: temurin
+          cache: maven
+
+      - name: Build and test (Maven verify)
+        env:
+          SPRING_DATASOURCE_URL: jdbc:mysql://127.0.0.1:3306/svtms_test?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+          SPRING_DATASOURCE_USERNAME: svtms
+          SPRING_DATASOURCE_PASSWORD: svtms
+          SPRING_DATA_REDIS_HOST: 127.0.0.1
+          SPRING_DATA_REDIS_PORT: 6379
+          SPRING_PROFILES_ACTIVE: test
+        run: mvn -B -ntp -T 1C verify --fail-at-end
+
+      - name: Upload Surefire reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-surefire-reports
+          path: '**/target/surefire-reports/**/*.xml'
+          retention-days: 7
+
+      - name: Export OpenAPI spec (tms-core-api)
+        if: github.event_name != 'pull_request'
+        run: |
+          mvn -B -ntp -pl tms-core-api -am -DskipTests spring-boot:run \
+            -Dspring-boot.run.arguments="--server.port=8080 --spring.profiles.active=openapi" &
+          for i in $(seq 1 20); do
+            sleep 5
+            if curl -fsS http://127.0.0.1:8080/actuator/health 2>/dev/null | grep -q '"status":"UP"'; then
+              break
+            fi
+          done
+          curl -fsS -o api/tms-core-api-openapi.json http://127.0.0.1:8080/v3/api-docs || \
+            echo "OpenAPI export failed – server may not have started"
+          pkill -f spring-boot || true
+
+      - name: Upload OpenAPI spec
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: openapi-spec
+          path: api/tms-core-api-openapi.json

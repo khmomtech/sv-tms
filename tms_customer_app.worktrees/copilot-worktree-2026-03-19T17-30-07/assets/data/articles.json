@@ -1,0 +1,20 @@
+[
+  {
+    "id": 1,
+    "title": "How to book a shipment",
+    "summary": "A short guide to creating a booking in the app",
+    "content": "Step-by-step: choose service, enter pickup and delivery, confirm price, and track your shipment in the app."
+  },
+  {
+    "id": 2,
+    "title": "Getting accurate tracking",
+    "summary": "Tips to make sure you receive reliable tracking updates",
+    "content": "Ensure correct pickup/delivery addresses, enable location permissions, and refresh the tracking screen if needed."
+  },
+  {
+    "id": 3,
+    "title": "Preparing documents for shipment",
+    "summary": "Checklist of documents commonly required for logistics",
+    "content": "Keep invoice, packing list, and any required permits ready to avoid delays during pickup and customs."
+  }
+]

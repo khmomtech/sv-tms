@@ -1,0 +1,147 @@
+name: Security Scan
+
+# Scheduled and on-demand security scanning:
+#   - Trivy: filesystem vulnerability scan (CVE detection in dependencies)
+#   - Trivy: Docker image scans after push to GHCR
+#   - Gitleaks: secrets/credentials detection in git history
+#   - OWASP Dependency-Check: Java/npm CVE report
+
+on:
+  schedule:
+    - cron: '0 3 * * 1'   # Every Monday at 03:00 UTC
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write   # SARIF upload to GitHub Security tab
+
+env:
+  JAVA_VERSION: '21'
+  NODE_VERSION: '20'
+
+jobs:
+
+# ── trivy-fs ──────────────────────────────────────────────────────────────────
+  trivy-filesystem:
+    name: Trivy – Filesystem Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scan filesystem for vulnerabilities
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: trivy-fs.sarif
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: '0'   # don't block – report only
+
+      - name: Upload SARIF to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-fs.sarif
+          category: trivy-filesystem
+
+      - name: Print summary table
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: table
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+
+# ── gitleaks ──────────────────────────────────────────────────────────────────
+  gitleaks:
+    name: Gitleaks – Secrets Detection
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history scan
+
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+# ── dependency-check ─────────────────────────────────────────────────────────
+  dependency-check:
+    name: OWASP Dependency-Check
+    runs-on: ubuntu-latest
+    # Only on schedule or manual run to avoid slowing every PR
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+
+      - name: OWASP Dependency-Check (Maven plugin)
+        run: |
+          mvn -B -ntp org.owasp:dependency-check-maven:check \
+            -DfailBuildOnCVSS=9 \
+            -DsuppressionFile=.github/owasp-suppressions.xml \
+            -Dformat=HTML \
+            --fail-at-end || true
+
+      - name: Upload Dependency-Check report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: owasp-dependency-check-report
+          path: '**/target/dependency-check-report.html'
+          retention-days: 30
+
+# ── trivy-images ──────────────────────────────────────────────────────────────
+  trivy-images:
+    name: Trivy – Image Scan (${{ matrix.image }})
+    runs-on: ubuntu-latest
+    # Only scan pushed images (after docker-build job in ci-cd.yml)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - tms-core-api
+          - tms-auth-api
+          - tms-driver-app-api
+          - tms-message-api
+          - api-gateway
+          - tms-telematics-api
+          - tms-safety-api
+          - tms-admin-web-ui
+
+    steps:
+      - name: Scan GHCR image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:latest
+          format: sarif
+          output: trivy-image-${{ matrix.image }}.sarif
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: '0'
+
+      - name: Upload image scan SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-image-${{ matrix.image }}.sarif
+          category: trivy-image-${{ matrix.image }}

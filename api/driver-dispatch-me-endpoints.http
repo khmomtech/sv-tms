@@ -1,0 +1,207 @@
+# Driver Dispatch "Me" Endpoints Integration Tests
+# Tests the new authenticated driver dispatch endpoints that don't require driverId parameter
+
+@host = http://localhost:8080
+@driverUsername = driver1
+@driverPassword = driver123
+
+### 1) Login as Driver
+# First, login to get the authentication token
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "{{driverUsername}}",
+  "password": "{{driverPassword}}"
+}
+
+> {%
+  // Save token for subsequent calls
+  const body = JSON.parse(response.body);
+  if (body && body.token) {
+    client.global.set('driverToken', body.token);
+    client.log('✅ Saved driver token');
+  } else if (body && body.data && body.data.token) {
+    client.global.set('driverToken', body.data.token);
+    client.log('✅ Saved driver token from data.token');
+  } else {
+    client.log('❌ ERROR: Token not found in response');
+    client.log('Response: ' + JSON.stringify(body, null, 2));
+  }
+%}
+
+###
+
+### 2) Get My Pending Dispatches
+# GET /api/driver/dispatches/me/pending
+# Expected: Dispatches with ASSIGNED status
+# Sorted by: startTime DESC
+GET {{host}}/api/driver/dispatches/me/pending?page=0&size=20
+Authorization: Bearer {{driverToken}}
+Accept: application/json
+
+> {%
+  client.test("Request executed successfully", function() {
+    client.assert(response.status === 200, "Response status is not 200");
+  });
+  
+  client.test("Response has content", function() {
+    const body = JSON.parse(response.body);
+    client.assert(body !== null, "Response body should not be null");
+  });
+  
+  client.test("Response is paginated", function() {
+    const body = JSON.parse(response.body);
+    client.assert(body.content !== undefined, "Should have 'content' field");
+    client.log('Pending dispatches count: ' + (body.content ? body.content.length : 0));
+  });
+  
+  client.test("All dispatches have ASSIGNED status", function() {
+    const body = JSON.parse(response.body);
+    if (body.content && body.content.length > 0) {
+      const allAssigned = body.content.every(d => d.status === 'ASSIGNED');
+      client.assert(allAssigned, "All pending dispatches should have ASSIGNED status");
+    }
+  });
+%}
+
+###
+
+### 3) Get My In-Progress Dispatches
+# GET /api/driver/dispatches/me/in-progress
+# Expected: Dispatches with DRIVER_CONFIRMED, ARRIVED_LOADING, LOADING, LOADED, 
+#           IN_TRANSIT, ARRIVED_UNLOADING, UNLOADING, UNLOADED statuses
+# Sorted by: startTime ASC
+GET {{host}}/api/driver/dispatches/me/in-progress?page=0&size=20
+Authorization: Bearer {{driverToken}}
+Accept: application/json
+
+> {%
+  client.test("Request executed successfully", function() {
+    client.assert(response.status === 200, "Response status is not 200");
+  });
+  
+  client.test("Response has content", function() {
+    const body = JSON.parse(response.body);
+    client.assert(body !== null, "Response body should not be null");
+  });
+  
+  client.test("Response is paginated", function() {
+    const body = JSON.parse(response.body);
+    client.assert(body.content !== undefined, "Should have 'content' field");
+    client.log('In-progress dispatches count: ' + (body.content ? body.content.length : 0));
+  });
+  
+  client.test("All dispatches have valid in-progress status", function() {
+    const body = JSON.parse(response.body);
+    const validStatuses = [
+      'DRIVER_CONFIRMED', 'ARRIVED_LOADING', 'LOADING', 'LOADED',
+      'IN_TRANSIT', 'ARRIVED_UNLOADING', 'UNLOADING', 'UNLOADED'
+    ];
+    if (body.content && body.content.length > 0) {
+      const allValid = body.content.every(d => validStatuses.includes(d.status));
+      client.assert(allValid, "All dispatches should have valid in-progress status");
+      
+      // Log statuses for verification
+      const statuses = body.content.map(d => d.status);
+      client.log('Statuses found: ' + JSON.stringify([...new Set(statuses)]));
+    }
+  });
+%}
+
+###
+
+### 4) Get My Completed Dispatches
+# GET /api/driver/dispatches/me/completed
+# Expected: Dispatches with DELIVERED, CLOSED, CANCELLED statuses
+# Sorted by: endTime DESC
+GET {{host}}/api/driver/dispatches/me/completed?page=0&size=20
+Authorization: Bearer {{driverToken}}
+Accept: application/json
+
+> {%
+  client.test("Request executed successfully", function() {
+    client.assert(response.status === 200, "Response status is not 200");
+  });
+  
+  client.test("Response has content", function() {
+    const body = JSON.parse(response.body);
+    client.assert(body !== null, "Response body should not be null");
+  });
+  
+  client.test("Response is paginated", function() {
+    const body = JSON.parse(response.body);
+    client.assert(body.content !== undefined, "Should have 'content' field");
+    client.log('Completed dispatches count: ' + (body.content ? body.content.length : 0));
+  });
+  
+  client.test("All dispatches have valid completed status", function() {
+    const body = JSON.parse(response.body);
+    const validStatuses = ['DELIVERED', 'CLOSED', 'CANCELLED'];
+    if (body.content && body.content.length > 0) {
+      const allValid = body.content.every(d => validStatuses.includes(d.status));
+      client.assert(allValid, "All dispatches should have valid completed status");
+      
+      // Log statuses for verification
+      const statuses = body.content.map(d => d.status);
+      client.log('Statuses found: ' + JSON.stringify([...new Set(statuses)]));
+    }
+  });
+%}
+
+###
+
+### 5) Test with different page sizes
+# Test pagination with size=5
+GET {{host}}/api/driver/dispatches/me/in-progress?page=0&size=5
+Authorization: Bearer {{driverToken}}
+Accept: application/json
+
+> {%
+  client.test("Pagination works correctly", function() {
+    const body = JSON.parse(response.body);
+    client.assert(body.size <= 5, "Page size should respect size parameter");
+    client.log('Total elements: ' + body.totalElements);
+    client.log('Total pages: ' + body.totalPages);
+    client.log('Current page size: ' + (body.content ? body.content.length : 0));
+  });
+%}
+
+###
+
+### 6) Test without authentication (should fail)
+# This should return 401 Unauthorized
+GET {{host}}/api/driver/dispatches/me/pending
+Accept: application/json
+
+> {%
+  client.test("Requires authentication", function() {
+    client.assert(response.status === 401 || response.status === 403, 
+      "Should return 401/403 without authentication");
+    client.log('✅ Endpoint properly secured');
+  });
+%}
+
+###
+
+### 7) Test all endpoints with sort parameter override
+# Test custom sorting on pending dispatches
+GET {{host}}/api/driver/dispatches/me/pending?sort=id,DESC
+Authorization: Bearer {{driverToken}}
+Accept: application/json
+
+###
+
+# Test custom sorting on in-progress dispatches
+GET {{host}}/api/driver/dispatches/me/in-progress?sort=routeCode,ASC
+Authorization: Bearer {{driverToken}}
+Accept: application/json
+
+###
+
+# Test custom sorting on completed dispatches
+GET {{host}}/api/driver/dispatches/me/completed?sort=id,DESC
+Authorization: Bearer {{driverToken}}
+Accept: application/json
+
+###

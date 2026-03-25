@@ -1,0 +1,115 @@
+### Geofence Test API Requests
+
+@baseUrl = http://localhost:8080
+@authToken = YOUR_JWT_TOKEN_HERE
+
+### Health Check
+GET {{baseUrl}}/api/admin/geofences/health
+
+### Create Circular Geofence - Downtown Office
+POST {{baseUrl}}/api/admin/geofences
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+  "partnerCompanyId": 1,
+  "name": "Downtown Office",
+  "description": "Main office zone - alerts on entry and exit",
+  "type": "CIRCLE",
+  "centerLatitude": 11.556374,
+  "centerLongitude": 104.928206,
+  "radiusMeters": 500,
+  "alertType": "BOTH",
+  "active": true
+}
+
+### Create Polygon Geofence - Warehouse District
+POST {{baseUrl}}/api/admin/geofences
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+  "partnerCompanyId": 1,
+  "name": "Warehouse District",
+  "description": "Industrial zone - entry alerts only",
+  "type": "POLYGON",
+  "geoJsonCoordinates": "[[11.550, 104.920], [11.550, 104.930], [11.560, 104.930], [11.560, 104.920], [11.550, 104.920]]",
+  "alertType": "ENTER",
+  "active": true
+}
+
+### Create Speed-Limited Zone
+POST {{baseUrl}}/api/admin/geofences
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+  "partnerCompanyId": 1,
+  "name": "School Zone",
+  "description": "Reduced speed area - 30 km/h limit",
+  "type": "CIRCLE",
+  "centerLatitude": 11.562000,
+  "centerLongitude": 104.935000,
+  "radiusMeters": 300,
+  "alertType": "BOTH",
+  "speedLimitKmh": 30,
+  "active": true
+}
+
+### Create Restricted Area (Exit Alerts Only)
+POST {{baseUrl}}/api/admin/geofences
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+  "partnerCompanyId": 1,
+  "name": "Restricted Area",
+  "description": "High security zone - exit monitoring",
+  "type": "CIRCLE",
+  "centerLatitude": 11.548000,
+  "centerLongitude": 104.925000,
+  "radiusMeters": 400,
+  "alertType": "EXIT",
+  "active": true
+}
+
+### Get All Active Geofences
+GET {{baseUrl}}/api/admin/geofences?companyId=1
+Authorization: Bearer {{authToken}}
+
+### Get Geofences Paginated
+GET {{baseUrl}}/api/admin/geofences/paginated?companyId=1&page=0&size=20
+Authorization: Bearer {{authToken}}
+
+### Get Specific Geofence
+GET {{baseUrl}}/api/admin/geofences/1
+Authorization: Bearer {{authToken}}
+
+### Update Geofence
+PUT {{baseUrl}}/api/admin/geofences/1
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+  "partnerCompanyId": 1,
+  "name": "Downtown Office (Updated)",
+  "description": "Main office zone - updated description",
+  "type": "CIRCLE",
+  "centerLatitude": 11.556374,
+  "centerLongitude": 104.928206,
+  "radiusMeters": 600,
+  "alertType": "BOTH",
+  "active": true
+}
+
+### Delete Geofence (Soft Delete)
+DELETE {{baseUrl}}/api/admin/geofences/1
+Authorization: Bearer {{authToken}}
+
+### Test Coordinates for Crossing Detection
+# These coordinates can be used to simulate driver movement
+# Downtown Office Center: 11.556374, 104.928206 (radius 500m)
+# Point Inside: 11.556500, 104.928300
+# Point Outside: 11.560000, 104.935000
+# Point on Boundary: 11.560874, 104.928206
+

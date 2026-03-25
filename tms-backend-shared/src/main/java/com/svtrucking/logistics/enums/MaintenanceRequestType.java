@@ -1,0 +1,9 @@
+package com.svtrucking.logistics.enums;
+
+public enum MaintenanceRequestType {
+  REPAIR,
+  EMERGENCY,
+  PM,
+  PREVENTIVE,
+  INSPECTION
+}

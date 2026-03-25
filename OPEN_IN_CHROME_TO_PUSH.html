@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SV-TMS → Push to GitHub</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0d1117; color: #e6edf3; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .card { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 40px; max-width: 640px; width: 100%; }
+  h1 { font-size: 22px; margin-bottom: 8px; color: #f0f6fc; }
+  .subtitle { color: #8b949e; font-size: 14px; margin-bottom: 30px; }
+  .step { display: flex; gap: 12px; margin-bottom: 16px; padding: 14px; background: #0d1117; border-radius: 8px; border: 1px solid #21262d; }
+  .step-num { background: #1f6feb; color: white; border-radius: 50%; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+  .step-text { font-size: 14px; line-height: 1.5; color: #c9d1d9; }
+  .step-text strong { color: #f0f6fc; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; background: #238636; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; transition: background 0.15s; width: 100%; justify-content: center; margin-top: 20px; }
+  .btn:hover:not(:disabled) { background: #2ea043; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-secondary { background: #21262d; border: 1px solid #30363d; margin-top: 10px; }
+  .btn-secondary:hover:not(:disabled) { background: #30363d; }
+  .progress-section { display: none; margin-top: 24px; }
+  .progress-bar-bg { background: #21262d; border-radius: 6px; height: 10px; overflow: hidden; }
+  .progress-bar { background: #238636; height: 100%; border-radius: 6px; transition: width 0.3s; width: 0%; }
+  .status-text { font-size: 13px; color: #8b949e; margin-top: 8px; }
+  .log { background: #0d1117; border: 1px solid #21262d; border-radius: 6px; padding: 12px; margin-top: 16px; height: 180px; overflow-y: auto; font-family: 'SF Mono', monospace; font-size: 12px; line-height: 1.6; }
+  .log-entry { color: #8b949e; }
+  .log-entry.ok { color: #3fb950; }
+  .log-entry.err { color: #f85149; }
+  .log-entry.info { color: #58a6ff; }
+  .success-box { display: none; background: #0d1117; border: 1px solid #238636; border-radius: 8px; padding: 20px; margin-top: 20px; text-align: center; }
+  .success-box .icon { font-size: 36px; margin-bottom: 8px; }
+  .success-box h2 { color: #3fb950; margin-bottom: 8px; }
+  .success-box p { color: #8b949e; font-size: 13px; margin-bottom: 4px; }
+  .success-box a { color: #58a6ff; }
+  .warning { background: #2d1f00; border: 1px solid #9e6a03; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; font-size: 13px; color: #d29922; display: none; }
+  .filter-info { font-size: 12px; color: #6e7681; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>🚀 SV-TMS → Push to GitHub</h1>
+  <p class="subtitle">Pushes your code to <strong>khmomtech/sv-tms</strong> · Triggers automatic deployment</p>
+
+  <div id="warning-box" class="warning" style="display:block">
+    ⚠️ This page must be opened in <strong>Chrome or Edge</strong> (requires FileSystem Access API). Firefox is not supported.
+  </div>
+
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-text">Click <strong>"Select Project Folder"</strong> below</div>
+  </div>
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-text">A folder picker will open. Navigate to your <strong>sv-tms</strong> folder and click <strong>"Select Folder"</strong></div>
+  </div>
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-text">Click <strong>"Push to GitHub"</strong> and wait ~3-5 minutes while files upload</div>
+  </div>
+  <div class="step">
+    <div class="step-num">4</div>
+    <div class="step-text">GitHub Actions builds and deploys automatically (~35 min). Watch at <a href="https://github.com/khmomtech/sv-tms/actions" target="_blank" style="color:#58a6ff">github.com/khmomtech/sv-tms/actions</a></div>
+  </div>
+
+  <p class="filter-info">Automatically skips: node_modules, .git directories, build/target folders, .DS_Store, *.class, *.jar files</p>
+
+  <button class="btn btn-secondary" id="selectBtn" onclick="selectFolder()">📁 Step 1: Select Project Folder</button>
+  <div id="folder-selected" style="display:none; margin-top:10px; font-size:13px; color:#3fb950; padding:8px 12px; background:#0d1117; border-radius:6px; border:1px solid #238636;">
+    ✅ Folder selected: <span id="folder-name"></span> (<span id="file-count"></span> files ready)
+  </div>
+  <button class="btn" id="pushBtn" onclick="startPush()" disabled>🚀 Step 2: Push to GitHub</button>
+
+  <div class="progress-section" id="progress-section">
+    <div class="progress-bar-bg"><div class="progress-bar" id="progress-bar"></div></div>
+    <div class="status-text" id="status-text">Starting...</div>
+    <div class="log" id="log"></div>
+  </div>
+
+  <div class="success-box" id="success-box">
+    <div class="icon">🎉</div>
+    <h2>Successfully pushed to GitHub!</h2>
+    <p>GitHub Actions is now building and deploying your app.</p>
+    <p style="margin-top:12px"><a href="https://github.com/khmomtech/sv-tms/actions" target="_blank">→ Watch the pipeline run</a></p>
+    <p><a href="https://svtms.svtrucking.biz" target="_blank">→ Check https://svtms.svtrucking.biz (live in ~35 min)</a></p>
+  </div>
+</div>
+
+<script>
+const TOKEN = 'YOUR_GITHUB_TOKEN_HERE'; // Replace with your PAT before use
+const OWNER = 'khmomtech';
+const REPO  = 'sv-tms';
+const BRANCH = 'main';
+const API = 'https://api.github.com';
+
+const SKIP_DIRS  = new Set(['.git', 'node_modules', 'target', 'build', 'dist', '__pycache__', '.gradle', '.idea', '.vscode', 'out', 'bin', '.angular', 'vendor', 'Pods', '.dart_tool', '.pub-cache']);
+const SKIP_EXTS  = new Set(['.class', '.jar', '.war', '.ear', '.zip', '.tar', '.gz', '.bz2', '.7z', '.rar', '.DS_Store', '.ico_cache', '.bundle', '.apk', '.ipa', '.exe', '.dll', '.so', '.dylib', '.pdf', '.png', '.jpg', '.jpeg', '.gif', '.ico', '.mp4', '.mp3', '.mov', '.avi']);
+const SKIP_FILES = new Set(['.DS_Store', 'Thumbs.db', 'OPEN_IN_CHROME_TO_PUSH.html', 'sv-tms-github.bundle', 'PUSH_TO_GITHUB.sh', 'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml']);
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB max per file (GitHub blob API limit is 100MB but large files are slow)
+
+let allFiles = [];
+let dirHandle = null;
+
+function log(msg, type = '') {
+  const el = document.getElementById('log');
+  const d = document.createElement('div');
+  d.className = 'log-entry ' + type;
+  d.textContent = new Date().toLocaleTimeString() + ' ' + msg;
+  el.appendChild(d);
+  el.scrollTop = el.scrollHeight;
+}
+
+function setStatus(msg) { document.getElementById('status-text').textContent = msg; }
+function setProgress(pct) { document.getElementById('progress-bar').style.width = pct + '%'; }
+
+async function selectFolder() {
+  try {
+    dirHandle = await window.showDirectoryPicker();
+    document.getElementById('folder-name').textContent = dirHandle.name;
+    document.getElementById('folder-selected').style.display = 'block';
+    document.getElementById('selectBtn').textContent = '🔄 Re-select Folder';
+
+    log('Scanning files...', 'info');
+    allFiles = [];
+    await collectFiles(dirHandle, '');
+    document.getElementById('file-count').textContent = allFiles.length.toLocaleString();
+    log(`Found ${allFiles.length} files to push`, 'ok');
+    document.getElementById('pushBtn').disabled = false;
+  } catch(e) {
+    if (e.name !== 'AbortError') log('Error selecting folder: ' + e.message, 'err');
+  }
+}
+
+async function collectFiles(handle, prefix) {
+  for await (const [name, entry] of handle) {
+    if (entry.kind === 'directory') {
+      if (SKIP_DIRS.has(name)) continue;
+      await collectFiles(entry, prefix ? prefix + '/' + name : name);
+    } else {
+      if (SKIP_FILES.has(name)) continue;
+      const ext = name.includes('.') ? ('.' + name.split('.').pop().toLowerCase()) : '';
+      if (SKIP_EXTS.has(ext)) continue;
+      const filePath = prefix ? prefix + '/' + name : name;
+      allFiles.push({ path: filePath, handle: entry });
+    }
+  }
+}
+
+async function readFileAsBase64(fileHandle) {
+  const file = await fileHandle.getFile();
+  const ab = await file.arrayBuffer();
+  const bytes = new Uint8Array(ab);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
+}
+
+async function ghFetch(path, method, body) {
+  const resp = await fetch(API + path, {
+    method,
+    headers: {
+      'Authorization': 'token ' + TOKEN,
+      'Content-Type': 'application/json',
+      'Accept': 'application/vnd.github.v3+json'
+    },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  const data = await resp.json();
+  if (!resp.ok) throw new Error(`GitHub API ${path}: ${data.message || resp.status}`);
+  return data;
+}
+
+async function createBlob(content) {
+  const resp = await ghFetch(`/repos/${OWNER}/${REPO}/git/blobs`, 'POST', { content, encoding: 'base64' });
+  return resp.sha;
+}
+
+// Initialize empty repo by creating a first commit via the Contents API
+// The Git Data API (blobs/trees) requires at least one commit to exist first
+async function ensureRepoInitialized() {
+  try {
+    await ghFetch(`/repos/${OWNER}/${REPO}/git/ref/heads/${BRANCH}`, 'GET');
+    log('Repository already initialized', 'info');
+  } catch(e) {
+    log('Repository is empty — initializing...', 'info');
+    // Create an initial commit using the Contents API (works on empty repos)
+    await ghFetch(`/repos/${OWNER}/${REPO}/contents/.init`, 'PUT', {
+      message: 'Initialize repository',
+      content: btoa('init'),
+      branch: BRANCH
+    });
+    log('Repository initialized ✓', 'ok');
+    // Small delay to let GitHub process the initial commit
+    await new Promise(r => setTimeout(r, 1500));
+  }
+}
+
+async function startPush() {
+  if (!dirHandle || allFiles.length === 0) { alert('Please select a folder first'); return; }
+
+  document.getElementById('pushBtn').disabled = true;
+  document.getElementById('selectBtn').disabled = true;
+  document.getElementById('progress-section').style.display = 'block';
+  document.getElementById('success-box').style.display = 'none';
+
+  try {
+    // Step 0: Ensure repo has at least one commit (required for Git Data API)
+    await ensureRepoInitialized();
+
+    // Step 1: Create blobs for all files (10 at a time)
+    log(`Uploading ${allFiles.length} files to GitHub...`, 'info');
+    const treeParts = [];
+    const CONCURRENCY = 10;
+
+    let skipped = 0;
+    for (let i = 0; i < allFiles.length; i += CONCURRENCY) {
+      const batch = allFiles.slice(i, i + CONCURRENCY);
+      const results = await Promise.allSettled(batch.map(async f => {
+        const file = await f.handle.getFile();
+        if (file.size > MAX_FILE_SIZE) {
+          return null; // skip large files silently
+        }
+        const b64 = await readFileAsBase64(f.handle);
+        const sha = await createBlob(b64);
+        return { path: f.path, mode: '100644', type: 'blob', sha };
+      }));
+      for (const r of results) {
+        if (r.status === 'fulfilled' && r.value) treeParts.push(r.value);
+        else if (r.status === 'rejected') { skipped++; }
+        else if (r.value === null) { skipped++; }
+      }
+      const pct = Math.round((i + batch.length) / allFiles.length * 80);
+      setProgress(pct);
+      setStatus(`Uploading files... ${i + batch.length} / ${allFiles.length} (${skipped} skipped)`);
+      if ((i % 200) === 0 || i + CONCURRENCY >= allFiles.length) {
+        log(`Uploaded ${treeParts.length} files (${skipped} skipped) of ${allFiles.length}`, 'ok');
+      }
+    }
+    log(`Upload complete: ${treeParts.length} files, ${skipped} skipped`, 'ok');
+
+    // Step 2: Get current commit SHA (or create empty base)
+    log('Creating git tree...', 'info');
+    setStatus('Creating git tree...');
+    setProgress(82);
+
+    let baseTreeSha = null;
+    let baseSha = null;
+    try {
+      const ref = await ghFetch(`/repos/${OWNER}/${REPO}/git/ref/heads/${BRANCH}`, 'GET');
+      baseSha = ref.object.sha;
+      const commit = await ghFetch(`/repos/${OWNER}/${REPO}/git/commits/${baseSha}`, 'GET');
+      baseTreeSha = commit.tree.sha;
+    } catch(e) {
+      log('No existing commits found - creating first commit', 'info');
+    }
+
+    // Step 3: Create tree
+    const treeBody = { tree: treeParts };
+    if (baseTreeSha) treeBody.base_tree = baseTreeSha;
+    const treeResp = await ghFetch(`/repos/${OWNER}/${REPO}/git/trees`, 'POST', treeBody);
+    log('Tree created: ' + treeResp.sha.substring(0, 8), 'ok');
+    setProgress(88);
+
+    // Step 4: Create commit
+    setStatus('Creating commit...');
+    const commitBody = {
+      message: 'Initial commit: SV-TMS platform - complete microservices stack\n\nPushed via browser uploader',
+      tree: treeResp.sha,
+      author: { name: 'Sothea KHET', email: 'khetsothea@gmail.com', date: new Date().toISOString() }
+    };
+    if (baseSha) commitBody.parents = [baseSha];
+    const commitResp = await ghFetch(`/repos/${OWNER}/${REPO}/git/commits`, 'POST', commitBody);
+    log('Commit created: ' + commitResp.sha.substring(0, 8), 'ok');
+    setProgress(94);
+
+    // Step 5: Update branch ref
+    setStatus('Updating branch...');
+    try {
+      await ghFetch(`/repos/${OWNER}/${REPO}/git/refs/heads/${BRANCH}`, 'PATCH', { sha: commitResp.sha, force: true });
+    } catch(e) {
+      // Branch doesn't exist yet - create it
+      await ghFetch(`/repos/${OWNER}/${REPO}/git/refs`, 'POST', { ref: `refs/heads/${BRANCH}`, sha: commitResp.sha });
+    }
+    log('Branch updated → main', 'ok');
+    setProgress(100);
+
+    setStatus('✅ Done! GitHub Actions is now running.');
+    document.getElementById('success-box').style.display = 'block';
+    log('🎉 Push complete! GitHub Actions will build and deploy in ~35 minutes.', 'ok');
+
+  } catch(e) {
+    log('❌ Error: ' + e.message, 'err');
+    setStatus('Error: ' + e.message);
+    document.getElementById('pushBtn').disabled = false;
+    document.getElementById('selectBtn').disabled = false;
+  }
+}
+
+// Check browser compatibility
+if (!window.showDirectoryPicker) {
+  document.getElementById('warning-box').innerHTML = '❌ <strong>This browser is not supported.</strong> Please open this file in <strong>Chrome</strong> or <strong>Edge</strong> (version 86+). Firefox does not support the FileSystem Access API.';
+  document.getElementById('warning-box').style.background = '#3d1a1a';
+  document.getElementById('warning-box').style.borderColor = '#f85149';
+  document.getElementById('warning-box').style.color = '#f85149';
+}
+</script>
+</body>
+</html>

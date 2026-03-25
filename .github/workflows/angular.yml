@@ -1,0 +1,37 @@
+name: Frontend CI
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths: [ 'tms-frontend/**' ]
+  pull_request:
+    paths: [ 'tms-frontend/**' ]
+  workflow_call:
+    inputs: {}
+    secrets: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: tms-frontend/package-lock.json
+      - name: Install dependencies
+        run: |
+          cd tms-frontend
+          npm ci
+      - name: Lint and Build
+        run: |
+          cd tms-frontend
+          npm run lint
+          npm run build -- --configuration production
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: angular-build
+          path: tms-frontend/dist/

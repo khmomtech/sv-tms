@@ -1,0 +1,27 @@
+name: customer_app CI
+on:
+  push:
+    paths:
+      - 'customer_app/**'
+  pull_request:
+    paths:
+      - 'customer_app/**'
+
+jobs:
+  analyze-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: stable
+      - name: Install dependencies
+        working-directory: customer_app
+        run: flutter pub get
+      - name: Analyze
+        working-directory: customer_app
+        run: flutter analyze
+      - name: Run tests
+        working-directory: customer_app
+        run: flutter test --coverage

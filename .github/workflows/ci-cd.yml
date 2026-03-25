@@ -1,0 +1,552 @@
+name: Platform CI/CD
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Authoritative CI/CD pipeline for SV-TMS.
+#
+# Jobs (run order):
+#   test-backend      – Maven verify (unit + integration) with MySQL + Redis
+#   test-angular      – Angular lint + unit tests + production build
+#   test-flutter      – Flutter analyze + unit tests (driver & customer apps)
+#   flyway-validate   – Flyway migration dry-run against clean MySQL
+#   security-scan     – Trivy filesystem scan + gitleaks secrets detection
+#   compose-validate  – docker compose config dry-run on all compose files
+#   docker-build      – Build & push Docker images to GHCR (non-PR only)
+#   deploy-staging    – Auto-deploy to staging on `develop` push
+#   deploy-production – Deploy to production on `main` with manual approval gate
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  push:
+    branches: [main, develop]
+    tags: ['v*.*.*']
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      deploy_env:
+        description: 'Target environment'
+        required: false
+        default: staging
+        type: choice
+        options: [staging, production]
+
+concurrency:
+  group: platform-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+  security-events: write   # SARIF upload
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_BASE: ghcr.io/${{ github.repository_owner }}
+  JAVA_VERSION: '21'
+  NODE_VERSION: '20'
+  FLUTTER_VERSION: '3.24.5'
+
+# =============================================================================
+jobs:
+
+# ── test-backend ──────────────────────────────────────────────────────────────
+  test-backend:
+    name: Backend – Test & Verify
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ciroot
+          MYSQL_DATABASE: svtms_test
+          MYSQL_USER: svtms
+          MYSQL_PASSWORD: svtms
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -uroot -pciroot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+
+      - name: Run tests (Maven verify)
+        env:
+          SPRING_DATASOURCE_URL: jdbc:mysql://127.0.0.1:3306/svtms_test?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+          SPRING_DATASOURCE_USERNAME: svtms
+          SPRING_DATASOURCE_PASSWORD: svtms
+          SPRING_DATA_REDIS_HOST: 127.0.0.1
+          SPRING_DATA_REDIS_PORT: 6379
+          SPRING_PROFILES_ACTIVE: test
+        run: mvn -B -ntp -T 1C verify --fail-at-end
+
+      - name: Upload Surefire reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-test-reports
+          path: '**/target/surefire-reports/**/*.xml'
+          retention-days: 7
+
+# ── test-angular ─────────────────────────────────────────────────────────────
+  test-angular:
+    name: Angular UI – Lint, Test & Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tms-admin-web-ui
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: tms-admin-web-ui/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests (ChromeHeadless + coverage)
+        run: npm run test -- --watch=false --browsers=ChromeHeadless --code-coverage
+
+      - name: Production build
+        run: npm run build -- --configuration production
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tms-admin-web-ui-dist
+          path: tms-admin-web-ui/dist/
+          retention-days: 7
+
+# ── test-flutter ─────────────────────────────────────────────────────────────
+  test-flutter:
+    name: Flutter – Analyze & Test (${{ matrix.app }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [tms_driver_app, tms_customer_app]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter ${{ env.FLUTTER_VERSION }}
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        working-directory: ${{ matrix.app }}
+        run: flutter pub get
+
+      - name: Analyze
+        working-directory: ${{ matrix.app }}
+        run: flutter analyze --no-pub
+
+      - name: Run tests
+        working-directory: ${{ matrix.app }}
+        run: flutter test --no-pub
+
+# ── flyway-validate ───────────────────────────────────────────────────────────
+  flyway-validate:
+    name: Flyway – Migration Validation
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ciroot
+          MYSQL_DATABASE: svtms_flyway_ci
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -uroot -pciroot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+
+      - name: Check for duplicate migration version numbers
+        run: |
+          echo "Scanning for duplicate Flyway version numbers..."
+          DUPES=$(find . -path "*/db/migration/V*.sql" -not -path "*/node_modules/*" | \
+            sed 's/.*\/V\([0-9]*\)__.*/\1/' | sort | uniq -d)
+          if [ -n "$DUPES" ]; then
+            echo "ERROR: Duplicate migration version(s): $DUPES"
+            find . -path "*/db/migration/V*.sql" -not -path "*/node_modules/*" | sort
+            exit 1
+          fi
+          echo "OK – no duplicate versions."
+
+      - name: Compile (triggers Flyway on startup via test-compile)
+        env:
+          SPRING_DATASOURCE_URL: jdbc:mysql://127.0.0.1:3306/svtms_flyway_ci?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+          SPRING_DATASOURCE_USERNAME: root
+          SPRING_DATASOURCE_PASSWORD: ciroot
+          SPRING_FLYWAY_VALIDATE_ON_MIGRATE: 'true'
+          SPRING_PROFILES_ACTIVE: ci
+        run: |
+          mvn -B -ntp -pl tms-core-api -am -DskipTests \
+            -Dspring.datasource.url="${SPRING_DATASOURCE_URL}" \
+            -Dspring.datasource.username="${SPRING_DATASOURCE_USERNAME}" \
+            -Dspring.datasource.password="${SPRING_DATASOURCE_PASSWORD}" \
+            test-compile
+
+# ── security-scan ─────────────────────────────────────────────────────────────
+  security-scan:
+    name: Security – Trivy + Gitleaks
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # gitleaks needs full history
+
+      - name: Trivy – filesystem vulnerability scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: trivy-fs.sarif
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+
+      - name: Upload Trivy SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-fs.sarif
+
+      - name: Gitleaks – secrets detection
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+# ── compose-validate ──────────────────────────────────────────────────────────
+  compose-validate:
+    name: Compose – Validate all configs
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate docker-compose.local-dev.yml
+        run: docker compose -f docker-compose.local-dev.yml config >/dev/null
+
+      - name: Validate docker-compose.dev.yml
+        run: docker compose -f docker-compose.dev.yml config >/dev/null
+
+      - name: Validate infra/docker-compose.prod.yml
+        run: |
+          cp infra/.env.example infra/.env.ci
+          docker compose --env-file infra/.env.ci -f infra/docker-compose.prod.yml config >/dev/null
+
+# ── docker-build ──────────────────────────────────────────────────────────────
+  docker-build:
+    name: Docker – Build & Push (${{ matrix.image }})
+    runs-on: ubuntu-latest
+    needs: [test-backend, test-angular, flyway-validate, compose-validate]
+    if: github.event_name != 'pull_request'
+
+    outputs:
+      image_tag: ${{ steps.meta.outputs.version }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Image names must match docker-compose.prod.yml (${IMAGE_REGISTRY}/svtms-*:${IMAGE_TAG})
+          - image: svtms-core-api
+            dockerfile: tms-core-api/Dockerfile
+            context: .
+          - image: svtms-auth-api
+            dockerfile: tms-auth-api/Dockerfile
+            context: .
+          - image: svtms-driver-app-api
+            dockerfile: tms-driver-app-api/Dockerfile
+            context: .
+          - image: svtms-message-api
+            dockerfile: tms-message-api/Dockerfile
+            context: .
+          - image: svtms-api-gateway
+            dockerfile: api-gateway/Dockerfile
+            context: .
+          - image: svtms-telematics-api
+            dockerfile: tms-telematics-api/Dockerfile
+            context: ./tms-telematics-api
+          - image: svtms-safety-api
+            dockerfile: tms-safety-api/Dockerfile
+            context: ./tms-safety-api
+          - image: svtms-admin-web-ui
+            dockerfile: tms-admin-web-ui/Dockerfile
+            context: ./tms-admin-web-ui
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_BASE }}/${{ matrix.image }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix=sha-,format=short
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build and push ${{ matrix.image }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+          build-args: |
+            GIT_COMMIT=${{ github.sha }}
+            BUILD_DATE=${{ github.event.repository.updated_at }}
+
+      - name: Trivy – scan pushed image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE_BASE }}/${{ matrix.image }}:sha-${{ github.sha }}
+          format: table
+          severity: CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+
+# ── release-bundle ────────────────────────────────────────────────────────────
+  release-bundle:
+    name: Release – Deploy Bundle
+    runs-on: ubuntu-latest
+    needs: [docker-build]
+    if: github.event_name != 'pull_request'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build deploy bundle (compose + deploy scripts)
+        run: |
+          tar -czf svtms-platform-bundle.tgz \
+            infra/docker-compose.prod.yml \
+            infra/.env.example \
+            deploy/post_deploy_smoke_check_vps.sh \
+            deploy/prod_rollback_vps.sh \
+            deploy/prod_release_vps.sh
+
+      - name: Upload deploy bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: svtms-platform-bundle-${{ github.sha }}
+          path: svtms-platform-bundle.tgz
+          retention-days: 30
+
+# ── deploy-staging ────────────────────────────────────────────────────────────
+  deploy-staging:
+    name: Deploy – Staging (auto)
+    runs-on: ubuntu-latest
+    needs: [docker-build]
+    if: |
+      github.ref == 'refs/heads/develop' &&
+      github.event_name == 'push'
+    environment:
+      name: staging
+      url: https://staging.svtrucking.biz
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.STAGING_DEPLOY_SSH_KEY }}
+
+      - name: Sync infra + deploy scripts
+        env:
+          DEPLOY_HOST: ${{ secrets.STAGING_DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.STAGING_DEPLOY_USER }}
+        run: |
+          rsync -az \
+            infra/docker-compose.prod.yml \
+            deploy/post_deploy_smoke_check_vps.sh \
+            deploy/prod_rollback_vps.sh \
+            ${DEPLOY_USER}@${DEPLOY_HOST}:/opt/sv-tms/infra/
+
+      - name: Pull and restart stack
+        env:
+          DEPLOY_HOST: ${{ secrets.STAGING_DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.STAGING_DEPLOY_USER }}
+          IMAGE_REGISTRY: ${{ env.IMAGE_BASE }}
+          IMAGE_TAG: develop
+          REGISTRY_USERNAME: ${{ github.actor }}
+          REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ssh -o StrictHostKeyChecking=no ${DEPLOY_USER}@${DEPLOY_HOST} \
+            "IMAGE_REGISTRY='${IMAGE_REGISTRY}' IMAGE_TAG='${IMAGE_TAG}' \
+             REGISTRY_USERNAME='${REGISTRY_USERNAME}' REGISTRY_PASSWORD='${REGISTRY_PASSWORD}' \
+             bash -s" <<'REMOTE'
+          set -euo pipefail
+          cd /opt/sv-tms
+          echo "${REGISTRY_PASSWORD}" | docker login ghcr.io -u "${REGISTRY_USERNAME}" --password-stdin
+          sed -i "s|image:.*tms-core-api:.*|image: ${IMAGE_REGISTRY}/tms-core-api:${IMAGE_TAG}|g" infra/docker-compose.prod.yml || true
+          docker compose --env-file infra/.env -f infra/docker-compose.prod.yml pull
+          docker compose --env-file infra/.env -f infra/docker-compose.prod.yml up -d --remove-orphans
+          REMOTE
+
+      - name: Health check (staging)
+        env:
+          DEPLOY_HOST: ${{ secrets.STAGING_DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.STAGING_DEPLOY_USER }}
+        run: |
+          sleep 20
+          ssh -o StrictHostKeyChecking=no ${DEPLOY_USER}@${DEPLOY_HOST} \
+            "curl -fsS --retry 6 --retry-delay 8 http://127.0.0.1:8080/actuator/health | grep '\"status\":\"UP\"'"
+
+      - name: Notify failure
+        if: failure()
+        uses: slackapi/slack-github-action@v2
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {"text": ":warning: *Staging deploy failed* – <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>"}
+
+# ── deploy-production ─────────────────────────────────────────────────────────
+  deploy-production:
+    name: Deploy – Production (approval required)
+    runs-on: ubuntu-latest
+    needs: [docker-build]
+    if: |
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push'
+    environment:
+      name: production
+      url: https://svtms.svtrucking.biz
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.PROD_DEPLOY_SSH_KEY }}
+
+      - name: Sync infra + deploy scripts
+        env:
+          DEPLOY_HOST: ${{ secrets.PROD_DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.PROD_DEPLOY_USER }}
+        run: |
+          rsync -az \
+            infra/docker-compose.prod.yml \
+            deploy/post_deploy_smoke_check_vps.sh \
+            deploy/prod_rollback_vps.sh \
+            ${DEPLOY_USER}@${DEPLOY_HOST}:/opt/sv-tms/infra/
+
+      - name: Deploy to production
+        id: deploy
+        env:
+          DEPLOY_HOST: ${{ secrets.PROD_DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.PROD_DEPLOY_USER }}
+          IMAGE_REGISTRY: ${{ env.IMAGE_BASE }}
+          IMAGE_TAG: ${{ needs.docker-build.outputs.image_tag }}
+          REGISTRY_USERNAME: ${{ github.actor }}
+          REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ssh -o StrictHostKeyChecking=no ${DEPLOY_USER}@${DEPLOY_HOST} \
+            "IMAGE_REGISTRY='${IMAGE_REGISTRY}' IMAGE_TAG='${IMAGE_TAG}' \
+             REGISTRY_USERNAME='${REGISTRY_USERNAME}' REGISTRY_PASSWORD='${REGISTRY_PASSWORD}' \
+             bash -s" <<'REMOTE'
+          set -euo pipefail
+          cd /opt/sv-tms
+          echo "${REGISTRY_PASSWORD}" | docker login ghcr.io -u "${REGISTRY_USERNAME}" --password-stdin
+          docker compose --env-file infra/.env -f infra/docker-compose.prod.yml pull
+          docker compose --env-file infra/.env -f infra/docker-compose.prod.yml up -d --remove-orphans
+          REMOTE
+
+      - name: Post-deploy health check
+        id: smoke
+        env:
+          DEPLOY_HOST: ${{ secrets.PROD_DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.PROD_DEPLOY_USER }}
+        run: |
+          sleep 30
+          ssh -o StrictHostKeyChecking=no ${DEPLOY_USER}@${DEPLOY_HOST} \
+            "curl -fsS --retry 8 --retry-delay 10 http://127.0.0.1:8080/actuator/health | grep '\"status\":\"UP\"'"
+
+      - name: Auto-rollback on health check failure
+        if: failure() && steps.deploy.outcome == 'success'
+        env:
+          DEPLOY_HOST: ${{ secrets.PROD_DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.PROD_DEPLOY_USER }}
+        run: |
+          echo "Health check failed – auto-rollback triggered"
+          ssh -o StrictHostKeyChecking=no ${DEPLOY_USER}@${DEPLOY_HOST} \
+            "cd /opt/sv-tms && bash deploy/prod_rollback_vps.sh --skip-db-backup || true"
+
+      - name: Notify success
+        if: success()
+        uses: slackapi/slack-github-action@v2
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {"text": ":rocket: *Production deploy succeeded* – `${{ needs.docker-build.outputs.image_tag }}` | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|Run>"}
+
+      - name: Notify failure + rollback
+        if: failure()
+        uses: slackapi/slack-github-action@v2
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {"text": ":fire: *Production deploy FAILED* – auto-rollback attempted | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|Run>"}

@@ -1,0 +1,6 @@
+# Assignment Module Configuration
+app:
+  assignment:
+    enforce-license-class: true
+    prevent-inactive-drivers: true
+    prevent-maintenance-trucks: true

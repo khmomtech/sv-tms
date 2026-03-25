@@ -1,0 +1,77 @@
+# Driver App — Attendance API smoke tests (VS Code REST Client)
+
+@host = http://localhost:8080
+@username = admin
+@password = admin123
+@driverId = 1
+@date = {{$datetime iso8601}} // change to yyyy-MM-dd as needed
+
+### 1) Login (admin)
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "{{username}}",
+  "password": "{{password}}"
+}
+
+> {%
+  // Save tokens for subsequent calls
+  const body = JSON.parse(response.body);
+  if (body && body.token) {
+    client.global.set('token', body.token);
+    client.log('Saved token to {{token}}');
+  } else if (body && body.data && body.data.token) {
+    client.global.set('token', body.data.token);
+    client.log('Saved token from data.token to {{token}}');
+  } else {
+    client.log('WARN: token not found in response');
+  }
+%}
+
+### 2) List drivers (pick an id)
+GET {{host}}/api/admin/drivers?page=0&size=10
+Authorization: Bearer {{token}}
+
+### 3) Create attendance for a driver
+POST {{host}}/api/admin/drivers/{{driverId}}/attendance
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "date": "{{$datetime "yyyy-MM-dd"}}",
+  "status": "PRESENT",
+  "timeIn": "09:00",
+  "timeOut": "18:00",
+  "notes": "API smoke test"
+}
+
+### 4) List attendance for driver for current month
+GET {{host}}/api/admin/drivers/{{driverId}}/attendance?year={{$datetime "yyyy"}}&month={{$datetime "MM"}}
+Authorization: Bearer {{token}}
+
+### 5) Summary for current month
+GET {{host}}/api/admin/drivers/{{driverId}}/attendance/summary?year={{$datetime "yyyy"}}&month={{$datetime "MM"}}
+Authorization: Bearer {{token}}
+
+### 6) Get attendance by date
+GET {{host}}/api/admin/drivers/{{driverId}}/attendance/date/{{$datetime "yyyy-MM-dd"}}
+Authorization: Bearer {{token}}
+
+### 7) Update attendance by id (set @attendanceId first from create/list)
+@attendanceId = 0
+PUT {{host}}/api/admin/drivers/attendance/{{attendanceId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "date": "{{$datetime "yyyy-MM-dd"}}",
+  "status": "LATE",
+  "timeIn": "09:30",
+  "timeOut": "18:00",
+  "notes": "Updated via API"
+}
+
+### 8) Delete attendance by id (set @attendanceId)
+DELETE {{host}}/api/admin/drivers/attendance/{{attendanceId}}
+Authorization: Bearer {{token}}

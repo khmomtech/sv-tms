@@ -1,0 +1,16 @@
+package com.svtrucking.logistics.enums;
+
+public enum ItemType {
+  DOCUMENT,
+  ELECTRONICS,
+  FURNITURE,
+  FRAGILE,
+  PERISHABLE,
+  HEAVY_EQUIPMENT,
+  CLOTHING,
+  PHARMACEUTICAL,
+  AUTOPARTS,
+  CONSUMER_GOODS,
+  BEVERAGE,
+  OTHERS
+}

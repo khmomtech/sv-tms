@@ -1,0 +1,70 @@
+# Pre-commit Hook Configuration
+# Runs tests and linting before allowing commits
+
+repos:
+  - repo: local
+    hooks:
+      # Angular lint (fast – runs before full test suite)
+      - id: eslint
+        name: ESLint
+        entry: bash -c 'cd tms-admin-web-ui && npm run lint'
+        language: system
+        pass_filenames: false
+        stages: [commit]
+        files: \.ts$
+
+      # Angular format check
+      - id: prettier
+        name: Prettier Format Check
+        entry: bash -c 'cd tms-admin-web-ui && npm run format:check'
+        language: system
+        pass_filenames: false
+        stages: [commit]
+        files: \.(ts|html|css|scss|json)$
+
+      # Angular unit tests (ChromeHeadless)
+      - id: angular-unit-tests
+        name: Angular Unit Tests
+        entry: bash -c 'cd tms-admin-web-ui && npm run test -- --watch=false --browsers=ChromeHeadless'
+        language: system
+        pass_filenames: false
+        stages: [commit]
+        files: \.(ts|html|css|scss)$
+
+      # Prevent compiled JS artifacts in Angular source
+      - id: no-angular-js-artifacts
+        name: Disallow compiled JS in tms-admin-web-ui/src/app
+        entry: bash -c 'if find tms-admin-web-ui/src/app -name "*.js" 2>/dev/null | grep -q .; then echo "ERROR: Found *.js in tms-admin-web-ui/src/app. Remove compiled artifacts."; exit 1; fi'
+        language: system
+        pass_filenames: false
+        stages: [commit]
+
+      # Flyway migration naming convention
+      - id: flyway-naming
+        name: Flyway Migration Naming Convention
+        entry: bash -c 'INVALID=$(find . -path "*/db/migration/*.sql" -not -path "*/node_modules/*" -not -path "*/.git/*" | grep -vE "/V[0-9]+__[a-z0-9_]+\.sql$" || true); if [ -n "$INVALID" ]; then echo "Non-standard Flyway migration filenames:\n$INVALID"; exit 1; fi'
+        language: system
+        pass_filenames: false
+        stages: [commit]
+        files: \.sql$
+
+  # Standard pre-commit hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: check-merge-conflict
+      - id: mixed-line-ending
+      - id: detect-private-key
+
+  # Commit message validation (Conventional Commits)
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v3.13.0
+    hooks:
+      - id: commitizen
+        stages: [commit-msg]

@@ -1,0 +1,1397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>SV TMS & Fleet Management Admin</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    :root {
+      --sidebar-width: 260px;
+      --bg-main: #f4f6f9;
+      --bg-sidebar: #151b26;
+      --bg-sidebar-hover: #1f2835;
+      --bg-card: #ffffff;
+      --primary: #2563eb;
+      --primary-soft: rgba(37, 99, 235, 0.08);
+      --text-main: #111827;
+      --text-muted: #6b7280;
+      --border-soft: #e5e7eb;
+      --radius: 10px;
+      --shadow-soft: 0 10px 30px rgba(15, 23, 42, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        sans-serif;
+    }
+
+    body {
+      background: var(--bg-main);
+      color: var(--text-main);
+      display: flex;
+      min-height: 100vh;
+    }
+
+    a {
+      text-decoration: none;
+      color: inherit;
+    }
+
+    /* Layout */
+    .layout {
+      display: flex;
+      width: 100%;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: var(--sidebar-width);
+      background: var(--bg-sidebar);
+      color: #e5e7eb;
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      inset: 0 auto 0 0;
+      z-index: 20;
+    }
+
+    .sidebar-header {
+      padding: 18px 20px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-circle {
+      width: 32px;
+      height: 32px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #60a5fa, #2563eb);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 14px;
+      color: white;
+    }
+
+    .sidebar-title {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sidebar-title span:first-child {
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #9ca3af;
+    }
+
+    .sidebar-title span:last-child {
+      font-size: 16px;
+      font-weight: 600;
+      color: #f9fafb;
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      padding: 10px 10px 20px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+    }
+
+    .nav-section-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: #6b7280;
+      padding: 10px 10px 4px;
+    }
+
+    .nav-group {
+      margin-bottom: 4px;
+    }
+
+    .nav-item {
+      list-style: none;
+    }
+
+    .nav-link {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 9px 10px;
+      border-radius: 8px;
+      font-size: 14px;
+      color: #e5e7eb;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+
+    .nav-link:hover {
+      background: var(--bg-sidebar-hover);
+    }
+
+    .nav-link-main {
+      font-weight: 500;
+    }
+
+    .nav-link span.icon {
+      opacity: 0.6;
+      font-size: 13px;
+    }
+
+    .nav-submenu {
+      list-style: none;
+      padding-left: 18px;
+      margin-bottom: 6px;
+    }
+
+    .nav-submenu a {
+      display: block;
+      padding: 6px 8px;
+      font-size: 12px;
+      color: #9ca3af;
+      border-radius: 6px;
+      margin: 1px 0;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+
+    .nav-submenu a:hover {
+      background: rgba(148, 163, 184, 0.12);
+      color: #e5e7eb;
+    }
+
+    /* Main */
+    .main {
+      margin-left: var(--sidebar-width);
+      width: calc(100% - var(--sidebar-width));
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    /* Topbar */
+    .topbar {
+      height: 58px;
+      background: #ffffff;
+      border-bottom: 1px solid var(--border-soft);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 22px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .topbar-left {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .topbar-title {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .breadcrumb {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .topbar-pill {
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #f3f4f6;
+      border: 1px solid #e5e7eb;
+    }
+
+    .avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #38bdf8, #6366f1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    /* Content */
+    .content {
+      padding: 20px 22px 30px;
+      flex: 1;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .section-title {
+      font-size: 19px;
+      font-weight: 600;
+    }
+
+    .section-subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 3px;
+    }
+
+    .section-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn {
+      font-size: 12px;
+      padding: 6px 13px;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+
+    .btn-outline {
+      background: transparent;
+      border-color: #d1d5db;
+      color: #111827;
+    }
+
+    .btn:hover {
+      filter: brightness(0.95);
+    }
+
+    /* Dashboard top cards */
+    .grid-3 {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      margin-bottom: 20px;
+    }
+
+    .kpi-card {
+      background: var(--bg-card);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      box-shadow: var(--shadow-soft);
+      border: 1px solid #e5e7eb;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .kpi-title {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+    }
+
+    .kpi-value {
+      font-size: 22px;
+      font-weight: 600;
+    }
+
+    .kpi-extra {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* Section blocks */
+    .section-block {
+      background: var(--bg-card);
+      border-radius: var(--radius);
+      padding: 16px 18px 18px;
+      margin-bottom: 20px;
+      box-shadow: var(--shadow-soft);
+      border: 1px solid var(--border-soft);
+    }
+
+    .section-block-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .section-block-title {
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .section-block-subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .chip {
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #f3f4f6;
+      border: 1px solid #e5e7eb;
+      font-size: 11px;
+      color: #374151;
+      cursor: default;
+    }
+
+    .chip.primary {
+      background: var(--primary-soft);
+      border-color: rgba(37, 99, 235, 0.4);
+      color: #1d4ed8;
+    }
+
+    /* Submenu grid */
+    .submenu-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .submenu-card {
+      border-radius: 8px;
+      border: 1px solid var(--border-soft);
+      background: #f9fafb;
+      padding: 10px 12px;
+      font-size: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      cursor: pointer;
+      transition: background 0.12s ease, border-color 0.12s ease,
+        transform 0.06s ease;
+    }
+
+    .submenu-card:hover {
+      background: #eff6ff;
+      border-color: #bfdbfe;
+      transform: translateY(-1px);
+    }
+
+    .submenu-title {
+      font-weight: 500;
+      font-size: 12px;
+    }
+
+    .submenu-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* Section anchor spacing */
+    section {
+      scroll-margin-top: 70px;
+      margin-bottom: 26px;
+    }
+
+    /* Responsive */
+    @media (max-width: 960px) {
+      .sidebar {
+        display: none;
+      }
+      .main {
+        margin-left: 0;
+        width: 100%;
+      }
+      .grid-3,
+      .submenu-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 640px) {
+      .grid-3,
+      .submenu-grid {
+        grid-template-columns: repeat(1, minmax(0, 1fr));
+      }
+      .section-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+      }
+      .section-actions {
+        width: 100%;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo-circle">SV</div>
+      <div class="sidebar-title">
+        <span>SV TRUCKING</span>
+        <span>TMS & Fleet Admin</span>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Main</div>
+      <ul class="nav-group">
+        <li class="nav-item">
+          <a class="nav-link nav-link-main" href="#dashboard">
+            <span>Dashboard</span>
+            <span class="icon">◎</span>
+          </a>
+        </li>
+      </ul>
+
+      <div class="nav-section-label">Operations</div>
+      <ul class="nav-group">
+        <li class="nav-item">
+          <a class="nav-link nav-link-main" href="#transport-orders">
+            <span>Transport Orders</span>
+            <span class="icon">TO</span>
+          </a>
+          <ul class="nav-submenu">
+            <li><a href="#transport-orders">Create New Order</a></li>
+            <li><a href="#transport-orders">Order List & Filters</a></li>
+            <li><a href="#transport-orders">Timeline View</a></li>
+            <li><a href="#transport-orders">Attachments</a></li>
+            <li><a href="#transport-orders">Order Costing</a></li>
+          </ul>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link nav-link-main" href="#dispatch">
+            <span>Dispatch Management</span>
+            <span class="icon">DP</span>
+          </a>
+          <ul class="nav-submenu">
+            <li><a href="#dispatch">Dispatch Board</a></li>
+            <li><a href="#dispatch">Assign Driver & Vehicle</a></li>
+            <li><a href="#dispatch">Multi-Stop Routes</a></li>
+            <li><a href="#dispatch">Loading Proof</a></li>
+            <li><a href="#dispatch">Status Updates</a></li>
+          </ul>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link nav-link-main" href="#trip-planner">
+            <span>Route & Trip Planner</span>
+            <span class="icon">RT</span>
+          </a>
+          <ul class="nav-submenu">
+            <li><a href="#trip-planner">Auto Route Planner</a></li>
+            <li><a href="#trip-planner">Trip List</a></li>
+            <li><a href="#trip-planner">Trip Calendar</a></li>
+            <li><a href="#trip-planner">Planned vs Actual</a></li>
+          </ul>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link nav-link-main" href="#live-tracking">
+            <span>Live Tracking & Map</span>
+            <span class="icon">MAP</span>
+          </a>
+          <ul class="nav-submenu">
+            <li><a href="#live-tracking">Drivers Map</a></li>
+            <li><a href="#live-tracking">Vehicles Map</a></li>
+            <li><a href="#live-tracking">Route Replay</a></li>
+            <li><a href="#live-tracking">Geofence & Alerts</a></li>
+          </ul>
+        </li>
+      </ul>
+
+      <div class="nav-section-label">Fleet & Drivers</div>
+      <ul class="nav-group">
+        <li class="nav-item">
+          <a class="nav-link nav-link-main" href="#drivers">
+            <span>Driver Management</span>
+            <span class="icon">DR</span>
+          </a>
+          <ul class="nav-submenu">
+            <li><a href="#drivers">Driver List</a></li>
+            <li><a href="#drivers">Documents & Licenses</a></li>
+            <li><a href="#drivers">Shifts & Hours</a></li>
+            <li><a href="#drivers">Driver App Accounts</a></li>
+            <li><a href="#drivers">Performance & Incidents</a></li>
+          </ul>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link nav-link-main" href="#fleet">
+            <span>Fleet Management</span>
+            <span class="icon">FL</span>
+          </a>
+          <ul class="nav-submenu">
+            <li><a href="#fleet">Vehicles</a></li>
+            <li><a href="#fleet">Trailers</a></li>
+            <li><a href="#fleet">Assignments</a></li>
+            <li><a href="#maintenance">Maintenance Records</a></li>
+          </ul>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link nav-link-main" href="#maintenance">
+            <span>Maintenance</span>
+            <span class="icon">MT</span>
+          </a>
+          <ul class="nav-submenu">
+            <li><a href="#maintenance">PM Schedule</a></li>
+            <li><a href="#maintenance">Work Orders</a></li>
+            <li><a href="#maintenance">Repairs</a></li>
+            <li><a href="#maintenance">Parts & Inventory</a></li>
+          </ul>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link nav-link-main" href="#fuel">
+            <span>Fuel Management</span>
+            <span class="icon">FU</span>
+          </a>
+          <ul class="nav-submenu">
+            <li><a href="#fuel">Fuel Logs</a></li>
+            <li><a href="#fuel">Fuel Cards</a></li>
+            <li><a href="#fuel">Fuel Efficiency</a></li>
+          </ul>
+        </li>
+      </ul>
+
+      <div class="nav-section-label">Inventory & Finance</div>
+      <ul class="nav-group">
+        <li class="nav-item">
+          <a class="nav-link nav-link-main" href="#inventory">
+            <span>Inventory (Hub)</span>
+            <span class="icon">IV</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link nav-link-main" href="#billing">
+            <span>Billing & Finance</span>
+            <span class="icon">$</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link nav-link-main" href="#reports">
+            <span>Reports & Analytics</span>
+            <span class="icon">RP</span>
+          </a>
+        </li>
+      </ul>
+
+      <div class="nav-section-label">System</div>
+      <ul class="nav-group">
+        <li class="nav-item">
+          <a class="nav-link nav-link-main" href="#settings">
+            <span>Settings & Configuration</span>
+            <span class="icon">⚙</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link nav-link-main" href="#integrations">
+            <span>Integrations</span>
+            <span class="icon">API</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link nav-link-main" href="#support">
+            <span>Support & Help</span>
+            <span class="icon">?</span>
+          </a>
+        </li>
+      </ul>
+    </nav>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <!-- TOPBAR -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <div class="topbar-title">SV TMS & Fleet Management</div>
+        <div class="breadcrumb">Dashboard · Phnom Penh · Live Operations</div>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-pill">Today: 34 Trips · 120 Orders</div>
+        <div class="avatar">SK</div>
+      </div>
+    </header>
+
+    <!-- CONTENT -->
+    <div class="content">
+
+      <!-- DASHBOARD -->
+      <section id="dashboard">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Dashboard</div>
+            <div class="section-subtitle">
+              High-level view of trips, fleet, drivers and orders in real time.
+            </div>
+          </div>
+          <div class="section-actions">
+            <button class="btn btn-outline">Download Report</button>
+            <button class="btn btn-primary">Configure Widgets</button>
+          </div>
+        </div>
+
+        <div class="grid-3">
+          <div class="kpi-card">
+            <div class="kpi-title">Trips Today</div>
+            <div class="kpi-value">34</div>
+            <div class="kpi-extra">26 In Transit · 8 Completed</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-title">Fleet Utilization</div>
+            <div class="kpi-value">82%</div>
+            <div class="kpi-extra">28/34 Vehicles Active</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-title">On-Time Delivery</div>
+            <div class="kpi-value">94%</div>
+            <div class="kpi-extra">Last 7 days performance</div>
+          </div>
+        </div>
+
+        <div class="section-block">
+          <div class="section-block-header">
+            <div>
+              <div class="section-block-title">Quick Access</div>
+              <div class="section-block-subtitle">
+                Jump directly into the most important operations screens.
+              </div>
+            </div>
+          </div>
+          <div class="submenu-grid">
+            <div class="submenu-card">
+              <div class="submenu-title">New Transport Order</div>
+              <div class="submenu-desc">Create TO for customer bookings and deliveries.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Dispatch Board</div>
+              <div class="submenu-desc">Assign drivers and vehicles for today’s trips.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Live Map</div>
+              <div class="submenu-desc">Monitor all drivers and vehicles in real-time.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Fleet Status</div>
+              <div class="submenu-desc">Check which trucks are active, idle, or in maintenance.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Maintenance Alerts</div>
+              <div class="submenu-desc">View upcoming preventive maintenance tasks.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Reports</div>
+              <div class="submenu-desc">Download KPIs for managers and accounting.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TRANSPORT ORDERS -->
+      <section id="transport-orders">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Transport Orders</div>
+            <div class="section-subtitle">
+              Manage all customer orders from creation to delivery completion.
+            </div>
+          </div>
+          <div class="section-actions">
+            <button class="btn btn-primary">+ New Transport Order</button>
+          </div>
+        </div>
+
+        <div class="section-block">
+          <div class="section-block-header">
+            <div>
+              <div class="section-block-title">Order Views</div>
+              <div class="section-block-subtitle">Filter and monitor orders by status or customer.</div>
+            </div>
+          </div>
+          <div class="chip-row">
+            <span class="chip primary">All Orders</span>
+            <span class="chip">Pending Dispatch</span>
+            <span class="chip">Dispatched</span>
+            <span class="chip">In Transit</span>
+            <span class="chip">Delivered</span>
+            <span class="chip">Cancelled</span>
+          </div>
+
+          <div class="submenu-grid">
+            <div class="submenu-card">
+              <div class="submenu-title">Order List & Filters</div>
+              <div class="submenu-desc">Search by customer, zone, date range and status.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Order Timeline</div>
+              <div class="submenu-desc">Visual steps from created → dispatched → delivered.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Customer & Contact Info</div>
+              <div class="submenu-desc">View customer details and phone/email contacts.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Pickup & Delivery Points</div>
+              <div class="submenu-desc">Manage multiple pickup/drop points and time windows.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Attachments & Notes</div>
+              <div class="submenu-desc">Store POD images, invoices, contracts, and comments.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Order Costing & Billing</div>
+              <div class="submenu-desc">Calculate charges, discounts, and export to billing.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- DISPATCH -->
+      <section id="dispatch">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Dispatch Management</div>
+            <div class="section-subtitle">
+              Assign drivers, vehicles, and monitor each dispatch in real-time.
+            </div>
+          </div>
+        </div>
+
+        <div class="section-block">
+          <div class="section-block-header">
+            <div>
+              <div class="section-block-title">Dispatch Board</div>
+              <div class="section-block-subtitle">Kanban view: Pending → Assigned → In Transit → Completed.</div>
+            </div>
+          </div>
+          <div class="submenu-grid">
+            <div class="submenu-card">
+              <div class="submenu-title">Dispatch Kanban</div>
+              <div class="submenu-desc">Drag & drop TOs between statuses (concept UI).</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Assign Driver & Vehicle</div>
+              <div class="submenu-desc">Match TOs with best driver and available truck.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Multi-Stop Route Setup</div>
+              <div class="submenu-desc">Arrange stops in optimal sequence for delivery.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Loading Information</div>
+              <div class="submenu-desc">Pallets, cartons, volume, and weight per stop.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Loading Proof Capture</div>
+              <div class="submenu-desc">Save warehouse photos and signatures for load.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Status Updates</div>
+              <div class="submenu-desc">Loaded · Departed · Arrived · Delivered · Returned.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- DRIVERS -->
+      <section id="drivers">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Driver Management</div>
+            <div class="section-subtitle">
+              Centralize driver profiles, documents, shifts, and performance.
+            </div>
+          </div>
+          <div class="section-actions">
+            <button class="btn btn-primary">+ New Driver</button>
+          </div>
+        </div>
+
+        <div class="section-block">
+          <div class="section-block-header">
+            <div>
+              <div class="section-block-title">Driver Records</div>
+              <div class="section-block-subtitle">
+                Keep licenses valid, assign drivers, and track their performance.
+              </div>
+            </div>
+          </div>
+          <div class="submenu-grid">
+            <div class="submenu-card">
+              <div class="submenu-title">Driver List</div>
+              <div class="submenu-desc">All drivers with filters by zone and status.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Documents & Licenses</div>
+              <div class="submenu-desc">Track expiry dates and required documents.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Shifts & Working Hours</div>
+              <div class="submenu-desc">Morning / night shifts, OT and rest periods.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Driver App Accounts</div>
+              <div class="submenu-desc">Create login accounts and reset credentials.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Location History</div>
+              <div class="submenu-desc">Review historical GPS trace per driver.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Performance & Incidents</div>
+              <div class="submenu-desc">On-time %, complaints, accident records.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- FLEET -->
+      <section id="fleet">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Fleet Management</div>
+            <div class="section-subtitle">
+              Manage vehicles, trailers, capacity, documents and telematics.
+            </div>
+          </div>
+        </div>
+
+        <div class="section-block">
+          <div class="section-block-header">
+            <div>
+              <div class="section-block-title">Vehicles & Trailers</div>
+              <div class="section-block-subtitle">
+                Separate views for vehicles and trailers with assignment history.
+              </div>
+            </div>
+          </div>
+          <div class="submenu-grid">
+            <div class="submenu-card">
+              <div class="submenu-title">Vehicle List</div>
+              <div class="submenu-desc">All trucks with plate, capacity, status, and zone.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Add / Edit Vehicle</div>
+              <div class="submenu-desc">Model, year, capacity, and internal codes.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Trailer Management</div>
+              <div class="submenu-desc">Attach trailers to tractors and track usage.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Vehicle Documents</div>
+              <div class="submenu-desc">Registration, insurance, inspection status.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Vehicle Assignments</div>
+              <div class="submenu-desc">History of driver & trip assignments.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Telematics / Sensors</div>
+              <div class="submenu-desc">OBD data, engine hours, and alerts.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- MAINTENANCE -->
+      <section id="maintenance">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Maintenance Management</div>
+            <div class="section-subtitle">
+              Plan preventive maintenance and track repair history for all units.
+            </div>
+          </div>
+        </div>
+
+        <div class="section-block">
+          <div class="section-block-header">
+            <div>
+              <div class="section-block-title">Maintenance Center</div>
+              <div class="section-block-subtitle">
+                PM schedule, work orders, mechanic tasks and cost tracking.
+              </div>
+            </div>
+          </div>
+          <div class="submenu-grid">
+            <div class="submenu-card">
+              <div class="submenu-title">PM Schedule</div>
+              <div class="submenu-desc">Time-based or mileage-based maintenance plans.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Work Orders</div>
+              <div class="submenu-desc">Open, in-progress, and completed repair jobs.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Repair Requests</div>
+              <div class="submenu-desc">Reported issues from drivers or supervisors.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Spare Parts Inventory</div>
+              <div class="submenu-desc">Stock levels, usage history and suppliers.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Mechanic Team</div>
+              <div class="submenu-desc">Assign tasks and track mechanic productivity.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Maintenance Cost</div>
+              <div class="submenu-desc">Per vehicle maintenance cost report.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TRIP PLANNER -->
+      <section id="trip-planner">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Route & Trip Planner</div>
+            <div class="section-subtitle">
+              Optimize routes and compare planned vs actual distance, time, and cost.
+            </div>
+          </div>
+        </div>
+
+        <div class="section-block">
+          <div class="section-block-header">
+            <div>
+              <div class="section-block-title">Planning Tools</div>
+              <div class="section-block-subtitle">
+                Use maps, capacity rules and time windows to build trips.
+              </div>
+            </div>
+          </div>
+          <div class="submenu-grid">
+            <div class="submenu-card">
+              <div class="submenu-title">Auto Route Planner</div>
+              <div class="submenu-desc">Build routes with optimization engine.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Trip List</div>
+              <div class="submenu-desc">All trips with status, route, and driver info.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Trip Calendar</div>
+              <div class="submenu-desc">Visual planning by day/week/month.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Planned vs Actual</div>
+              <div class="submenu-desc">Compare route, distance, and fuel usage.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Cost Estimator</div>
+              <div class="submenu-desc">Estimate fuel, toll, and driver cost per trip.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Trip Reconciliation</div>
+              <div class="submenu-desc">Finalize actual numbers after trip completion.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- LIVE TRACKING -->
+      <section id="live-tracking">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Live Tracking & Map Control</div>
+            <div class="section-subtitle">
+              Monitor driver and vehicle locations, geofences and route deviations.
+            </div>
+          </div>
+        </div>
+
+        <div class="section-block">
+          <div class="section-block-header">
+            <div>
+              <div class="section-block-title">Map Tools</div>
+              <div class="section-block-subtitle">
+                Multi-map views, geofence rules and event alerts.
+              </div>
+            </div>
+          </div>
+          <div class="submenu-grid">
+            <div class="submenu-card">
+              <div class="submenu-title">All Drivers Map</div>
+              <div class="submenu-desc">See all active drivers on one map.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Vehicles Map</div>
+              <div class="submenu-desc">Filter by vehicle type or zone.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Route Replay</div>
+              <div class="submenu-desc">Playback yesterday’s route for any driver.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Geofence Management</div>
+              <div class="submenu-desc">Create hubs, customer zones and no-go areas.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Alerts</div>
+              <div class="submenu-desc">Speeding, idle, route deviation, long stops.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- FUEL -->
+      <section id="fuel">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Fuel Management</div>
+            <div class="section-subtitle">
+              Control fuel expenses, track refueling events and efficiency.
+            </div>
+          </div>
+        </div>
+
+        <div class="section-block">
+          <div class="section-block-header">
+            <div>
+              <div class="section-block-title">Fuel Center</div>
+              <div class="section-block-subtitle">
+                Logs, fuel cards, and reports per vehicle or driver.
+              </div>
+            </div>
+          </div>
+          <div class="submenu-grid">
+            <div class="submenu-card">
+              <div class="submenu-title">Fuel Logs</div>
+              <div class="submenu-desc">Manual or imported logs for refuel events.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Fuel Card Integration</div>
+              <div class="submenu-desc">Import data from fuel card providers.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Fuel Efficiency</div>
+              <div class="submenu-desc">KM per liter by vehicle and route type.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Fuel Exceptions</div>
+              <div class="submenu-desc">Detect unusual fuel usage or missing logs.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- INVENTORY -->
+      <section id="inventory">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Inventory (Warehouse / Hub)</div>
+            <div class="section-subtitle">
+              Track packages at hub: pickup, loading, returned and pending.
+            </div>
+          </div>
+        </div>
+
+        <div class="section-block">
+          <div class="section-block-header">
+            <div>
+              <div class="section-block-title">Hub Inventory</div>
+              <div class="section-block-subtitle">
+                All items currently in warehouse or outbound.
+              </div>
+            </div>
+          </div>
+          <div class="submenu-grid">
+            <div class="submenu-card">
+              <div class="submenu-title">Pickup Inventory</div>
+              <div class="submenu-desc">Items just collected from customers.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Loading Inventory</div>
+              <div class="submenu-desc">Items already assigned to trips.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Returned Inventory</div>
+              <div class="submenu-desc">Failed delivery / returned shipments.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Damaged / Lost</div>
+              <div class="submenu-desc">Record claims and damaged items.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Daily Inventory Closure</div>
+              <div class="submenu-desc">Close day and reconcile quantities.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- BILLING -->
+      <section id="billing">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Billing & Finance</div>
+            <div class="section-subtitle">
+              Generate invoices, track trip cost and export data to accounting.
+            </div>
+          </div>
+        </div>
+
+        <div class="section-block">
+          <div class="section-block-header">
+            <div>
+              <div class="section-block-title">Billing Center</div>
+              <div class="section-block-subtitle">
+                Customer invoices, rate cards and COD settlements.
+              </div>
+            </div>
+          </div>
+          <div class="submenu-grid">
+            <div class="submenu-card">
+              <div class="submenu-title">Customer Billing</div>
+              <div class="submenu-desc">Generate invoices from completed trips.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Rate Cards</div>
+              <div class="submenu-desc">Zone-based / weight-based pricing rules.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Trip Costing</div>
+              <div class="submenu-desc">Fuel, tolls, driver allowance per trip.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">COD Management</div>
+              <div class="submenu-desc">Cash-on-delivery reconciliation and payout.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Accounting Export</div>
+              <div class="submenu-desc">Export CSV/Excel to accounting system.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- REPORTS -->
+      <section id="reports">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Reports & Analytics</div>
+            <div class="section-subtitle">
+              KPI dashboards and exportable reports for operations and finance.
+            </div>
+          </div>
+        </div>
+
+        <div class="section-block">
+          <div class="section-block-header">
+            <div>
+              <div class="section-block-title">Reports Library</div>
+              <div class="section-block-subtitle">
+                Transport orders, delivery performance, fleet utilization and more.
+              </div>
+            </div>
+          </div>
+          <div class="submenu-grid">
+            <div class="submenu-card">
+              <div class="submenu-title">Transport Order Report</div>
+              <div class="submenu-desc">By customer, zone, date range and status.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Delivery Performance</div>
+              <div class="submenu-desc">On-time %, failed deliveries, and reasons.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Fleet Utilization</div>
+              <div class="submenu-desc">Vehicle usage and idle time statistics.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Driver KPIs</div>
+              <div class="submenu-desc">Scores by driver: punctuality and complaints.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Maintenance Cost</div>
+              <div class="submenu-desc">Spend per vehicle or per month.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Fuel Consumption</div>
+              <div class="submenu-desc">Compare planned vs actual fuel usage.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SETTINGS -->
+      <section id="settings">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Settings & Configuration</div>
+            <div class="section-subtitle">
+              Control users, roles, company profile, zones, and notification rules.
+            </div>
+          </div>
+        </div>
+
+        <div class="section-block">
+          <div class="section-block-header">
+            <div>
+              <div class="section-block-title">System Settings</div>
+              <div class="section-block-subtitle">
+                Admin tools for configuring the entire SV TMS ecosystem.
+              </div>
+            </div>
+          </div>
+          <div class="submenu-grid">
+            <div class="submenu-card">
+              <div class="submenu-title">Users & Roles (RBAC)</div>
+              <div class="submenu-desc">Define permissions for Admin, Ops, Fleet, Finance.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Company Profile</div>
+              <div class="submenu-desc">Logo, address, contact and time zones.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Zones & Regions</div>
+              <div class="submenu-desc">PNH, OUTPNH and other operational regions.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Notification Settings</div>
+              <div class="submenu-desc">SMS, email, and push rules for events.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Device Management</div>
+              <div class="submenu-desc">Manage driver phones and tracking devices.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Audit Logs</div>
+              <div class="submenu-desc">Track all changes and system events.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- INTEGRATIONS -->
+      <section id="integrations">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Integrations</div>
+            <div class="section-subtitle">
+              Connect driver app, customer app, GPS devices and automation tools.
+            </div>
+          </div>
+        </div>
+
+        <div class="section-block">
+          <div class="section-block-header">
+            <div>
+              <div class="section-block-title">Integration Hub</div>
+              <div class="section-block-subtitle">
+                API docs, GPS providers, accounting, and n8n workflows.
+              </div>
+            </div>
+          </div>
+          <div class="submenu-grid">
+            <div class="submenu-card">
+              <div class="submenu-title">Driver App</div>
+              <div class="submenu-desc">Smart Truck Driver App API endpoints configuration.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Customer App</div>
+              <div class="submenu-desc">SV Customer App tracking and orders integration.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">GPS / IoT Providers</div>
+              <div class="submenu-desc">Connect GPS trackers and telematics.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Accounting / ERP</div>
+              <div class="submenu-desc">Sync invoices and costs with finance systems.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">n8n Automation</div>
+              <div class="submenu-desc">Triggers and workflows for SV TMS events.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">API Documentation</div>
+              <div class="submenu-desc">Swagger / OpenAPI reference for developers.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SUPPORT -->
+      <section id="support">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Support & Help Center</div>
+            <div class="section-subtitle">
+              Manuals, FAQ, tickets and training materials for your team.
+            </div>
+          </div>
+        </div>
+
+        <div class="section-block">
+          <div class="section-block-header">
+            <div>
+              <div class="section-block-title">Support Tools</div>
+              <div class="section-block-subtitle">
+                Help your operations and fleet teams use the system correctly.
+              </div>
+            </div>
+          </div>
+          <div class="submenu-grid">
+            <div class="submenu-card">
+              <div class="submenu-title">Help Center</div>
+              <div class="submenu-desc">Searchable knowledge base by module.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">User Manuals</div>
+              <div class="submenu-desc">Downloadable PDF guides.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Training Videos</div>
+              <div class="submenu-desc">Step-by-step usage videos.</div>
+            </div>
+            <div class="submenu-card">
+              <div class="submenu-title">Support Tickets</div>
+              <div class="submenu-desc">Raise and track support cases.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+</body>
+</html>

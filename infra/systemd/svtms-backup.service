@@ -1,0 +1,13 @@
+[Unit]
+Description=SV-TMS full stack backup
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/sv-tms
+ExecStart=/opt/sv-tms/infra/scripts/backup_stack.sh
+ExecStartPost=/opt/sv-tms/infra/scripts/verify_backup.sh
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7

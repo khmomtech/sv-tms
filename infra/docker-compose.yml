@@ -1,0 +1,93 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.1
+    restart: unless-stopped
+    env_file:
+      - ./infra/.env
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - svtms_net
+
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    networks:
+      - svtms_net
+
+  backend:
+    build:
+      context: ./tms-backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./infra/.env
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE}
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD}
+    depends_on:
+      - mysql
+      - redis
+    networks:
+      - svtms_net
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build:
+      context: ./tms-frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    networks:
+      - svtms_net
+    depends_on:
+      - backend
+    ports:
+      - "4200:80" # assumes Dockerfile for frontend serves on port 80
+
+  nginx:
+    image: nginx:stable
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infra/nginx/site.conf:/etc/nginx/conf.d/site.conf:ro
+      - certs:/etc/letsencrypt
+      - uploads:/opt/uploads
+      - webroot:/var/www/certbot
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - svtms_net
+
+  certbot:
+    image: certbot/certbot:v2.6.0
+    entrypoint: ["/bin/sh", "-c"]
+    command: "sleep 1"
+    volumes:
+      - certs:/etc/letsencrypt
+      - webroot:/var/www/certbot
+    networks:
+      - svtms_net
+
+volumes:
+  mysql-data:
+  redis-data:
+  certs:
+  uploads:
+
+networks:
+  svtms_net:
+    driver: bridge

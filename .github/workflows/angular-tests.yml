@@ -1,0 +1,30 @@
+name: Angular Unit Tests
+
+on:
+  push:
+    paths:
+      - 'tms-frontend/**'
+  pull_request:
+    paths:
+      - 'tms-frontend/**'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tms-frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+      - name: Ensure Chrome available
+        run: |
+          google-chrome --version || sudo apt-get update && sudo apt-get install -y google-chrome-stable || true
+      - name: Run unit tests (headless)
+        env:
+          CHROME_BIN: /usr/bin/google-chrome
+        run: npm test -- --watch=false

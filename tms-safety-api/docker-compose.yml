@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  tms-safety-api:
+    build: .
+    container_name: tms-safety-api
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./application.properties:/app/application.properties
+    environment:
+      - SPRING_CONFIG_LOCATION=file:/app/application.properties
+    restart: unless-stopped

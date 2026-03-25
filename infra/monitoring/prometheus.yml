@@ -1,0 +1,59 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
+rule_files:
+  - /etc/prometheus/alert_rules.yml
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["prometheus:9090"]
+
+  - job_name: core-api
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["core-api:8080"]
+
+  - job_name: auth-api
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["auth-api:8083"]
+
+  - job_name: driver-app-api
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["driver-app-api:8084"]
+
+  - job_name: telematics-api
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["telematics-api:8082"]
+
+  - job_name: safety-api
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["safety-api:8087"]
+
+  - job_name: message-api
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["message-api:8088"]
+
+  - job_name: api-gateway
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["api-gateway:8086"]
+
+  - job_name: node-exporter
+    static_configs:
+      - targets: ["node-exporter:9100"]
+
+  - job_name: cadvisor
+    static_configs:
+      - targets: ["cadvisor:8080"]

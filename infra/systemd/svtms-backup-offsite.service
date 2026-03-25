@@ -1,0 +1,10 @@
+[Unit]
+Description=Sync SV-TMS backups off-site
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/sv-tms
+EnvironmentFile=-/opt/sv-tms/infra/.env
+ExecStart=/opt/sv-tms/infra/scripts/sync_backups_offsite.sh

@@ -1,0 +1,178 @@
+# nginx config for tms-backend + tms-telematics-api
+# Production: systemd + nginx, non-Docker.
+# Replace YOUR_DOMAIN_OR_IP with the actual server_name.
+# Copy to /etc/nginx/sites-enabled/ and reload nginx.
+
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+
+upstream tms_auth_api_upstream {
+    server 127.0.0.1:8083;
+    keepalive 32;
+}
+
+upstream tms_driver_app_api_upstream {
+    server 127.0.0.1:8084;
+    keepalive 32;
+}
+
+upstream tms_telematics_upstream {
+    server 127.0.0.1:8082;
+    keepalive 64;
+}
+
+server {
+    listen 80;
+    server_name YOUR_DOMAIN_OR_IP;
+
+    # ----------------------------------------------------------------
+    # Telematics WebSocket endpoints
+    # Long read_timeout required — connections are persistent.
+    # ----------------------------------------------------------------
+    location /tele-ws/ {
+        proxy_pass http://tms_telematics_upstream;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 10s;
+        proxy_read_timeout    3600s;
+        proxy_send_timeout    3600s;
+    }
+
+    location /tele-ws-sockjs/ {
+        proxy_pass http://tms_telematics_upstream;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 10s;
+        proxy_read_timeout    3600s;
+        proxy_send_timeout    3600s;
+    }
+
+    location /ws {
+        proxy_pass http://tms_driver_app_api_upstream;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 10s;
+        proxy_read_timeout    3600s;
+        proxy_send_timeout    3600s;
+    }
+
+    location /ws-sockjs/ {
+        proxy_pass http://tms_driver_app_api_upstream;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 10s;
+        proxy_read_timeout    3600s;
+        proxy_send_timeout    3600s;
+    }
+
+    # ----------------------------------------------------------------
+    # Auth API
+    # ----------------------------------------------------------------
+    location ^~ /api/auth/ {
+        proxy_pass http://tms_auth_api_upstream;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 3s;
+        proxy_read_timeout    10s;
+        proxy_send_timeout    10s;
+    }
+
+    location ^~ /api/driver/device/ {
+        proxy_pass http://tms_auth_api_upstream;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 3s;
+        proxy_read_timeout    10s;
+        proxy_send_timeout    10s;
+    }
+
+    # ----------------------------------------------------------------
+    # Driver App API
+    # ----------------------------------------------------------------
+    location ^~ /api/driver/ {
+        proxy_pass http://tms_driver_app_api_upstream;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 5s;
+        proxy_read_timeout    15s;
+        proxy_send_timeout    15s;
+    }
+
+    location ^~ /api/driver-app/ {
+        proxy_pass http://tms_driver_app_api_upstream;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 5s;
+        proxy_read_timeout    30s;
+        proxy_send_timeout    30s;
+    }
+
+    location ^~ /api/public/app-version/ {
+        proxy_pass http://tms_driver_app_api_upstream;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 5s;
+        proxy_read_timeout    15s;
+        proxy_send_timeout    15s;
+    }
+
+    location ~ ^/api/public/tracking/ {
+        proxy_pass http://tms_telematics_upstream;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 5s;
+        proxy_read_timeout    15s;
+        proxy_send_timeout    15s;
+    }
+
+    # ----------------------------------------------------------------
+    # ----------------------------------------------------------------
+    # Everything else currently routes to driver-app-api for mobile compatibility.
+    # Tighten this default once the remaining public surfaces are split out.
+    # ----------------------------------------------------------------
+    # ----------------------------------------------------------------
+    location / {
+        proxy_pass http://tms_driver_app_api_upstream;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 10s;
+        proxy_read_timeout    60s;
+        proxy_send_timeout    60s;
+    }
+}

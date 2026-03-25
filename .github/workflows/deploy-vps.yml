@@ -1,0 +1,441 @@
+name: Deploy to VPS
+
+# =============================================================================
+# Automated deployment to VPS at 207.180.245.156
+# =============================================================================
+# Triggers:
+#   - Auto: push to `main` (after CI passes, with production approval gate)
+#   - Manual: workflow_dispatch (choose image tag + optional rollback)
+#
+# Required GitHub Secrets:
+#   PROD_DEPLOY_HOST      — VPS IP/hostname (207.180.245.156)
+#   PROD_DEPLOY_USER      — SSH user (svtms-deploy)
+#   PROD_DEPLOY_SSH_KEY   — Private SSH key (content of infra/deploy_key)
+#   GHCR_TOKEN            — GitHub PAT with packages:read (or use GITHUB_TOKEN)
+#   SLACK_BOT_TOKEN       — (optional) for Slack notifications
+#   SLACK_CHANNEL_ID      — (optional) Slack channel for notifications
+#
+# Required GitHub Variables:
+#   PROD_DOMAIN           — e.g. svtms.svtrucking.biz
+# =============================================================================
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Docker image tag to deploy (leave blank for latest)'
+        required: false
+        default: 'latest'
+      rollback:
+        description: 'Rollback to previous release?'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  DEPLOY_DIR: /opt/sv-tms
+  COMPOSE_FILE: /opt/sv-tms/infra/docker-compose.prod.yml
+  ENV_FILE: /opt/sv-tms/infra/.env
+  IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false   # never cancel a deploy mid-flight
+
+jobs:
+# ── Wait for CI to pass ───────────────────────────────────────────────────────
+  ci-gate:
+    name: CI Gate
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    steps:
+      - name: Wait for CI workflow
+        uses: lewagon/wait-on-check-action@v1.3.4
+        with:
+          ref: ${{ github.sha }}
+          check-name: 'Build & Test'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 30
+          allowed-conclusions: success
+
+# ── Deploy to production ──────────────────────────────────────────────────────
+  deploy:
+    name: Deploy → Production VPS
+    runs-on: ubuntu-latest
+    needs: [ci-gate]
+    if: always() && (needs.ci-gate.result == 'success' || github.event_name == 'workflow_dispatch')
+
+    environment:
+      name: production
+      url: https://${{ vars.PROD_DOMAIN || '207.180.245.156' }}
+
+    outputs:
+      deployed_tag: ${{ steps.resolve-tag.outputs.tag }}
+      previous_tag: ${{ steps.get-previous.outputs.tag }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── Resolve image tag ──────────────────────────────────────────────────
+      - name: Resolve image tag
+        id: resolve-tag
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ inputs.image_tag }}" ]]; then
+            TAG="${{ inputs.image_tag }}"
+          else
+            # Use short SHA for push events
+            TAG="sha-$(echo '${{ github.sha }}' | cut -c1-7)"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Deploying image tag: ${TAG}"
+
+      # ── Set up SSH ──────────────────────────────────────────────────────────
+      - name: Install SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.PROD_DEPLOY_SSH_KEY }}
+
+      - name: Add VPS to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H -p 22 "${{ secrets.PROD_DEPLOY_HOST }}" >> ~/.ssh/known_hosts
+
+      # ── Get previous release tag (for rollback) ────────────────────────────
+      - name: Get previous deployed tag
+        id: get-previous
+        run: |
+          PREV=$(ssh ${{ secrets.PROD_DEPLOY_USER }}@${{ secrets.PROD_DEPLOY_HOST }} \
+            "cat ${DEPLOY_DIR}/releases/current_tag 2>/dev/null || echo 'none'")
+          echo "tag=${PREV}" >> "$GITHUB_OUTPUT"
+          echo "Previous tag: ${PREV}"
+
+      # ── Handle rollback ────────────────────────────────────────────────────
+      - name: Rollback to previous release
+        if: inputs.rollback == true
+        env:
+          PREV_TAG: ${{ steps.get-previous.outputs.tag }}
+        run: |
+          if [[ "${PREV_TAG}" == "none" ]]; then
+            echo "::error::No previous release found to roll back to."
+            exit 1
+          fi
+          echo "Rolling back to tag: ${PREV_TAG}"
+          ssh ${{ secrets.PROD_DEPLOY_USER }}@${{ secrets.PROD_DEPLOY_HOST }} \
+            "IMAGE_TAG='${PREV_TAG}' IMAGE_REGISTRY='${{ env.IMAGE_REGISTRY }}' \
+             GITHUB_ACTOR='${{ github.actor }}' GITHUB_TOKEN='${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}' \
+             bash -s" <<'REMOTE'
+          set -euo pipefail
+          echo "${GITHUB_TOKEN}" | docker login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
+          export IMAGE_TAG="${IMAGE_TAG}"
+          export IMAGE_REGISTRY="${IMAGE_REGISTRY}"
+          docker compose --env-file /opt/sv-tms/infra/.env \
+            -f /opt/sv-tms/infra/docker-compose.prod.yml pull
+          docker compose --env-file /opt/sv-tms/infra/.env \
+            -f /opt/sv-tms/infra/docker-compose.prod.yml up -d --remove-orphans
+          echo "${IMAGE_TAG}" > /opt/sv-tms/releases/current_tag
+          echo "Rollback to ${IMAGE_TAG} complete."
+          REMOTE
+
+      # ── Sync infra files ───────────────────────────────────────────────────
+      - name: Sync infra files to VPS
+        if: inputs.rollback != true
+        run: |
+          rsync -az --delete \
+            infra/docker-compose.prod.yml \
+            infra/nginx/ \
+            ${{ secrets.PROD_DEPLOY_USER }}@${{ secrets.PROD_DEPLOY_HOST }}:${DEPLOY_DIR}/infra/
+
+          # Sync monitoring config if present
+          if [[ -d infra/monitoring ]]; then
+            rsync -az infra/monitoring/ \
+              ${{ secrets.PROD_DEPLOY_USER }}@${{ secrets.PROD_DEPLOY_HOST }}:${DEPLOY_DIR}/infra/monitoring/
+          fi
+
+      # ── Ensure SSL cert exists before starting nginx ───────────────────────
+      - name: Ensure SSL cert exists (generate dummy if first deploy)
+        if: inputs.rollback != true
+        run: |
+          ssh ${{ secrets.PROD_DEPLOY_USER }}@${{ secrets.PROD_DEPLOY_HOST }} bash <<'REMOTE'
+          set -euo pipefail
+
+          # Read config from .env
+          DOMAIN=$(grep -E '^DOMAIN=' /opt/sv-tms/infra/.env 2>/dev/null | cut -d= -f2 | tr -d '"' | tr -d "'" | tr -d ' ')
+          DOMAIN="${DOMAIN:-svtms.svtrucking.biz}"
+          DATA_ROOT=$(grep -E '^DATA_ROOT=' /opt/sv-tms/infra/.env 2>/dev/null | cut -d= -f2 | tr -d '"' | tr -d "'" | tr -d ' ')
+          DATA_ROOT="${DATA_ROOT:-/srv/svtms}"
+
+          CERT_DIR="${DATA_ROOT}/certs/live/${DOMAIN}"
+          CERT_FILE="${CERT_DIR}/fullchain.pem"
+          KEY_FILE="${CERT_DIR}/privkey.pem"
+
+          # Always ensure directories exist
+          mkdir -p "${CERT_DIR}"
+          mkdir -p "${DATA_ROOT}/certs/archive/${DOMAIN}"
+          mkdir -p "${DATA_ROOT}/webroot/.well-known/acme-challenge"
+
+          if [[ -f "${CERT_FILE}" ]]; then
+            echo "✅ SSL cert already present at ${CERT_FILE}"
+          else
+            echo "⚠️  No SSL cert found — generating dummy self-signed cert so nginx can start"
+            echo "   Certbot will replace this with a real Let's Encrypt cert after stack is up"
+
+            openssl req -x509 -nodes -newkey rsa:2048 \
+              -keyout "${KEY_FILE}" \
+              -out "${CERT_FILE}" \
+              -days 1 \
+              -subj "/CN=${DOMAIN}/O=SV-TMS-Bootstrap/OU=Dummy" \
+              2>/dev/null
+            chmod 600 "${KEY_FILE}"
+            # certbot needs options-ssl-nginx.conf and ssl-dhparams.pem to exist
+            cp "${CERT_FILE}" "${DATA_ROOT}/certs/archive/${DOMAIN}/fullchain1.pem" 2>/dev/null || true
+            cp "${KEY_FILE}" "${DATA_ROOT}/certs/archive/${DOMAIN}/privkey1.pem" 2>/dev/null || true
+            echo "✅ Dummy cert generated — nginx will start successfully"
+          fi
+          REMOTE
+
+      # ── Pull & deploy ──────────────────────────────────────────────────────
+      - name: Deploy stack
+        if: inputs.rollback != true
+        id: deploy-step
+        env:
+          IMAGE_TAG: ${{ steps.resolve-tag.outputs.tag }}
+          REGISTRY_USERNAME: ${{ github.actor }}
+          REGISTRY_PASSWORD: ${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          ssh ${{ secrets.PROD_DEPLOY_USER }}@${{ secrets.PROD_DEPLOY_HOST }} \
+            "IMAGE_TAG='${IMAGE_TAG}' IMAGE_REGISTRY='${{ env.IMAGE_REGISTRY }}' \
+             REGISTRY_USERNAME='${REGISTRY_USERNAME}' REGISTRY_PASSWORD='${REGISTRY_PASSWORD}' \
+             bash -s" <<'REMOTE'
+          set -euo pipefail
+
+          echo "→ Logging into GHCR..."
+          echo "${REGISTRY_PASSWORD}" | docker login ghcr.io -u "${REGISTRY_USERNAME}" --password-stdin
+
+          echo "→ Pulling images for tag ${IMAGE_TAG}..."
+          IMAGE_REGISTRY="${IMAGE_REGISTRY}" IMAGE_TAG="${IMAGE_TAG}" \
+            docker compose --env-file /opt/sv-tms/infra/.env \
+            -f /opt/sv-tms/infra/docker-compose.prod.yml pull
+
+          echo "→ Starting services..."
+          IMAGE_REGISTRY="${IMAGE_REGISTRY}" IMAGE_TAG="${IMAGE_TAG}" \
+            docker compose --env-file /opt/sv-tms/infra/.env \
+            -f /opt/sv-tms/infra/docker-compose.prod.yml up -d --remove-orphans
+
+          # Record the current deployment tag
+          echo "${IMAGE_TAG}" > /opt/sv-tms/releases/current_tag
+
+          # Clean up old images (keep last 3)
+          docker image prune -f --filter "until=72h" || true
+
+          echo "→ Deploy complete: ${IMAGE_TAG}"
+          docker compose --env-file /opt/sv-tms/infra/.env \
+            -f /opt/sv-tms/infra/docker-compose.prod.yml ps
+          REMOTE
+
+      # ── Obtain real SSL cert if dummy was used ──────────────────────────────
+      - name: Obtain real SSL certificate (replaces dummy if needed)
+        if: inputs.rollback != true
+        continue-on-error: true
+        run: |
+          ssh ${{ secrets.PROD_DEPLOY_USER }}@${{ secrets.PROD_DEPLOY_HOST }} bash <<'REMOTE'
+          set -uo pipefail
+
+          DOMAIN=$(grep -E '^DOMAIN=' /opt/sv-tms/infra/.env 2>/dev/null | cut -d= -f2 | tr -d '"' | tr -d "'" | tr -d ' ')
+          DOMAIN="${DOMAIN:-svtms.svtrucking.biz}"
+          EMAIL=$(grep -E '^EMAIL=' /opt/sv-tms/infra/.env 2>/dev/null | cut -d= -f2 | tr -d '"' | tr -d "'" | tr -d ' ')
+          EMAIL="${EMAIL:-ops@svtrucking.biz}"
+          DATA_ROOT=$(grep -E '^DATA_ROOT=' /opt/sv-tms/infra/.env 2>/dev/null | cut -d= -f2 | tr -d '"' | tr -d "'" | tr -d ' ')
+          DATA_ROOT="${DATA_ROOT:-/srv/svtms}"
+
+          CERT_FILE="${DATA_ROOT}/certs/live/${DOMAIN}/fullchain.pem"
+
+          # Check if this is a dummy cert (expires ≤1 day from now)
+          is_dummy=false
+          if [[ -f "${CERT_FILE}" ]]; then
+            expiry_str=$(openssl x509 -in "${CERT_FILE}" -noout -enddate 2>/dev/null | cut -d= -f2 || echo "")
+            if [[ -n "${expiry_str}" ]]; then
+              expiry_ts=$(date -d "${expiry_str}" +%s 2>/dev/null || echo 0)
+              now_ts=$(date +%s)
+              days_left=$(( (expiry_ts - now_ts) / 86400 ))
+              [[ "${days_left}" -le 1 ]] && is_dummy=true
+            fi
+          fi
+
+          if "${is_dummy}"; then
+            echo "→ Dummy cert detected — requesting real Let's Encrypt cert for ${DOMAIN}..."
+            echo "→ Waiting for nginx to be fully ready to serve ACME challenges..."
+            sleep 10
+
+            # Run certbot via the stack's certbot container
+            docker exec svtms-certbot certbot certonly \
+              --webroot \
+              -w /var/www/certbot \
+              -d "${DOMAIN}" \
+              -m "${EMAIL}" \
+              --agree-tos \
+              --no-eff-email \
+              --non-interactive \
+              --force-renewal \
+              2>&1 && {
+                echo "✅ Real Let's Encrypt cert obtained for ${DOMAIN}"
+                docker exec svtms-nginx nginx -s reload 2>/dev/null \
+                  && echo "✅ nginx reloaded with real cert" \
+                  || echo "⚠️  nginx reload failed — run: docker exec svtms-nginx nginx -s reload"
+              } || {
+                echo "⚠️  Certbot failed — check that DNS for ${DOMAIN} resolves to this server"
+                echo "   Site is running with a dummy cert (HTTPS works but shows browser warning)"
+                echo "   To fix manually: docker exec svtms-certbot certbot certonly --webroot -w /var/www/certbot -d ${DOMAIN} -m ${EMAIL} --agree-tos --non-interactive"
+              }
+          else
+            echo "✅ Valid SSL cert already in place — no certbot run needed"
+          fi
+          REMOTE
+
+      # ── Health check ───────────────────────────────────────────────────────
+      - name: Health check — all services
+        id: health-check
+        timeout-minutes: 5
+        run: |
+          echo "Waiting for services to become healthy..."
+          ssh ${{ secrets.PROD_DEPLOY_USER }}@${{ secrets.PROD_DEPLOY_HOST }} bash <<'REMOTE'
+          set -euo pipefail
+          RETRIES=20
+          DELAY=15
+
+          check_service() {
+            local name="$1"; local url="$2"
+            for i in $(seq 1 ${RETRIES}); do
+              code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 "${url}" 2>/dev/null || echo "000")
+              if [[ "${code}" =~ ^(200|401|403)$ ]]; then
+                echo "✅ ${name} is healthy (HTTP ${code})"
+                return 0
+              fi
+              echo "  Waiting for ${name}... (${i}/${RETRIES}) HTTP ${code}"
+              sleep ${DELAY}
+            done
+            echo "❌ ${name} failed health check after $((RETRIES * DELAY))s"
+            return 1
+          }
+
+          check_service "core-api"       "http://127.0.0.1:8080/actuator/health"
+          check_service "auth-api"       "http://127.0.0.1:8083/actuator/health"
+          check_service "api-gateway"    "http://127.0.0.1:8086/actuator/health"
+          check_service "driver-app-api" "http://127.0.0.1:8084/actuator/health"
+          check_service "telematics-api" "http://127.0.0.1:8082/actuator/health"
+          check_service "safety-api"     "http://127.0.0.1:8087/actuator/health"
+          check_service "message-api"    "http://127.0.0.1:8088/actuator/health"
+
+          echo ""
+          echo "All services healthy ✅"
+          REMOTE
+
+      # ── Auto-rollback on failure ───────────────────────────────────────────
+      - name: Auto-rollback on health check failure
+        if: failure() && steps.health-check.outcome == 'failure' && inputs.rollback != true
+        env:
+          PREV_TAG: ${{ steps.get-previous.outputs.tag }}
+          REGISTRY_USERNAME: ${{ github.actor }}
+          REGISTRY_PASSWORD: ${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          if [[ "${PREV_TAG}" == "none" ]]; then
+            echo "::warning::Health check failed but no previous tag to roll back to."
+            exit 1
+          fi
+          echo "::warning::Health check failed! Rolling back to ${PREV_TAG}..."
+          ssh ${{ secrets.PROD_DEPLOY_USER }}@${{ secrets.PROD_DEPLOY_HOST }} \
+            "IMAGE_TAG='${PREV_TAG}' IMAGE_REGISTRY='${{ env.IMAGE_REGISTRY }}' \
+             REGISTRY_USERNAME='${REGISTRY_USERNAME}' REGISTRY_PASSWORD='${REGISTRY_PASSWORD}' \
+             bash -s" <<'REMOTE'
+          set -euo pipefail
+          echo "${REGISTRY_PASSWORD}" | docker login ghcr.io -u "${REGISTRY_USERNAME}" --password-stdin
+          IMAGE_REGISTRY="${IMAGE_REGISTRY}" IMAGE_TAG="${IMAGE_TAG}" \
+            docker compose --env-file /opt/sv-tms/infra/.env \
+            -f /opt/sv-tms/infra/docker-compose.prod.yml pull || true
+          IMAGE_REGISTRY="${IMAGE_REGISTRY}" IMAGE_TAG="${IMAGE_TAG}" \
+            docker compose --env-file /opt/sv-tms/infra/.env \
+            -f /opt/sv-tms/infra/docker-compose.prod.yml up -d --remove-orphans
+          echo "${IMAGE_TAG}" > /opt/sv-tms/releases/current_tag
+          echo "⚠️  Auto-rolled back to ${IMAGE_TAG}"
+          REMOTE
+
+      # ── Container logs on failure (for debugging) ──────────────────────────
+      - name: Dump container logs on failure
+        if: failure()
+        run: |
+          ssh ${{ secrets.PROD_DEPLOY_USER }}@${{ secrets.PROD_DEPLOY_HOST }} \
+            "docker compose --env-file /opt/sv-tms/infra/.env \
+             -f /opt/sv-tms/infra/docker-compose.prod.yml logs --tail=50 2>&1 || true"
+
+      # ── Slack notification ─────────────────────────────────────────────────
+      - name: Notify Slack — success
+        if: success() && vars.SLACK_ENABLED == 'true'
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            channel: "${{ secrets.SLACK_CHANNEL_ID }}"
+            text: "✅ *Deployed to Production* — `${{ steps.resolve-tag.outputs.tag }}`"
+            attachments:
+              - color: "good"
+                fields:
+                  - title: "Repository"
+                    value: "${{ github.repository }}"
+                    short: true
+                  - title: "Deployed by"
+                    value: "${{ github.actor }}"
+                    short: true
+                  - title: "Commit"
+                    value: "<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>"
+                    short: false
+
+      - name: Notify Slack — failure
+        if: failure() && vars.SLACK_ENABLED == 'true'
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          payload: |
+            channel: "${{ secrets.SLACK_CHANNEL_ID }}"
+            text: "🚨 *Deployment FAILED* — `${{ steps.resolve-tag.outputs.tag }}`"
+            attachments:
+              - color: "danger"
+                fields:
+                  - title: "Repository"
+                    value: "${{ github.repository }}"
+                    short: true
+                  - title: "Run"
+                    value: "<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View logs>"
+                    short: true
+
+# ── Post-deploy smoke test (external — from GitHub runner) ───────────────────
+  smoke-test:
+    name: Smoke Test — svtms.svtrucking.biz
+    needs: [deploy]
+    if: success() && inputs.rollback != true
+    uses: ./.github/workflows/smoke-test.yml
+    with:
+      base_url: 'https://svtms.svtrucking.biz'
+    secrets: inherit
+
+# ── SSL Certificate renewal ───────────────────────────────────────────────────
+  renew-ssl:
+    name: Renew SSL Certificate
+    runs-on: ubuntu-latest
+    needs: []
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.rollback == 'false'
+    continue-on-error: true
+    steps:
+      - name: Install SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.PROD_DEPLOY_SSH_KEY }}
+
+      - name: Renew cert if due
+        run: |
+          ssh ${{ secrets.PROD_DEPLOY_USER }}@${{ secrets.PROD_DEPLOY_HOST }} \
+            "docker exec svtms-certbot certbot renew --quiet 2>&1 || true && \
+             docker exec svtms-nginx nginx -s reload 2>/dev/null || true"
