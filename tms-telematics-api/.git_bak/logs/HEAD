@@ -1,3 +1,0 @@
-0000000000000000000000000000000000000000 b60a6a729ec96ac041fb53d123f609cace0402df khetsothea <687433+khetsothea@users.noreply.github.com> 1773396195 +0700	commit (initial): feat: initial telematics service import
-b60a6a729ec96ac041fb53d123f609cace0402df 87e30fc6ec9a5ffea2a8d9e250bd25a4bce6368f khetsothea <687433+khetsothea@users.noreply.github.com> 1773879343 +0700	commit: feat: expand telematics streaming and tracking APIs
-87e30fc6ec9a5ffea2a8d9e250bd25a4bce6368f 4bb1e9b10e0013dd064e19c903b7390436e79b0d khetsothea <687433+khetsothea@users.noreply.github.com> 1773940728 +0700	commit: feat: optimize Dockerfile build process and refactor telemetry stream offset handling

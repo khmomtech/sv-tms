@@ -180,3 +180,4 @@ backend-*.log
 # SSH deploy keys (NEVER commit these)
 infra/deploy_key
 infra/.env
+**/.git_bak
