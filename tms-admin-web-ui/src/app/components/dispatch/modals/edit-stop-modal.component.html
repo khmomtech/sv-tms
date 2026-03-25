@@ -1,0 +1,101 @@
+<!-- Edit Stop Modal -->
+<div
+  *ngIf="visible"
+  class="fixed inset-0 z-50 flex items-center justify-center overflow-auto bg-black/40"
+>
+  <div class="relative w-full max-w-lg p-6 bg-white rounded-lg shadow-lg">
+    <h2 class="mb-4 text-lg font-bold text-blue-700">✏️ Edit Stop</h2>
+
+    <form [formGroup]="form" (ngSubmit)="onSave()">
+      <div class="space-y-4">
+        <!-- Label -->
+        <div>
+          <label for="label" class="block text-sm font-medium">Label</label>
+          <input
+            id="label"
+            formControlName="label"
+            class="w-full p-2 border rounded"
+            placeholder="e.g. Stop A"
+          />
+        </div>
+
+        <!-- Type -->
+        <div>
+          <label for="type" class="block text-sm font-medium">Type</label>
+          <select id="type" formControlName="type" class="w-full p-2 border rounded">
+            <option value="pickup">Pickup</option>
+            <option value="dropoff">Dropoff</option>
+          </select>
+        </div>
+
+        <!-- Search Location (Google Maps Autocomplete) -->
+        <div>
+          <label for="search" class="block text-sm font-medium">Search Location</label>
+          <input
+            #searchInput
+            id="search"
+            type="text"
+            class="w-full p-2 border rounded"
+            placeholder="Start typing a location..."
+            autocomplete="off"
+          />
+        </div>
+
+        <!--  Map Preview -->
+        <div class="h-48 mt-2 overflow-hidden border rounded">
+          <google-map
+            [center]="mapCenter"
+            [zoom]="15"
+            [height]="'100%'"
+            [width]="'100%'"
+            class="w-full h-full"
+          >
+            <map-marker [position]="mapCenter"></map-marker>
+          </google-map>
+        </div>
+
+        <!-- Coordinates -->
+        <div>
+          <label for="coordinates" class="block text-sm font-medium">Coordinates</label>
+          <input
+            id="coordinates"
+            formControlName="coordinates"
+            class="w-full p-2 bg-gray-100 border rounded"
+            readonly
+          />
+        </div>
+
+        <!-- Location (Formatted Address) -->
+        <div>
+          <label for="location" class="block text-sm font-medium">Location</label>
+          <input
+            id="location"
+            formControlName="location"
+            class="w-full p-2 bg-gray-100 border rounded"
+            readonly
+          />
+        </div>
+
+        <!-- Note -->
+        <div>
+          <label for="note" class="block text-sm font-medium">Note</label>
+          <textarea
+            id="note"
+            formControlName="note"
+            rows="2"
+            class="w-full p-2 border rounded"
+            placeholder="Optional notes"
+          ></textarea>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="flex justify-end gap-3 pt-5 mt-6 border-t">
+        <button type="button" class="px-4 py-2 bg-gray-300 rounded" (click)="onClose()">
+          Cancel
+        </button>
+        <button type="submit" class="px-4 py-2 text-white bg-blue-600 rounded">Save</button>
+      </div>
+    </form>
+  </div>
+</div>

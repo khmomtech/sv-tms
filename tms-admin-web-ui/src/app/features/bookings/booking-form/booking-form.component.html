@@ -1,0 +1,586 @@
+<div class="min-h-screen bg-slate-50">
+  <!-- Header -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-10">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <button
+          (click)="cancel()"
+          class="h-9 w-9 rounded-xl border border-slate-200 hover:bg-slate-50 flex items-center justify-center"
+        >
+          ←
+        </button>
+        <div>
+          <div class="text-xs uppercase tracking-[0.3em] text-slate-500">
+            {{ isEditMode ? 'Edit' : 'Create' }} Booking
+          </div>
+          <div class="font-extrabold leading-tight">Booking Form</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Loading -->
+  <div *ngIf="loading" class="max-w-4xl mx-auto px-4 py-8 text-center">
+    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto"></div>
+    <p class="mt-4 text-slate-600">Loading booking...</p>
+  </div>
+
+  <!-- Form -->
+  <main *ngIf="!loading" class="max-w-4xl mx-auto px-4 py-6">
+    <form [formGroup]="bookingForm" (ngSubmit)="onSubmit()" class="space-y-6">
+      <!-- Error Message -->
+      <div *ngIf="error" class="bg-red-50 border border-red-200 rounded-xl p-4">
+        <p class="text-red-700">{{ error }}</p>
+      </div>
+
+      <!-- Customer Information -->
+      <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+        <h3 class="text-lg font-bold mb-4">Customer Information</h3>
+
+        <!-- Customer Search with ng-select -->
+        <div class="mb-4">
+          <label class="block text-sm font-semibold text-slate-700 mb-2">
+            Search Customer <span class="text-red-500">*</span>
+          </label>
+          <ng-select
+            [items]="customers$ | async"
+            [formControl]="customerSearchControl"
+            bindLabel="name"
+            placeholder="Type to search customer..."
+            [typeahead]="customerSearchInput$"
+            [clearable]="true"
+            [loading]="loadingCustomers"
+            (change)="onCustomerSelected($event)"
+            [minTermLength]="2"
+            typeToSearchText="Type at least 2 characters to search"
+            notFoundText="No customers found"
+            loadingText="Searching customers..."
+            class="custom-ng-select"
+          >
+            <ng-template ng-option-tmp let-item="item">
+              <div class="flex items-center justify-between py-2">
+                <div class="flex-1">
+                  <div class="font-semibold text-slate-900">{{ item.name }}</div>
+                  <div class="text-xs text-slate-600 mt-0.5">
+                    <span *ngIf="item.customerCode" class="text-slate-700">{{
+                      item.customerCode
+                    }}</span>
+                    <span *ngIf="item.customerCode && item.phone" class="text-slate-400"> • </span>
+                    <span *ngIf="item.phone" class="text-slate-700">{{ item.phone }}</span>
+                  </div>
+                </div>
+                <span
+                  class="ml-3 px-2 py-0.5 rounded-full text-xs font-medium"
+                  [ngClass]="{
+                    'bg-green-100 text-green-700': item.status === 'ACTIVE',
+                    'bg-gray-100 text-gray-600': item.status === 'INACTIVE',
+                  }"
+                >
+                  {{ item.status }}
+                </span>
+              </div>
+            </ng-template>
+            <ng-template ng-label-tmp let-item="item">
+              <span class="text-slate-900 font-medium">{{ item.name }}</span>
+              <span *ngIf="item.customerCode" class="text-slate-600 text-sm ml-2"
+                >({{ item.customerCode }})</span
+              >
+            </ng-template>
+          </ng-select>
+        </div>
+
+        <!-- Auto-filled Customer Details (Read-only) -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-2">
+              Customer ID <span class="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              formControlName="customerId"
+              readonly
+              class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-700 focus:ring-2 focus:ring-orange-200 focus:outline-none"
+              placeholder="Auto-filled"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-2">
+              Customer Name <span class="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              formControlName="customerName"
+              readonly
+              class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-700 focus:ring-2 focus:ring-orange-200 focus:outline-none"
+              placeholder="Auto-filled"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-2">Customer Phone</label>
+            <input
+              type="text"
+              formControlName="customerPhone"
+              readonly
+              class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-700 focus:ring-2 focus:ring-orange-200 focus:outline-none"
+              placeholder="Auto-filled"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- Pickup Address -->
+      <div
+        class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6"
+        formGroupName="pickupAddress"
+      >
+        <h3 class="text-lg font-bold mb-4">📍 Pickup Address</h3>
+        <!-- Pickup Location select2-style -->
+        <div class="mb-4">
+          <label class="block text-sm font-semibold text-slate-700 mb-2"
+            >Search Pickup Location</label
+          >
+          <ng-select
+            [items]="pickupLocations$ | async"
+            [formControl]="pickupLocationControl"
+            bindLabel="name"
+            placeholder="Type to search pickup location..."
+            [typeahead]="pickupLocationSearchInput$"
+            [clearable]="true"
+            [loading]="loadingPickupLocations"
+            (change)="onPickupLocationSelected($event)"
+            [disabled]="!selectedCustomer"
+            [minTermLength]="2"
+            typeToSearchText="Type at least 2 characters"
+            notFoundText="No locations found"
+            loadingText="Searching locations..."
+            class="custom-ng-select"
+          >
+            <ng-template ng-option-tmp let-item="item">
+              <div class="py-2">
+                <div class="font-semibold text-slate-900">{{ item.name }}</div>
+                <div class="text-xs text-slate-600 mt-0.5">
+                  <span class="text-slate-700">{{ item.address }}</span>
+                  <span *ngIf="item.city" class="text-slate-400"> • </span>
+                  <span *ngIf="item.city" class="text-slate-700">{{ item.city }}</span>
+                </div>
+              </div>
+            </ng-template>
+            <ng-template ng-label-tmp let-item="item">
+              <span class="text-slate-900 font-medium">{{ item.name }}</span>
+              <span *ngIf="item.city" class="text-slate-600 text-sm ml-2">({{ item.city }})</span>
+            </ng-template>
+          </ng-select>
+        </div>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-2">
+              Address <span class="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              formControlName="addressLine"
+              class="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:ring-2 focus:ring-orange-200 focus:outline-none"
+              placeholder="Street address"
+            />
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-sm font-semibold text-slate-700 mb-2">City</label>
+              <input
+                type="text"
+                formControlName="city"
+                class="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:ring-2 focus:ring-orange-200 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-slate-700 mb-2">Province</label>
+              <input
+                type="text"
+                formControlName="province"
+                class="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:ring-2 focus:ring-orange-200 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-slate-700 mb-2">Postal Code</label>
+              <input
+                type="text"
+                formControlName="postalCode"
+                class="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:ring-2 focus:ring-orange-200 focus:outline-none"
+              />
+            </div>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-sm font-semibold text-slate-700 mb-2">Company Name</label>
+              <input
+                type="text"
+                formControlName="companyName"
+                class="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:ring-2 focus:ring-orange-200 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-slate-700 mb-2">Contact Name</label>
+              <input
+                type="text"
+                formControlName="contactName"
+                class="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:ring-2 focus:ring-orange-200 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-slate-700 mb-2">Contact Phone</label>
+              <input
+                type="text"
+                formControlName="contactPhone"
+                class="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:ring-2 focus:ring-orange-200 focus:outline-none"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Delivery Address -->
+      <div
+        class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6"
+        formGroupName="deliveryAddress"
+      >
+        <h3 class="text-lg font-bold mb-4">📦 Delivery Address</h3>
+        <!-- Delivery Location select2-style -->
+        <div class="mb-4">
+          <label class="block text-sm font-semibold text-slate-700 mb-2"
+            >Search Delivery Location</label
+          >
+          <ng-select
+            [items]="deliveryLocations$ | async"
+            [formControl]="deliveryLocationControl"
+            bindLabel="name"
+            placeholder="Type to search delivery location..."
+            [typeahead]="deliveryLocationSearchInput$"
+            [clearable]="true"
+            [loading]="loadingDeliveryLocations"
+            (change)="onDeliveryLocationSelected($event)"
+            [disabled]="!selectedCustomer"
+            [minTermLength]="2"
+            typeToSearchText="Type at least 2 characters"
+            notFoundText="No locations found"
+            loadingText="Searching locations..."
+            class="custom-ng-select"
+          >
+            <ng-template ng-option-tmp let-item="item">
+              <div class="py-2">
+                <div class="font-semibold text-slate-900">{{ item.name }}</div>
+                <div class="text-xs text-slate-600 mt-0.5">
+                  <span class="text-slate-700">{{ item.address }}</span>
+                  <span *ngIf="item.city" class="text-slate-400"> • </span>
+                  <span *ngIf="item.city" class="text-slate-700">{{ item.city }}</span>
+                </div>
+              </div>
+            </ng-template>
+            <ng-template ng-label-tmp let-item="item">
+              <span class="text-slate-900 font-medium">{{ item.name }}</span>
+              <span *ngIf="item.city" class="text-slate-600 text-sm ml-2">({{ item.city }})</span>
+            </ng-template>
+          </ng-select>
+        </div>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-2">
+              Address <span class="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              formControlName="addressLine"
+              class="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:ring-2 focus:ring-orange-200 focus:outline-none"
+              placeholder="Street address"
+            />
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-sm font-semibold text-slate-700 mb-2">City</label>
+              <input
+                type="text"
+                formControlName="city"
+                class="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:ring-2 focus:ring-orange-200 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-slate-700 mb-2">Province</label>
+              <input
+                type="text"
+                formControlName="province"
+                class="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:ring-2 focus:ring-orange-200 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-slate-700 mb-2">Postal Code</label>
+              <input
+                type="text"
+                formControlName="postalCode"
+                class="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:ring-2 focus:ring-orange-200 focus:outline-none"
+              />
+            </div>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-sm font-semibold text-slate-700 mb-2">Company Name</label>
+              <input
+                type="text"
+                formControlName="companyName"
+                class="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:ring-2 focus:ring-orange-200 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-slate-700 mb-2">Contact Name</label>
+              <input
+                type="text"
+                formControlName="contactName"
+                class="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:ring-2 focus:ring-orange-200 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-slate-700 mb-2">Contact Phone</label>
+              <input
+                type="text"
+                formControlName="contactPhone"
+                class="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:ring-2 focus:ring-orange-200 focus:outline-none"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Service Details -->
+      <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+        <h3 class="text-lg font-bold mb-4">Service Details</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-2">
+              Service Type <span class="text-red-500">*</span>
+            </label>
+            <select
+              formControlName="serviceType"
+              class="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:ring-2 focus:ring-orange-200 focus:outline-none"
+            >
+              <option *ngFor="let type of ServiceTypes" [value]="type">{{ type }}</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-2">
+              Payment Type <span class="text-red-500">*</span>
+            </label>
+            <select
+              formControlName="paymentType"
+              class="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:ring-2 focus:ring-orange-200 focus:outline-none"
+            >
+              <option *ngFor="let type of PaymentTypes" [value]="type">{{ type }}</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-2">Truck Type</label>
+            <input
+              type="text"
+              formControlName="truckType"
+              class="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:ring-2 focus:ring-orange-200 focus:outline-none"
+              placeholder="e.g., 6-Wheel"
+            />
+          </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-2">
+              Pickup Date <span class="text-red-500">*</span>
+            </label>
+            <input
+              type="date"
+              formControlName="pickupDate"
+              class="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:ring-2 focus:ring-orange-200 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-2"
+              >Delivery Date (Optional)</label
+            >
+            <input
+              type="date"
+              formControlName="deliveryDate"
+              class="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:ring-2 focus:ring-orange-200 focus:outline-none"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- Packages -->
+      <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-bold">Packages</h3>
+          <button
+            type="button"
+            (click)="addPackage()"
+            class="px-4 py-2 rounded-xl bg-orange-600 text-white text-sm font-semibold hover:opacity-90"
+          >
+            + Add Package
+          </button>
+        </div>
+
+        <div *ngIf="packages.length === 0" class="text-center text-slate-500 py-4">
+          No packages added. Click "Add Package" to start.
+        </div>
+
+        <div formArrayName="packages" class="space-y-4">
+          <div
+            *ngFor="let package of packages.controls; let i = index"
+            [formGroupName]="i"
+            class="border border-slate-200 rounded-xl p-4"
+          >
+            <div class="flex items-center justify-between mb-3">
+              <h4 class="font-semibold">Package {{ i + 1 }}</h4>
+              <button
+                type="button"
+                (click)="removePackage(i)"
+                class="text-red-600 font-semibold hover:underline text-sm"
+              >
+                Remove
+              </button>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Item Type</label>
+                <input
+                  type="text"
+                  formControlName="itemType"
+                  class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:ring-2 focus:ring-orange-200 focus:outline-none"
+                  placeholder="Box"
+                />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Quantity</label>
+                <input
+                  type="number"
+                  formControlName="quantity"
+                  min="1"
+                  class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:ring-2 focus:ring-orange-200 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Weight (kg)</label>
+                <input
+                  type="number"
+                  formControlName="weightKg"
+                  class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:ring-2 focus:ring-orange-200 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Volume (cbm)</label>
+                <input
+                  type="number"
+                  formControlName="volumeCbm"
+                  step="0.01"
+                  class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:ring-2 focus:ring-orange-200 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">COD ($)</label>
+                <input
+                  type="number"
+                  formControlName="cod"
+                  step="0.01"
+                  class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:ring-2 focus:ring-orange-200 focus:outline-none"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Additional Information -->
+      <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+        <h3 class="text-lg font-bold mb-4">Additional Information</h3>
+        <div class="space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-sm font-semibold text-slate-700 mb-2"
+                >Total Weight (tons)</label
+              >
+              <input
+                type="number"
+                formControlName="totalWeightTons"
+                step="0.01"
+                class="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:ring-2 focus:ring-orange-200 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-slate-700 mb-2"
+                >Total Volume (cbm)</label
+              >
+              <input
+                type="number"
+                formControlName="totalVolumeCbm"
+                step="0.01"
+                class="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:ring-2 focus:ring-orange-200 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-slate-700 mb-2"
+                >Estimated Cost ($)</label
+              >
+              <input
+                type="number"
+                formControlName="estimatedCost"
+                step="0.01"
+                class="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:ring-2 focus:ring-orange-200 focus:outline-none"
+              />
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-2"
+              >Special Handling Notes</label
+            >
+            <textarea
+              formControlName="specialHandlingNotes"
+              rows="2"
+              class="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:ring-2 focus:ring-orange-200 focus:outline-none"
+              placeholder="Fragile, temperature-sensitive, etc."
+            ></textarea>
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-2">Notes</label>
+            <textarea
+              formControlName="notes"
+              rows="3"
+              class="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:ring-2 focus:ring-orange-200 focus:outline-none"
+              placeholder="Additional notes..."
+            ></textarea>
+          </div>
+          <div class="flex items-center gap-2">
+            <input
+              type="checkbox"
+              formControlName="requiresInsurance"
+              id="requiresInsurance"
+              class="rounded border-slate-300 text-orange-600 focus:ring-orange-200"
+            />
+            <label for="requiresInsurance" class="text-sm font-medium text-slate-700">
+              Requires Insurance
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="flex gap-3 justify-end">
+        <button
+          type="button"
+          (click)="cancel()"
+          class="px-6 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-semibold hover:bg-slate-50"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          [disabled]="submitting || bookingForm.invalid"
+          class="px-6 py-2.5 rounded-xl bg-orange-600 text-white font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {{ submitting ? 'Saving...' : isEditMode ? 'Update Booking' : 'Create Booking' }}
+        </button>
+      </div>
+    </form>
+  </main>
+</div>

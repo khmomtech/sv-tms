@@ -1,0 +1,45 @@
+<div class="page">
+  <h2>Vehicle Assignments</h2>
+
+  <div *ngIf="loading">Loading...</div>
+  <div *ngIf="error" class="error">{{ error }}</div>
+
+  <table class="table" *ngIf="!loading && !error">
+    <thead>
+      <tr>
+        <th>Vehicle</th>
+        <th>Permanent Driver</th>
+        <th>Temporary Driver</th>
+        <th>Effective Driver</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let r of rows">
+        <td>{{ r.vehicleCode || r.vehicleId }}</td>
+        <td>
+          <span *ngIf="r.permanentDriver; else none">{{ r.permanentDriver?.name }}</span>
+          <ng-template #none><em>None</em></ng-template>
+        </td>
+        <td>
+          <ng-container *ngIf="r.temporaryDriver; else noTemp">
+            <span>{{ r.temporaryDriver?.name }}</span>
+            <span
+              class="chip"
+              [ngClass]="{
+                'chip-red': (r.temporaryDriver?.remainingMinutes ?? 9999) < 10,
+                'chip-orange':
+                  (r.temporaryDriver?.remainingMinutes ?? 9999) < 60 &&
+                  (r.temporaryDriver?.remainingMinutes ?? 9999) >= 10,
+                'chip-green': (r.temporaryDriver?.remainingMinutes ?? 0) >= 60,
+              }"
+            >
+              {{ r.temporaryDriver?.remainingMinutes ?? '-' }} min
+            </span>
+          </ng-container>
+          <ng-template #noTemp><em>None</em></ng-template>
+        </td>
+        <td>{{ r.effectiveDriver?.name || '-' }}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>

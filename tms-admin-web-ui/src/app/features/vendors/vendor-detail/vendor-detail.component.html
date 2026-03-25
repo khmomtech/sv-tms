@@ -1,0 +1,110 @@
+<div class="detail-wrap">
+  <div *ngIf="loading()" class="loading">Loading {{ (displayTerm() || '').toLowerCase() }}…</div>
+  <div *ngIf="!loading() && error()" class="error">{{ error() }}</div>
+
+  <div *ngIf="!loading() && partner() as p" class="card">
+    <div class="card-header">
+      <div class="title">
+        <i class="bi bi-building text-blue-600"></i>
+        <div>
+          <h1>{{ p.companyName }}</h1>
+          <div class="meta">
+            <span class="code">Code: {{ p.companyCode || '-' }}</span>
+            <span
+              class="badge"
+              [ngClass]="{
+                'badge-green': p.status === 'ACTIVE',
+                'badge-gray': p.status !== 'ACTIVE',
+              }"
+              >{{ p.status }}</span
+            >
+          </div>
+        </div>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn" (click)="backToList()">
+          <i class="bi bi-arrow-left"></i>
+          Back
+        </button>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="section">
+        <div class="section-title">Company</div>
+        <div class="row">
+          <span class="label">Type</span
+          ><span class="value">
+            <span
+              class="type-chip"
+              [ngClass]="{
+                'type-primary': getPartnershipTypeColor(p.partnershipType) === 'primary',
+                'type-accent': getPartnershipTypeColor(p.partnershipType) === 'accent',
+                'type-default': getPartnershipTypeColor(p.partnershipType) === 'default',
+              }"
+              >{{ getPartnershipTypeLabel(p.partnershipType) }}</span
+            >
+          </span>
+        </div>
+        <div class="row">
+          <span class="label">Business License</span
+          ><span class="value">{{ p.businessLicense || '-' }}</span>
+        </div>
+        <div class="row">
+          <span class="label">Website</span><span class="value">{{ p.website || '-' }}</span>
+        </div>
+        <div class="row">
+          <span class="label">Address</span><span class="value">{{ p.address || '-' }}</span>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Contacts</div>
+        <div class="row">
+          <span class="label">Contact Person</span
+          ><span class="value">{{ p.contactPerson || '-' }}</span>
+        </div>
+        <div class="row">
+          <span class="label">Email</span><span class="value">{{ p.email || '-' }}</span>
+        </div>
+        <div class="row">
+          <span class="label">Phone</span><span class="value">{{ p.phone || '-' }}</span>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Commercial</div>
+        <div class="row">
+          <span class="label">Commission</span
+          ><span class="value">{{ p.commissionRate != null ? p.commissionRate + '%' : '-' }}</span>
+        </div>
+        <div class="row">
+          <span class="label">Credit Limit</span
+          ><span class="value">{{ formatCurrency(p.creditLimit) }}</span>
+        </div>
+        <div class="row">
+          <span class="label">Contract Start</span
+          ><span class="value">{{ p.contractStartDate || '-' }}</span>
+        </div>
+        <div class="row">
+          <span class="label">Contract End</span
+          ><span class="value">{{ p.contractEndDate || '-' }}</span>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Audit</div>
+        <div class="row">
+          <span class="label">Created</span><span class="value">{{ p.createdAt || '-' }}</span>
+        </div>
+        <div class="row">
+          <span class="label">Updated</span><span class="value">{{ p.updatedAt || '-' }}</span>
+        </div>
+        <div class="row">
+          <span class="label">By</span
+          ><span class="value">{{ p.updatedBy || p.createdBy || '-' }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

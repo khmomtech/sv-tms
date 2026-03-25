@@ -1,0 +1,142 @@
+<div class="container-fluid">
+  <h2 class="mb-4">Single Sign-On (SSO) Management</h2>
+
+  <!-- Success Message -->
+  <div *ngIf="success" class="alert alert-success alert-dismissible fade show" role="alert">
+    {{ success }}
+    <button
+      type="button"
+      class="btn-close"
+      data-bs-dismiss="alert"
+      aria-label="Close"
+      (click)="success = null"
+    ></button>
+  </div>
+
+  <!-- Error Message -->
+  <div *ngIf="error" class="alert alert-danger alert-dismissible fade show" role="alert">
+    {{ error }}
+    <button
+      type="button"
+      class="btn-close"
+      data-bs-dismiss="alert"
+      aria-label="Close"
+      (click)="error = null"
+    ></button>
+  </div>
+
+  <!-- Loading Indicator -->
+  <div *ngIf="loading" class="text-center">
+    <div class="spinner-border" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+  </div>
+
+  <!-- SSO Token Validation Section -->
+  <div class="mb-4 card">
+    <div class="card-header">
+      <h5 class="mb-0">Validate SSO Token</h5>
+    </div>
+    <div class="card-body">
+      <form (ngSubmit)="validateToken()" #validateForm="ngForm">
+        <div class="mb-3">
+          <label for="ssoToken" class="form-label">SSO Token</label>
+          <div class="input-group">
+            <input
+              type="text"
+              class="form-control"
+              id="ssoToken"
+              [(ngModel)]="ssoToken"
+              name="ssoToken"
+              required
+            />
+            <button type="button" class="btn btn-outline-secondary" (click)="clearToken()">
+              Clear
+            </button>
+          </div>
+        </div>
+        <div class="d-flex justify-content-end">
+          <button type="submit" class="btn btn-primary" [disabled]="loading">
+            <span
+              *ngIf="loading"
+              class="spinner-border spinner-border-sm me-1"
+              role="status"
+              aria-hidden="true"
+            ></span>
+            Validate Token
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Validation Result -->
+  <div class="mb-4 card" *ngIf="validationResult">
+    <div class="card-header">
+      <h5 class="mb-0">Validation Result</h5>
+    </div>
+    <div class="card-body">
+      <div class="alert alert-success">
+        <h6>Token is valid</h6>
+        <div class="row">
+          <div class="col-md-6">
+            <p><strong>Username:</strong> {{ validationResult.user.username }}</p>
+            <p><strong>Email:</strong> {{ validationResult.user.email }}</p>
+          </div>
+          <div class="col-md-6">
+            <p><strong>Roles:</strong></p>
+            <ul>
+              <li *ngFor="let role of validationResult.user.roles">{{ role }}</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create SSO Token Section -->
+  <div class="mb-4 card">
+    <div class="card-header">
+      <h5 class="mb-0">Create SSO Token</h5>
+    </div>
+    <div class="card-body">
+      <form (ngSubmit)="createToken()" #createForm="ngForm">
+        <div class="mb-3">
+          <label for="username" class="form-label">Username</label>
+          <input
+            type="text"
+            class="form-control"
+            id="username"
+            [(ngModel)]="username"
+            name="username"
+            required
+          />
+        </div>
+        <div class="d-flex justify-content-end">
+          <button type="submit" class="btn btn-primary" [disabled]="loading">
+            <span
+              *ngIf="loading"
+              class="spinner-border spinner-border-sm me-1"
+              role="status"
+              aria-hidden="true"
+            ></span>
+            Create Token
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Generated Token -->
+  <div class="mb-4 card" *ngIf="ssoToken">
+    <div class="card-header">
+      <h5 class="mb-0">Generated SSO Token</h5>
+    </div>
+    <div class="card-body">
+      <div class="input-group">
+        <input type="text" class="form-control" [value]="ssoToken" readonly />
+        <button type="button" class="btn btn-outline-primary" (click)="copyToken()">Copy</button>
+      </div>
+    </div>
+  </div>
+</div>

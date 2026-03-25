@@ -1,0 +1,6 @@
+<nav>
+  <a routerLink="/dashboard">Dashboard</a>
+  <a routerLink="/drivers" *ngIf="isAdmin()">Drivers</a>
+  <a routerLink="/fleet" *ngIf="isAdminOrDispatcher()">Fleet</a>
+  <a (click)="logout()">Logout</a>
+</nav>

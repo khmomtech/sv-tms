@@ -1,0 +1,1598 @@
+<div class="container px-6 py-8 mx-auto">
+  <div *ngIf="isLoading" class="p-6 text-center text-gray-600">Loading customer...</div>
+
+  <ng-container *ngIf="!isLoading">
+    <div class="mb-4" *ngIf="errorMessage">
+      <div class="p-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded">
+        {{ errorMessage }}
+      </div>
+    </div>
+    <div class="mb-4" *ngIf="successMessage">
+      <div class="p-3 text-sm text-green-700 bg-green-50 border border-green-200 rounded">
+        {{ successMessage }}
+      </div>
+    </div>
+
+    <!-- Breadcrumb Navigation -->
+    <nav class="flex mb-4" aria-label="Breadcrumb">
+      <ol class="inline-flex items-center space-x-1 md:space-x-3">
+        <li class="inline-flex items-center">
+          <a
+            [routerLink]="['/dashboard']"
+            class="inline-flex items-center text-sm font-medium text-gray-700 hover:text-blue-600"
+          >
+            <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path
+                d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"
+              />
+            </svg>
+            Dashboard
+          </a>
+        </li>
+        <li class="inline-flex items-center">
+          <a
+            [routerLink]="['/customers']"
+            class="inline-flex items-center text-sm font-medium text-gray-700 hover:text-blue-600"
+          >
+            Customers
+          </a>
+        </li>
+        <li aria-current="page">
+          <div class="flex items-center">
+            <svg class="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+              <path
+                fill-rule="evenodd"
+                d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                clip-rule="evenodd"
+              />
+            </svg>
+            <span class="ml-1 text-sm font-medium text-gray-500 md:ml-2">
+              {{ customer.customerCode || customer.name || 'Customer' }}
+            </span>
+          </div>
+        </li>
+      </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+      <div class="flex items-center gap-3">
+        <div class="p-2 bg-blue-100 rounded-lg">
+          <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+            />
+          </svg>
+        </div>
+        <div>
+          <h2 class="text-2xl font-bold text-gray-900">
+            {{ customer.name || 'Customer' }}
+          </h2>
+          <p class="text-sm text-gray-600">
+            {{ isEditMode ? 'Edit customer' : 'Create customer' }}
+            <span *ngIf="customer.id"> • ID: {{ customer.id }}</span>
+          </p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button
+          type="button"
+          [routerLink]="['/customers']"
+          class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+        >
+          Back
+        </button>
+        <button
+          type="button"
+          (click)="saveCustomer()"
+          [disabled]="isSaving"
+          class="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium"
+        >
+          {{ isSaving ? 'Saving...' : isEditMode ? 'Save' : 'Create' }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Layout (CRM-style): Left Navigation + Right Sections -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <aside class="lg:col-span-3">
+        <div class="lg:sticky lg:top-24">
+          <div class="bg-white shadow rounded-xl p-4">
+            <div class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Customer</div>
+
+            <!-- Desktop nav -->
+            <nav class="hidden lg:block mt-3 space-y-1">
+              <a
+                [routerLink]="[]"
+                [queryParams]="{ group: null }"
+                queryParamsHandling="merge"
+                class="block w-full text-left px-3 py-2 rounded-lg text-sm transition"
+                [ngClass]="
+                  activeGroup === 'details'
+                    ? 'text-blue-700 bg-blue-50 hover:bg-blue-100'
+                    : 'text-gray-700 hover:bg-gray-50'
+                "
+              >
+                Customer Detail
+              </a>
+              <a
+                [routerLink]="[]"
+                [queryParams]="{ group: 'contacts' }"
+                queryParamsHandling="merge"
+                class="block w-full text-left px-3 py-2 rounded-lg text-sm transition"
+                [ngClass]="
+                  activeGroup === 'contacts'
+                    ? 'text-blue-700 bg-blue-50 hover:bg-blue-100'
+                    : 'text-gray-700 hover:bg-gray-50'
+                "
+              >
+                Contacts
+              </a>
+              <a
+                [routerLink]="[]"
+                [queryParams]="{ group: 'customer-address' }"
+                queryParamsHandling="merge"
+                class="block w-full text-left px-3 py-2 rounded-lg text-sm transition"
+                [ngClass]="
+                  activeGroup === 'customer-address'
+                    ? 'text-blue-700 bg-blue-50 hover:bg-blue-100'
+                    : 'text-gray-700 hover:bg-gray-50'
+                "
+              >
+                Customer Address
+              </a>
+              <a
+                [routerLink]="[]"
+                [queryParams]="{ group: 'bill-to-address' }"
+                queryParamsHandling="merge"
+                class="block w-full text-left px-3 py-2 rounded-lg text-sm transition"
+                [ngClass]="
+                  activeGroup === 'bill-to-address'
+                    ? 'text-blue-700 bg-blue-50 hover:bg-blue-100'
+                    : 'text-gray-700 hover:bg-gray-50'
+                "
+              >
+                Bill To Address
+              </a>
+              <a
+                [routerLink]="[]"
+                [queryParams]="{ group: 'orders' }"
+                queryParamsHandling="merge"
+                class="block w-full text-left px-3 py-2 rounded-lg text-sm transition"
+                [ngClass]="
+                  activeGroup === 'orders'
+                    ? 'text-blue-700 bg-blue-50 hover:bg-blue-100'
+                    : 'text-gray-700 hover:bg-gray-50'
+                "
+              >
+                Orders
+              </a>
+              <a
+                [routerLink]="[]"
+                [queryParams]="{ group: 'invoices' }"
+                queryParamsHandling="merge"
+                class="block w-full text-left px-3 py-2 rounded-lg text-sm transition"
+                [ngClass]="
+                  activeGroup === 'invoices'
+                    ? 'text-blue-700 bg-blue-50 hover:bg-blue-100'
+                    : 'text-gray-700 hover:bg-gray-50'
+                "
+              >
+                Invoices
+              </a>
+              <a
+                [routerLink]="[]"
+                [queryParams]="{ group: 'customer-admin' }"
+                queryParamsHandling="merge"
+                class="block w-full text-left px-3 py-2 rounded-lg text-sm transition"
+                [ngClass]="
+                  activeGroup === 'customer-admin'
+                    ? 'text-blue-700 bg-blue-50 hover:bg-blue-100'
+                    : 'text-gray-700 hover:bg-gray-50'
+                "
+              >
+                Customer Admin
+              </a>
+            </nav>
+
+            <!-- Mobile tabs -->
+            <div class="lg:hidden mt-3 -mx-1 overflow-x-auto">
+              <div class="flex gap-2 px-1">
+                <a
+                  [routerLink]="[]"
+                  [queryParams]="{ group: null }"
+                  queryParamsHandling="merge"
+                  class="shrink-0 px-3 py-2 rounded-lg text-sm"
+                  [ngClass]="
+                    activeGroup === 'details'
+                      ? 'text-blue-700 bg-blue-50'
+                      : 'text-gray-700 bg-gray-50'
+                  "
+                >
+                  Details
+                </a>
+                <a
+                  [routerLink]="[]"
+                  [queryParams]="{ group: 'contacts' }"
+                  queryParamsHandling="merge"
+                  class="shrink-0 px-3 py-2 rounded-lg text-sm"
+                  [ngClass]="
+                    activeGroup === 'contacts'
+                      ? 'text-blue-700 bg-blue-50'
+                      : 'text-gray-700 bg-gray-50'
+                  "
+                >
+                  Contacts
+                </a>
+                <a
+                  [routerLink]="[]"
+                  [queryParams]="{ group: 'customer-address' }"
+                  queryParamsHandling="merge"
+                  class="shrink-0 px-3 py-2 rounded-lg text-sm"
+                  [ngClass]="
+                    activeGroup === 'customer-address'
+                      ? 'text-blue-700 bg-blue-50'
+                      : 'text-gray-700 bg-gray-50'
+                  "
+                >
+                  Address
+                </a>
+                <a
+                  [routerLink]="[]"
+                  [queryParams]="{ group: 'orders' }"
+                  queryParamsHandling="merge"
+                  class="shrink-0 px-3 py-2 rounded-lg text-sm"
+                  [ngClass]="
+                    activeGroup === 'orders'
+                      ? 'text-blue-700 bg-blue-50'
+                      : 'text-gray-700 bg-gray-50'
+                  "
+                >
+                  Orders
+                </a>
+                <a
+                  [routerLink]="[]"
+                  [queryParams]="{ group: 'invoices' }"
+                  queryParamsHandling="merge"
+                  class="shrink-0 px-3 py-2 rounded-lg text-sm"
+                  [ngClass]="
+                    activeGroup === 'invoices'
+                      ? 'text-blue-700 bg-blue-50'
+                      : 'text-gray-700 bg-gray-50'
+                  "
+                >
+                  Invoices
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <main class="lg:col-span-9 space-y-6">
+        <!-- Customer Detail -->
+        <section *ngIf="activeGroup === 'details'" id="customer-detail" class="scroll-mt-24">
+          <div class="p-6 bg-white shadow rounded-xl">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h3 class="text-lg font-semibold text-gray-900">Customer Detail</h3>
+                <p class="text-sm text-gray-500">Basic profile and billing preferences.</p>
+              </div>
+              <span
+                class="px-2 py-1 text-xs rounded border"
+                [ngClass]="{
+                  'bg-green-50 text-green-700 border-green-200': customer.status === 'ACTIVE',
+                  'bg-gray-50 text-gray-700 border-gray-200': customer.status !== 'ACTIVE',
+                }"
+              >
+                {{ customer.status || '—' }}
+              </span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <label class="block">
+                <span class="text-sm font-medium text-gray-700">Customer Name</span>
+                <input
+                  [(ngModel)]="customer.name"
+                  name="name"
+                  type="text"
+                  class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Customer name"
+                />
+              </label>
+
+              <label class="block">
+                <span class="text-sm font-medium text-gray-700">Customer Code</span>
+                <input
+                  [(ngModel)]="customer.customerCode"
+                  name="customerCode"
+                  type="text"
+                  class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="e.g., CUST0001"
+                />
+              </label>
+
+              <label class="block">
+                <span class="text-sm font-medium text-gray-700">Email</span>
+                <input
+                  [(ngModel)]="customer.email"
+                  name="email"
+                  type="email"
+                  class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="name@example.com"
+                />
+              </label>
+
+              <label class="block">
+                <span class="text-sm font-medium text-gray-700">Phone</span>
+                <input
+                  [(ngModel)]="customer.phone"
+                  name="phone"
+                  type="text"
+                  class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="+1 555 123 4567"
+                />
+              </label>
+
+              <label class="block">
+                <span class="text-sm font-medium text-gray-700">Status</span>
+                <select
+                  [(ngModel)]="customer.status"
+                  name="status"
+                  class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="ACTIVE">Active</option>
+                  <option value="INACTIVE">Inactive</option>
+                </select>
+              </label>
+
+              <label class="block">
+                <span class="text-sm font-medium text-gray-700">Gender</span>
+                <select
+                  [(ngModel)]="customer.gender"
+                  name="gender"
+                  class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Not specified</option>
+                  <option value="MALE">Male</option>
+                  <option value="FEMALE">Female</option>
+                  <option value="OTHER">Other</option>
+                </select>
+              </label>
+
+              <label class="block md:col-span-2">
+                <span class="text-sm font-medium text-gray-700">Address</span>
+                <textarea
+                  [(ngModel)]="customer.address"
+                  name="address"
+                  rows="2"
+                  class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                ></textarea>
+              </label>
+
+              <label class="block">
+                <span class="text-sm font-medium text-gray-700">City</span>
+                <input
+                  [(ngModel)]="customer.city"
+                  name="city"
+                  type="text"
+                  class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </label>
+
+              <label class="block">
+                <span class="text-sm font-medium text-gray-700">State / Province</span>
+                <input
+                  [(ngModel)]="customer.state"
+                  name="state"
+                  type="text"
+                  class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </label>
+
+              <label class="block">
+                <span class="text-sm font-medium text-gray-700">Zip</span>
+                <input
+                  [(ngModel)]="customer.zip"
+                  name="zip"
+                  type="text"
+                  class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </label>
+
+              <label class="block">
+                <span class="text-sm font-medium text-gray-700">Country</span>
+                <input
+                  [(ngModel)]="customer.country"
+                  name="country"
+                  type="text"
+                  class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </label>
+
+              <label class="block">
+                <span class="text-sm font-medium text-gray-700">Credit Limit</span>
+                <input
+                  [(ngModel)]="customer.creditLimit"
+                  name="creditLimit"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </label>
+
+              <label class="block">
+                <span class="text-sm font-medium text-gray-700">Payment Terms</span>
+                <select
+                  [(ngModel)]="customer.paymentTerms"
+                  name="paymentTerms"
+                  class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Select terms</option>
+                  <option value="NET_15">Net 15 Days</option>
+                  <option value="NET_30">Net 30 Days</option>
+                  <option value="NET_60">Net 60 Days</option>
+                  <option value="NET_90">Net 90 Days</option>
+                  <option value="PREPAID">Prepaid</option>
+                  <option value="COD">Cash on Delivery</option>
+                </select>
+              </label>
+
+              <label class="block">
+                <span class="text-sm font-medium text-gray-700">Currency</span>
+                <select
+                  [(ngModel)]="customer.currency"
+                  name="currency"
+                  class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="USD">USD</option>
+                  <option value="EUR">EUR</option>
+                  <option value="GBP">GBP</option>
+                  <option value="JPY">JPY</option>
+                  <option value="CNY">CNY</option>
+                  <option value="KHR">KHR</option>
+                  <option value="THB">THB</option>
+                  <option value="VND">VND</option>
+                </select>
+              </label>
+
+              <label class="block md:col-span-2">
+                <span class="text-sm font-medium text-gray-700">Notes</span>
+                <textarea
+                  [(ngModel)]="customer.notes"
+                  name="notes"
+                  rows="3"
+                  class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                ></textarea>
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <!-- Contacts -->
+        <section *ngIf="activeGroup === 'contacts'" id="contacts" class="scroll-mt-24">
+          <div *ngIf="customer.id as customerId" class="p-6 bg-white shadow rounded-xl">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+              <div>
+                <h3 class="text-lg font-semibold text-gray-900">Contacts</h3>
+                <p class="text-sm text-gray-500">Contact persons linked to this customer.</p>
+              </div>
+              <button
+                type="button"
+                (click)="openContactModal()"
+                class="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              >
+                Add Contact
+              </button>
+            </div>
+
+            <div class="flex flex-col md:flex-row gap-3 mb-4">
+              <input
+                [(ngModel)]="contactFilter.search"
+                name="contactSearch"
+                (ngModelChange)="applyContactFilter()"
+                type="text"
+                placeholder="Search contacts..."
+                class="w-full md:w-1/2 px-3 py-2 border border-gray-300 rounded-lg"
+              />
+              <label class="inline-flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  [(ngModel)]="contactFilter.activeOnly"
+                  name="contactActiveOnly"
+                  (change)="loadContacts(customerId)"
+                  class="w-4 h-4"
+                />
+                Active only
+              </label>
+            </div>
+
+            <ng-container *ngIf="paginatedContacts.length; else noContacts">
+              <div class="overflow-x-auto border border-gray-200 rounded-xl">
+                <table class="min-w-full text-sm">
+                  <thead class="bg-gray-50 text-gray-600 text-[11px] uppercase tracking-[0.15em]">
+                    <tr>
+                      <th class="px-4 py-3 w-10">
+                        <input
+                          type="checkbox"
+                          class="h-4 w-4"
+                          [checked]="isAllContactsOnPageSelected()"
+                          (change)="toggleSelectAllContactsOnPage($any($event.target).checked)"
+                        />
+                      </th>
+                      <th class="px-4 py-3 text-left">ID</th>
+                      <th class="px-4 py-3 text-left">NAME</th>
+                      <th class="px-4 py-3 text-left">PHONE</th>
+                      <th class="px-4 py-3 text-left">EMAIL</th>
+                      <th class="px-4 py-3 text-left">POSITION</th>
+                      <th class="px-4 py-3 text-left">STATUS</th>
+                      <th class="px-4 py-3 text-right">ACTIONS</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr
+                      *ngFor="let contact of paginatedContacts"
+                      class="border-t border-gray-200 hover:bg-gray-50 transition"
+                    >
+                      <td class="px-4 py-3">
+                        <input
+                          type="checkbox"
+                          class="h-4 w-4"
+                          [checked]="isContactSelected(contact)"
+                          (change)="toggleContactSelection(contact, $any($event.target).checked)"
+                        />
+                      </td>
+                      <td class="px-4 py-3 font-medium text-gray-900">{{ contact.id || '—' }}</td>
+                      <td class="px-4 py-3">
+                        <div class="flex items-center gap-2">
+                          <span class="font-medium text-gray-900">{{
+                            contact.fullName || '—'
+                          }}</span>
+                          <span
+                            *ngIf="contact.isPrimary"
+                            class="px-2 py-0.5 text-[11px] rounded-full bg-yellow-100 text-yellow-800"
+                          >
+                            Primary
+                          </span>
+                        </div>
+                        <div class="text-xs text-gray-500" *ngIf="contact.lastLogin">
+                          Last login: {{ formatDateDisplay(contact.lastLogin) }}
+                        </div>
+                      </td>
+                      <td class="px-4 py-3 text-gray-800">{{ contact.phone || '—' }}</td>
+                      <td class="px-4 py-3 text-gray-800">{{ contact.email || '—' }}</td>
+                      <td class="px-4 py-3 text-gray-800">{{ contact.position || '—' }}</td>
+                      <td class="px-4 py-3">
+                        <span
+                          class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium"
+                          [ngClass]="
+                            contact.isActive
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-gray-100 text-gray-700'
+                          "
+                        >
+                          <span
+                            class="h-2 w-2 rounded-full"
+                            [ngClass]="contact.isActive ? 'bg-green-600' : 'bg-gray-500'"
+                          ></span>
+                          {{ contact.isActive ? 'Active' : 'Inactive' }}
+                        </span>
+                      </td>
+                      <td class="px-4 py-3 text-right relative">
+                        <button
+                          type="button"
+                          class="inline-flex items-center justify-center w-9 h-9 rounded-full text-blue-600 hover:bg-blue-50"
+                          title="View"
+                          (click)="openContactModal(contact)"
+                        >
+                          <mat-icon class="text-[20px]">visibility</mat-icon>
+                        </button>
+                        <button
+                          type="button"
+                          class="inline-flex items-center justify-center w-9 h-9 rounded-full text-gray-600 hover:bg-gray-100"
+                          title="More"
+                          (click)="toggleDropdown(contact.id || 0)"
+                        >
+                          <mat-icon class="text-[20px]">more_vert</mat-icon>
+                        </button>
+
+                        <div
+                          *ngIf="dropdownOpen === (contact.id || 0)"
+                          class="absolute right-0 mt-2 w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-10 text-left"
+                        >
+                          <button
+                            type="button"
+                            class="w-full px-4 py-2 text-sm hover:bg-gray-50"
+                            (click)="openContactModal(contact); toggleDropdown(0)"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            class="w-full px-4 py-2 text-sm text-red-600 hover:bg-gray-50"
+                            (click)="deleteContact(contact.id || 0); toggleDropdown(0)"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div
+                class="mt-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3 text-sm text-gray-700"
+              >
+                <div>
+                  Showing {{ contactRangeStart() }} to {{ contactRangeEnd() }} of
+                  {{ filteredContacts.length }} results
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="text-gray-600">Rows per page:</span>
+                  <select
+                    class="px-3 py-2 border border-gray-300 rounded-lg bg-white"
+                    [ngModel]="contactPageSize"
+                    (ngModelChange)="setContactPageSize($event)"
+                  >
+                    <option *ngFor="let s of contactPageSizes" [ngValue]="s">{{ s }}</option>
+                  </select>
+
+                  <button
+                    type="button"
+                    class="px-3 py-2 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 disabled:opacity-50"
+                    (click)="firstContactPage()"
+                    [disabled]="contactCurrentPage === 1"
+                    title="First"
+                  >
+                    «
+                  </button>
+                  <button
+                    type="button"
+                    class="px-3 py-2 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 disabled:opacity-50"
+                    (click)="prevContactPage()"
+                    [disabled]="contactCurrentPage === 1"
+                    title="Previous"
+                  >
+                    ‹
+                  </button>
+                  <div class="px-3 py-2 border border-gray-200 rounded-lg bg-gray-50">
+                    Page {{ contactCurrentPage }} of {{ totalContactPages() }}
+                  </div>
+                  <button
+                    type="button"
+                    class="px-3 py-2 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 disabled:opacity-50"
+                    (click)="nextContactPage()"
+                    [disabled]="contactCurrentPage === totalContactPages()"
+                    title="Next"
+                  >
+                    ›
+                  </button>
+                  <button
+                    type="button"
+                    class="px-3 py-2 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 disabled:opacity-50"
+                    (click)="lastContactPage()"
+                    [disabled]="contactCurrentPage === totalContactPages()"
+                    title="Last"
+                  >
+                    »
+                  </button>
+                </div>
+              </div>
+            </ng-container>
+
+            <ng-template #noContacts>
+              <div class="p-6 text-center text-gray-500 border border-dashed rounded-lg">
+                No contacts found.
+              </div>
+            </ng-template>
+          </div>
+        </section>
+
+        <!-- Customer Address -->
+        <section
+          *ngIf="activeGroup === 'customer-address'"
+          id="customer-address"
+          class="scroll-mt-24"
+        >
+          <div *ngIf="customer.id as customerId" class="p-6 bg-white shadow rounded-xl">
+            <div class="flex items-center justify-between gap-3 mb-4">
+              <div>
+                <h3 class="text-lg font-semibold text-gray-900">Customer Address</h3>
+                <p class="text-sm text-gray-500">Pickup/Ship addresses for this customer.</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <a
+                  class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                  role="button"
+                  tabindex="0"
+                  (click)="downloadCustomerAddressesExport(customerId)"
+                  (keydown.enter)="downloadCustomerAddressesExport(customerId)"
+                >
+                  Export
+                </a>
+                <label
+                  class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium cursor-pointer"
+                >
+                  Import
+                  <input
+                    type="file"
+                    class="hidden"
+                    (change)="importAddressesForCustomer(customerId, $event)"
+                  />
+                </label>
+                <button
+                  type="button"
+                  (click)="openAddressModal('SHIP_TO')"
+                  class="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                >
+                  Add Address
+                </button>
+              </div>
+            </div>
+
+            <div *ngIf="addressesLoading" class="p-4 text-sm text-gray-500">
+              Loading addresses...
+            </div>
+            <div
+              *ngIf="addressesError"
+              class="p-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded"
+            >
+              {{ addressesError }}
+            </div>
+
+            <ng-container *ngIf="!addressesLoading && !addressesError">
+              <div class="mb-4 grid gap-3 md:grid-cols-2">
+                <label class="block">
+                  <span class="text-xs font-semibold text-gray-500">Search</span>
+                  <input
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                    placeholder="Search name, address, city, contact"
+                    [(ngModel)]="addressFilter.search"
+                    (ngModelChange)="applyAddressFilter()"
+                  />
+                </label>
+                <label class="block">
+                  <span class="text-xs font-semibold text-gray-500">Address Type</span>
+                  <select
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                    [(ngModel)]="addressFilter.type"
+                    (ngModelChange)="applyAddressFilter()"
+                  >
+                    <option value="">All pickup/ship types</option>
+                    <option *ngFor="let type of addressTypeOptions" [value]="type">
+                      {{ type }}
+                    </option>
+                  </select>
+                </label>
+              </div>
+
+              <div
+                class="flex flex-col gap-3 text-xs text-gray-500 mb-3 md:flex-row md:items-center md:justify-between"
+              >
+                <div>
+                  Showing {{ addressRangeStart() }} to {{ addressRangeEnd() }} of
+                  {{ addressServerTotal }} pickup/ship addresses
+                </div>
+                <div class="flex items-center gap-2">
+                  <span>Rows per page:</span>
+                  <select
+                    class="px-3 py-1 border border-gray-300 rounded-lg bg-white"
+                    [ngModel]="addressPageSize"
+                    (ngModelChange)="setAddressPageSize($event)"
+                  >
+                    <option *ngFor="let size of addressPageSizes" [ngValue]="size">
+                      {{ size }}
+                    </option>
+                  </select>
+                  <button
+                    type="button"
+                    class="px-3 py-1 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 disabled:opacity-50"
+                    (click)="firstAddressPage()"
+                    [disabled]="addressCurrentPage === 1"
+                    title="First"
+                  >
+                    «
+                  </button>
+                  <button
+                    type="button"
+                    class="px-3 py-1 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 disabled:opacity-50"
+                    (click)="prevAddressPage()"
+                    [disabled]="addressCurrentPage === 1"
+                    title="Previous"
+                  >
+                    ‹
+                  </button>
+                  <div class="px-3 py-1 border border-gray-200 rounded-lg bg-gray-50">
+                    Page {{ addressCurrentPage }} of {{ totalAddressPages() }}
+                  </div>
+                  <button
+                    type="button"
+                    class="px-3 py-1 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 disabled:opacity-50"
+                    (click)="nextAddressPage()"
+                    [disabled]="addressCurrentPage === totalAddressPages()"
+                    title="Next"
+                  >
+                    ›
+                  </button>
+                  <button
+                    type="button"
+                    class="px-3 py-1 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 disabled:opacity-50"
+                    (click)="lastAddressPage()"
+                    [disabled]="addressCurrentPage === totalAddressPages()"
+                    title="Last"
+                  >
+                    »
+                  </button>
+                </div>
+              </div>
+
+              <div
+                *ngIf="paginatedAddresses.length; else noPickupShip"
+                class="overflow-x-auto border border-gray-200 rounded-xl"
+              >
+                <table class="min-w-full text-sm">
+                  <thead class="bg-gray-50 text-gray-600 text-[11px] uppercase tracking-[0.15em]">
+                    <tr>
+                      <th class="px-4 py-3 text-left">ID</th>
+                      <th class="px-4 py-3 text-left">TYPE</th>
+                      <th class="px-4 py-3 text-left">NAME</th>
+                      <th class="px-4 py-3 text-left">ADDRESS</th>
+                      <th class="px-4 py-3 text-left">CONTACT</th>
+                      <th class="px-4 py-3 text-left">CITY</th>
+                      <th class="px-4 py-3 text-left">COUNTRY</th>
+                      <th class="px-4 py-3 text-right">ACTIONS</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr
+                      *ngFor="let a of paginatedAddresses"
+                      class="border-t border-gray-200 hover:bg-gray-50 transition"
+                    >
+                      <td class="px-4 py-3 font-medium text-gray-900">{{ a.id || '—' }}</td>
+                      <td class="px-4 py-3">
+                        <span class="px-3 py-1 rounded-full text-xs bg-purple-100 text-purple-700">
+                          {{ a.type || 'ADDRESS' }}
+                        </span>
+                      </td>
+                      <td class="px-4 py-3 font-medium text-gray-900">{{ a.name || '—' }}</td>
+                      <td class="px-4 py-3 text-gray-800">
+                        <div>{{ a.address || '—' }}</div>
+                        <div class="text-xs text-gray-500" *ngIf="a.postcode">
+                          Postcode: {{ a.postcode }}
+                        </div>
+                      </td>
+                      <td class="px-4 py-3 text-gray-800">
+                        <div>{{ a.contactName || '—' }}</div>
+                        <div class="text-xs text-gray-500">{{ a.contactPhone || '' }}</div>
+                      </td>
+                      <td class="px-4 py-3 text-gray-800">{{ a.city || '—' }}</td>
+                      <td class="px-4 py-3 text-gray-800">{{ a.country || '—' }}</td>
+                      <td class="px-4 py-3 text-right relative">
+                        <button
+                          type="button"
+                          class="inline-flex items-center justify-center w-9 h-9 rounded-full text-blue-600 hover:bg-blue-50"
+                          title="Edit"
+                          (click)="openAddressModal('SHIP_TO', a)"
+                        >
+                          <mat-icon class="text-[20px]">edit</mat-icon>
+                        </button>
+                        <button
+                          type="button"
+                          class="inline-flex items-center justify-center w-9 h-9 rounded-full text-gray-600 hover:bg-gray-100"
+                          title="More"
+                          (click)="toggleAddressDropdown(a.id || 0)"
+                        >
+                          <mat-icon class="text-[20px]">more_vert</mat-icon>
+                        </button>
+                        <div
+                          *ngIf="addressDropdownOpen === (a.id || 0)"
+                          class="absolute right-0 mt-2 w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-10 text-left"
+                        >
+                          <button
+                            type="button"
+                            class="w-full px-4 py-2 text-sm hover:bg-gray-50"
+                            (click)="openAddressModal('SHIP_TO', a); toggleAddressDropdown(0)"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            class="w-full px-4 py-2 text-sm text-red-600 hover:bg-gray-50"
+                            (click)="deleteAddress(a.id || 0); toggleAddressDropdown(0)"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <ng-template #noPickupShip>
+                <div class="p-6 text-center text-gray-500 border border-dashed rounded-lg">
+                  <div class="font-medium" *ngIf="addressServerTotal === 0">
+                    No customer addresses found.
+                  </div>
+                  <div class="text-sm mt-1" *ngIf="addressServerTotal === 0">
+                    Add your first pickup/ship location for this customer.
+                  </div>
+                  <div class="text-sm mt-1" *ngIf="addressServerTotal > 0">
+                    No addresses on this page. Try a different page or adjust the filters.
+                  </div>
+                  <button
+                    type="button"
+                    class="mt-4 px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                    (click)="openAddressModal('SHIP_TO')"
+                  >
+                    Add Address
+                  </button>
+                </div>
+              </ng-template>
+            </ng-container>
+          </div>
+        </section>
+
+        <!-- Bill To Address -->
+        <section
+          *ngIf="activeGroup === 'bill-to-address'"
+          id="bill-to-address"
+          class="scroll-mt-24"
+        >
+          <div *ngIf="customer.id as customerId" class="p-6 bg-white shadow rounded-xl">
+            <div class="flex items-center justify-between gap-3 mb-4">
+              <div>
+                <h3 class="text-lg font-semibold text-gray-900">Bill To Address</h3>
+                <p class="text-sm text-gray-500">Billing addresses for invoicing.</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <button
+                  *ngIf="legacyBillToAddresses.length"
+                  type="button"
+                  class="px-4 py-2 text-amber-800 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors font-medium"
+                  (click)="migrateLegacyBillToAddresses()"
+                  [disabled]="billToLoading"
+                  [title]="
+                    'Migrate ' + legacyBillToAddresses.length + ' legacy bill-to address(es)'
+                  "
+                >
+                  Migrate Legacy ({{ legacyBillToAddresses.length }})
+                </button>
+                <a
+                  class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                  role="button"
+                  tabindex="0"
+                  (click)="downloadBillToExport(customerId)"
+                  (keydown.enter)="downloadBillToExport(customerId)"
+                >
+                  Export
+                </a>
+                <button
+                  type="button"
+                  (click)="openBillToModal()"
+                  class="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                >
+                  Add Bill To
+                </button>
+              </div>
+            </div>
+
+            <!-- Legacy migration notice removed to reduce UI noise. If needed, re-enable with a more specific action. -->
+
+            <div *ngIf="billToLoading" class="p-4 text-sm text-gray-500">
+              Loading bill-to addresses...
+            </div>
+            <div
+              *ngIf="billToError"
+              class="p-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded"
+            >
+              {{ billToError }}
+            </div>
+
+            <ng-container *ngIf="!billToLoading && !billToError">
+              <div
+                *ngIf="billToAddresses.length; else noBillTo"
+                class="overflow-x-auto border border-gray-200 rounded-xl"
+              >
+                <table class="min-w-full text-sm">
+                  <thead class="bg-gray-50 text-gray-600 text-[11px] uppercase tracking-[0.15em]">
+                    <tr>
+                      <th class="px-4 py-3 text-left">ID</th>
+                      <th class="px-4 py-3 text-left">NAME</th>
+                      <th class="px-4 py-3 text-left">ADDRESS</th>
+                      <th class="px-4 py-3 text-left">CONTACT</th>
+                      <th class="px-4 py-3 text-left">CITY</th>
+                      <th class="px-4 py-3 text-left">STATE</th>
+                      <th class="px-4 py-3 text-left">ZIP</th>
+                      <th class="px-4 py-3 text-left">COUNTRY</th>
+                      <th class="px-4 py-3 text-right">ACTIONS</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr
+                      *ngFor="let a of billToAddresses"
+                      class="border-t border-gray-200 hover:bg-gray-50 transition"
+                    >
+                      <td class="px-4 py-3 font-medium text-gray-900">{{ a.id || '—' }}</td>
+                      <td class="px-4 py-3">
+                        <div class="flex items-center gap-2">
+                          <span class="font-medium text-gray-900">{{ a.name || '—' }}</span>
+                          <span
+                            *ngIf="a.isPrimary"
+                            class="px-2 py-0.5 text-[11px] rounded-full bg-blue-100 text-blue-700"
+                          >
+                            Primary
+                          </span>
+                        </div>
+                        <div class="text-xs text-gray-500" *ngIf="a.email">{{ a.email }}</div>
+                      </td>
+                      <td class="px-4 py-3 text-gray-800">
+                        <div>{{ a.address || '—' }}</div>
+                        <div class="text-xs text-gray-500" *ngIf="a.taxId">
+                          Tax ID: {{ a.taxId }}
+                        </div>
+                      </td>
+                      <td class="px-4 py-3 text-gray-800">
+                        <div>{{ a.contactName || '—' }}</div>
+                        <div class="text-xs text-gray-500">{{ a.contactPhone || '' }}</div>
+                      </td>
+                      <td class="px-4 py-3 text-gray-800">{{ a.city || '—' }}</td>
+                      <td class="px-4 py-3 text-gray-800">{{ a.state || '—' }}</td>
+                      <td class="px-4 py-3 text-gray-800">{{ a.zip || '—' }}</td>
+                      <td class="px-4 py-3 text-gray-800">{{ a.country || '—' }}</td>
+                      <td class="px-4 py-3 text-right relative">
+                        <button
+                          type="button"
+                          class="inline-flex items-center justify-center w-9 h-9 rounded-full text-blue-600 hover:bg-blue-50"
+                          title="Edit"
+                          (click)="openBillToModal(a)"
+                        >
+                          <mat-icon class="text-[20px]">edit</mat-icon>
+                        </button>
+                        <button
+                          type="button"
+                          class="inline-flex items-center justify-center w-9 h-9 rounded-full text-gray-600 hover:bg-gray-100"
+                          title="More"
+                          (click)="toggleBillToDropdown(a.id || 0)"
+                        >
+                          <mat-icon class="text-[20px]">more_vert</mat-icon>
+                        </button>
+                        <div
+                          *ngIf="billToDropdownOpen === (a.id || 0)"
+                          class="absolute right-0 mt-2 w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-10 text-left"
+                        >
+                          <button
+                            type="button"
+                            class="w-full px-4 py-2 text-sm hover:bg-gray-50"
+                            (click)="openBillToModal(a); toggleBillToDropdown(0)"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            class="w-full px-4 py-2 text-sm text-red-600 hover:bg-gray-50"
+                            (click)="deleteBillTo(a.id || 0); toggleBillToDropdown(0)"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <ng-template #noBillTo>
+                <div class="p-6 text-center text-gray-500 border border-dashed rounded-lg">
+                  <div class="font-medium">No bill-to addresses found.</div>
+                  <div class="text-sm mt-1">Add a billing address for invoicing.</div>
+                  <button
+                    type="button"
+                    class="mt-4 px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                    (click)="openBillToModal()"
+                  >
+                    Add Bill To
+                  </button>
+                </div>
+              </ng-template>
+            </ng-container>
+          </div>
+        </section>
+
+        <!-- Orders -->
+        <section *ngIf="activeGroup === 'orders'" id="orders" class="scroll-mt-24">
+          <div class="p-6 bg-white shadow rounded-xl">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+              <div>
+                <h3 class="text-lg font-semibold text-gray-900">Orders</h3>
+                <p class="text-sm text-gray-500">All transactions (orders) for this customer.</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <a
+                  *ngIf="customer.id"
+                  [routerLink]="['/orders/create']"
+                  [queryParams]="{ customerId: customer.id }"
+                  class="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                >
+                  Create Order
+                </a>
+                <a
+                  [routerLink]="['/orders']"
+                  [queryParams]="{ search: customer.name || customer.customerCode }"
+                  class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                >
+                  View All
+                </a>
+              </div>
+            </div>
+
+            <div *ngIf="ordersLoading" class="p-4 text-sm text-gray-500">Loading orders...</div>
+            <div
+              *ngIf="ordersError"
+              class="p-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded"
+            >
+              {{ ordersError }}
+            </div>
+
+            <ng-container *ngIf="!ordersLoading && !ordersError">
+              <div class="mb-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                <div class="flex items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder="Search orders..."
+                    [(ngModel)]="ordersFilter.search"
+                    (ngModelChange)="onOrdersFilterChange()"
+                    class="px-3 py-2 border rounded"
+                  />
+                  <select
+                    [(ngModel)]="ordersFilter.status"
+                    (change)="applyOrderFilter()"
+                    class="px-2 py-2 border rounded"
+                  >
+                    <option value="">All Statuses</option>
+                    <option value="PENDING">PENDING</option>
+                    <option value="CONFIRMED">CONFIRMED</option>
+                    <option value="IN_TRANSIT">IN_TRANSIT</option>
+                    <option value="DELIVERED">DELIVERED</option>
+                    <option value="CANCELLED">CANCELLED</option>
+                  </select>
+                </div>
+                <div class="flex items-center gap-2">
+                  <label class="text-sm text-gray-600">Page size</label>
+                  <select
+                    [(ngModel)]="ordersPageSize"
+                    (change)="setOrdersPageSize(ordersPageSize)"
+                    class="px-2 py-2 border rounded"
+                  >
+                    <option *ngFor="let s of ordersPageSizes" [value]="s">{{ s }}</option>
+                  </select>
+                  <label class="text-sm text-gray-600">Import</label>
+                  <input
+                    type="file"
+                    accept=".csv,.xlsx"
+                    (change)="importOrdersForCustomer(customer.id!, $event)"
+                  />
+                </div>
+              </div>
+
+              <div *ngIf="paginatedOrders.length; else noOrders" class="overflow-x-auto">
+                <table class="min-w-full border border-gray-200">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th class="p-2 text-left border">Order</th>
+                      <th class="p-2 text-left border">Pickup</th>
+                      <th class="p-2 text-left border">Delivery</th>
+                      <th class="p-2 text-left border">Order Date</th>
+                      <th class="p-2 text-left border">Status</th>
+                      <th class="p-2 text-left border">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let o of paginatedOrders" class="hover:bg-gray-50">
+                      <td class="p-2 border font-medium">{{ o.orderReference || o.id }}</td>
+                      <td class="p-2 border">{{ getPickupName(o) }}</td>
+                      <td class="p-2 border">{{ getDropoffName(o) }}</td>
+                      <td class="p-2 border">{{ formatDateDisplay(o.orderDate) }}</td>
+                      <td class="p-2 border">
+                        <span class="px-2 py-0.5 text-xs rounded bg-gray-100 text-gray-700">
+                          {{ o.status || '—' }}
+                        </span>
+                      </td>
+                      <td class="p-2 border">
+                        <a
+                          [routerLink]="['/orders', o.id]"
+                          class="text-blue-700 hover:underline text-sm"
+                          >View</a
+                        >
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="flex items-center justify-between mt-3">
+                <div class="text-sm text-gray-600">
+                  Showing {{ (ordersCurrentPage - 1) * ordersPageSize + 1 }} to
+                  {{
+                    useServerSideOrders
+                      ? Math.min(ordersCurrentPage * ordersPageSize, ordersTotal)
+                      : Math.min(ordersCurrentPage * ordersPageSize, ordersFiltered.length)
+                  }}
+                  of {{ useServerSideOrders ? ordersTotal : ordersFiltered.length }} orders
+                </div>
+                <div class="flex items-center gap-2">
+                  <button class="px-2 py-1 border rounded" (click)="firstOrdersPage()">
+                    « First
+                  </button>
+                  <button class="px-2 py-1 border rounded" (click)="prevOrdersPage()">
+                    ‹ Prev
+                  </button>
+                  <div class="px-3 py-1">
+                    Page {{ ordersCurrentPage }} / {{ totalOrderPages() }}
+                  </div>
+                  <button class="px-2 py-1 border rounded" (click)="nextOrdersPage()">
+                    Next ›
+                  </button>
+                  <button class="px-2 py-1 border rounded" (click)="lastOrdersPage()">
+                    Last »
+                  </button>
+                </div>
+              </div>
+
+              <ng-template #noOrders>
+                <div class="p-6 text-center text-gray-500 border border-dashed rounded-lg">
+                  No orders found for this customer.
+                </div>
+              </ng-template>
+            </ng-container>
+          </div>
+        </section>
+
+        <!-- Invoices -->
+        <section *ngIf="activeGroup === 'invoices'" id="invoices" class="scroll-mt-24">
+          <div class="p-6 bg-white shadow rounded-xl">
+            <div class="flex items-center justify-between gap-3 mb-4">
+              <div>
+                <h3 class="text-lg font-semibold text-gray-900">Invoices</h3>
+                <p class="text-sm text-gray-500">Invoices linked to this customer’s orders.</p>
+              </div>
+            </div>
+
+            <div *ngIf="invoicedOrders.length; else noInvoices" class="overflow-x-auto">
+              <table class="min-w-full border border-gray-200">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th class="p-2 text-left border">Order</th>
+                    <th class="p-2 text-left border">Invoice Date</th>
+                    <th class="p-2 text-left border">Amount</th>
+                    <th class="p-2 text-left border">Payment</th>
+                    <th class="p-2 text-left border">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let o of invoicedOrders" class="hover:bg-gray-50">
+                    <td class="p-2 border font-medium">{{ o.orderReference || o.id }}</td>
+                    <td class="p-2 border">{{ formatDateDisplay(o.invoice?.invoiceDate) }}</td>
+                    <td class="p-2 border">
+                      {{ formatCurrency(o.invoice?.totalAmount, customer.currency || 'USD') }}
+                    </td>
+                    <td class="p-2 border">
+                      <span class="px-2 py-0.5 text-xs rounded bg-gray-100 text-gray-700">
+                        {{ o.invoice?.paymentStatus || '—' }}
+                      </span>
+                    </td>
+                    <td class="p-2 border">
+                      <a
+                        [routerLink]="['/orders', o.id]"
+                        class="text-blue-700 hover:underline text-sm"
+                        >View Order</a
+                      >
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <ng-template #noInvoices>
+              <div class="p-6 text-center text-gray-500 border border-dashed rounded-lg">
+                No invoices found for this customer.
+              </div>
+            </ng-template>
+          </div>
+        </section>
+
+        <!-- Customer Admin -->
+        <section *ngIf="activeGroup === 'customer-admin'" id="customer-admin" class="scroll-mt-24">
+          <div class="p-6 bg-white shadow rounded-xl">
+            <div class="flex items-center justify-between gap-3 mb-2">
+              <div>
+                <h3 class="text-lg font-semibold text-gray-900">Customer Admin</h3>
+                <p class="text-sm text-gray-500">Portal access and admin settings (optional).</p>
+              </div>
+            </div>
+            <div class="p-4 text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded">
+              Coming soon: manage customer portal accounts, roles, and permissions.
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- Contact Modal -->
+    <div *ngIf="isContactModalOpen" class="modal-backdrop">
+      <ng-container *ngIf="editingContact as editContact">
+        <div class="modal-content" (click)="$event.stopPropagation()">
+          <h3 class="text-lg font-semibold mb-4">
+            {{ editContact.id ? 'Edit Contact' : 'Add Contact' }}
+          </h3>
+
+          <div class="form-group">
+            <label>Full Name *</label>
+            <input class="form-control" [(ngModel)]="editContact.fullName" name="contactFullName" />
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input class="form-control" [(ngModel)]="editContact.email" name="contactEmail" />
+          </div>
+          <div class="form-group">
+            <label>Phone</label>
+            <input class="form-control" [(ngModel)]="editContact.phone" name="contactPhone" />
+          </div>
+          <div class="form-group">
+            <label>Position</label>
+            <input class="form-control" [(ngModel)]="editContact.position" name="contactPosition" />
+          </div>
+
+          <div class="form-group flex items-center gap-2">
+            <input type="checkbox" name="contactIsPrimary" [(ngModel)]="editContact.isPrimary" />
+            <label>Primary Contact</label>
+          </div>
+
+          <div class="form-group flex items-center gap-2">
+            <input type="checkbox" name="contactIsActive" [(ngModel)]="editContact.isActive" />
+            <label>Active</label>
+          </div>
+
+          <div class="form-group">
+            <label>Notes</label>
+            <textarea
+              class="form-control"
+              [(ngModel)]="editContact.notes"
+              name="contactNotes"
+              rows="2"
+            ></textarea>
+          </div>
+
+          <div class="flex justify-end gap-2 mt-4">
+            <button type="button" class="button-secondary" (click)="closeContactModal()">
+              Cancel
+            </button>
+            <button type="button" class="button-primary" (click)="saveContact()">Save</button>
+          </div>
+        </div>
+      </ng-container>
+    </div>
+
+    <!-- Address Modal -->
+    <div *ngIf="isAddressModalOpen" class="modal-backdrop">
+      <ng-container *ngIf="editingAddress as editAddress">
+        <div class="modal-content" (click)="$event.stopPropagation()">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">
+            {{ editAddress.id ? 'Edit Address' : 'Add Address' }}
+          </h3>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <label class="block">
+              <span class="text-sm font-medium text-gray-700">Type</span>
+              <select class="form-control" [(ngModel)]="editAddress.type" name="addressType">
+                <option *ngFor="let t of addressTypeOptions" [ngValue]="t">{{ t }}</option>
+              </select>
+            </label>
+
+            <label class="block">
+              <span class="text-sm font-medium text-gray-700">Name *</span>
+              <input class="form-control" [(ngModel)]="editAddress.name" name="addressName" />
+            </label>
+
+            <label class="block md:col-span-2">
+              <span class="text-sm font-medium text-gray-700">Address *</span>
+              <textarea
+                class="form-control"
+                rows="2"
+                [(ngModel)]="editAddress.address"
+                name="addressLine"
+              ></textarea>
+            </label>
+
+            <label class="block">
+              <span class="text-sm font-medium text-gray-700">City</span>
+              <input class="form-control" [(ngModel)]="editAddress.city" name="addressCity" />
+            </label>
+
+            <label class="block">
+              <span class="text-sm font-medium text-gray-700">Country</span>
+              <input class="form-control" [(ngModel)]="editAddress.country" name="addressCountry" />
+            </label>
+
+            <label class="block">
+              <span class="text-sm font-medium text-gray-700">Postcode</span>
+              <input
+                class="form-control"
+                [(ngModel)]="editAddress.postcode"
+                name="addressPostcode"
+              />
+            </label>
+
+            <label class="block">
+              <span class="text-sm font-medium text-gray-700">Scheduled Time</span>
+              <input
+                class="form-control"
+                [(ngModel)]="editAddress.scheduledTime"
+                name="addressScheduledTime"
+                placeholder="e.g., 08:00"
+              />
+            </label>
+
+            <label class="block">
+              <span class="text-sm font-medium text-gray-700">Contact Name</span>
+              <input
+                class="form-control"
+                [(ngModel)]="editAddress.contactName"
+                name="addressContactName"
+              />
+            </label>
+
+            <label class="block">
+              <span class="text-sm font-medium text-gray-700">Contact Phone</span>
+              <input
+                class="form-control"
+                [(ngModel)]="editAddress.contactPhone"
+                name="addressContactPhone"
+              />
+            </label>
+
+            <label class="block">
+              <span class="text-sm font-medium text-gray-700">Latitude</span>
+              <input
+                class="form-control"
+                type="number"
+                step="0.000001"
+                [(ngModel)]="editAddress.latitude"
+                name="addressLatitude"
+              />
+            </label>
+
+            <label class="block">
+              <span class="text-sm font-medium text-gray-700">Longitude</span>
+              <input
+                class="form-control"
+                type="number"
+                step="0.000001"
+                [(ngModel)]="editAddress.longitude"
+                name="addressLongitude"
+              />
+            </label>
+          </div>
+
+          <div class="flex justify-end gap-2 mt-6">
+            <button type="button" class="button-secondary" (click)="closeAddressModal()">
+              Cancel
+            </button>
+            <button type="button" class="button-primary" (click)="saveAddress()">Save</button>
+          </div>
+        </div>
+      </ng-container>
+    </div>
+
+    <!-- Bill To Modal -->
+    <div *ngIf="isBillToModalOpen" class="modal-backdrop">
+      <ng-container *ngIf="editingBillTo as editBillTo">
+        <div class="modal-content" (click)="$event.stopPropagation()">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">
+            {{ editBillTo.id ? 'Edit Bill To Address' : 'Add Bill To Address' }}
+          </h3>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <label class="block">
+              <span class="text-sm font-medium text-gray-700">Name</span>
+              <input class="form-control" [(ngModel)]="editBillTo.name" name="billToName" />
+            </label>
+
+            <label class="block">
+              <span class="text-sm font-medium text-gray-700">Email</span>
+              <input class="form-control" [(ngModel)]="editBillTo.email" name="billToEmail" />
+            </label>
+
+            <label class="block md:col-span-2">
+              <span class="text-sm font-medium text-gray-700">Address</span>
+              <textarea
+                class="form-control"
+                rows="2"
+                [(ngModel)]="editBillTo.address"
+                name="billToAddress"
+              ></textarea>
+            </label>
+
+            <label class="block">
+              <span class="text-sm font-medium text-gray-700">City</span>
+              <input class="form-control" [(ngModel)]="editBillTo.city" name="billToCity" />
+            </label>
+
+            <label class="block">
+              <span class="text-sm font-medium text-gray-700">State</span>
+              <input class="form-control" [(ngModel)]="editBillTo.state" name="billToState" />
+            </label>
+
+            <label class="block">
+              <span class="text-sm font-medium text-gray-700">Zip</span>
+              <input class="form-control" [(ngModel)]="editBillTo.zip" name="billToZip" />
+            </label>
+
+            <label class="block">
+              <span class="text-sm font-medium text-gray-700">Country</span>
+              <input class="form-control" [(ngModel)]="editBillTo.country" name="billToCountry" />
+            </label>
+
+            <label class="block">
+              <span class="text-sm font-medium text-gray-700">Contact Name</span>
+              <input
+                class="form-control"
+                [(ngModel)]="editBillTo.contactName"
+                name="billToContactName"
+              />
+            </label>
+
+            <label class="block">
+              <span class="text-sm font-medium text-gray-700">Contact Phone</span>
+              <input
+                class="form-control"
+                [(ngModel)]="editBillTo.contactPhone"
+                name="billToContactPhone"
+              />
+            </label>
+
+            <label class="block">
+              <span class="text-sm font-medium text-gray-700">Tax ID</span>
+              <input class="form-control" [(ngModel)]="editBillTo.taxId" name="billToTaxId" />
+            </label>
+
+            <label class="block md:col-span-2">
+              <span class="text-sm font-medium text-gray-700">Notes</span>
+              <textarea
+                class="form-control"
+                rows="2"
+                [(ngModel)]="editBillTo.notes"
+                name="billToNotes"
+              ></textarea>
+            </label>
+
+            <label class="block md:col-span-2">
+              <label class="inline-flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  [(ngModel)]="editBillTo.isPrimary"
+                  name="billToPrimary"
+                  class="w-4 h-4"
+                />
+                Primary bill-to
+              </label>
+            </label>
+          </div>
+
+          <div class="flex justify-end gap-2 mt-6">
+            <button type="button" class="button-secondary" (click)="closeBillToModal()">
+              Cancel
+            </button>
+            <button type="button" class="button-primary" (click)="saveBillTo()">Save</button>
+          </div>
+        </div>
+      </ng-container>
+    </div>
+  </ng-container>
+</div>

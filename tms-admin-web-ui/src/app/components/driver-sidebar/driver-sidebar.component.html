@@ -1,0 +1,28 @@
+<div class="w-64 h-full overflow-y-auto bg-white border-r shadow-sm">
+  <h2 class="p-4 text-lg font-bold bg-gray-100 border-b">Drivers</h2>
+  <ul>
+    <li
+      *ngFor="let driver of drivers"
+      (click)="onFocus(driver)"
+      (keydown.enter)="onFocus(driver)"
+      (keydown.space)="onFocus(driver)"
+      tabindex="0"
+      role="button"
+      [attr.aria-label]="'Driver ' + (driver.label || driver.driverId)"
+      class="px-4 py-3 transition border-b outline-none cursor-pointer hover:bg-blue-50"
+      [ngClass]="{ 'bg-blue-100': isActive(driver) }"
+    >
+      <div class="flex items-center justify-between">
+        <span class="font-medium truncate w-36">
+          {{ driver.label || driver.driverId }}
+        </span>
+        <span class="px-2 py-1 text-xs rounded-full" [ngClass]="getBadgeClass(driver)">
+          <!-- {{ getStatusLabel(driver) }} -->
+        </span>
+      </div>
+      <div class="mt-1 text-xs text-gray-600">
+        Zone: {{ driver.zone || 'N/A' }} | Updated: {{ getTimeAgo(driver) }}
+      </div>
+    </li>
+  </ul>
+</div>

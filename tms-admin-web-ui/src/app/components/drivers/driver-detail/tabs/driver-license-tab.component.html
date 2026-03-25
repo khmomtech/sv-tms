@@ -1,0 +1,362 @@
+<div class="p-6 bg-white border rounded shadow-sm">
+  <!--  Add License Button -->
+  <div class="flex justify-end mb-4">
+    <button
+      type="button"
+      class="px-4 py-2 text-white bg-blue-600 rounded hover:bg-blue-700 disabled:bg-gray-400"
+      (click)="openModal()"
+      [disabled]="isLoading"
+    >
+      + Add License
+    </button>
+  </div>
+
+  <!-- 📄 License Table -->
+  <div class="overflow-visible border border-gray-200 rounded">
+    <table class="w-full text-sm text-left">
+      <thead class="text-gray-700 bg-gray-100">
+        <tr>
+          <th class="px-4 py-2">License #</th>
+          <th class="px-4 py-2">Class</th>
+          <th class="px-4 py-2">Type</th>
+          <th class="px-4 py-2">Expiry Status</th>
+          <th class="px-4 py-2">Authority</th>
+          <th class="px-4 py-2">Front</th>
+          <th class="px-4 py-2">Back</th>
+          <th class="px-4 py-2 text-center">Actions</th>
+        </tr>
+      </thead>
+      <tbody *ngIf="license">
+        <tr>
+          <td class="px-4 py-2 font-medium">{{ license.licenseNumber }}</td>
+          <td class="px-4 py-2">
+            <span
+              *ngIf="license.licenseClass"
+              class="px-2 py-1 text-white bg-blue-600 rounded text-xs font-semibold"
+            >
+              {{ license.licenseClass }}
+            </span>
+            <span *ngIf="!license.licenseClass" class="text-gray-400">-</span>
+          </td>
+
+          <!-- License Status Badge -->
+          <td class="px-4 py-2"></td>
+          <td class="px-4 py-2">
+            <span
+              *ngIf="isLicenseExpired()"
+              class="px-2 py-1 text-white bg-red-600 rounded text-xs font-semibold"
+              title="{{ getExpiryStatus() }}"
+            >
+              🔴 {{ license.expiryDate | date: 'MMM dd, yyyy' }}
+            </span>
+            <span
+              *ngIf="!isLicenseExpired()"
+              class="px-2 py-1 text-white bg-green-600 rounded text-xs font-semibold"
+              title="{{ getExpiryStatus() }}"
+            >
+              🟢 {{ license.expiryDate | date: 'MMM dd, yyyy' }}
+            </span>
+          </td>
+
+          <td class="px-4 py-2">{{ license.issuingAuthority || '-' }}</td>
+
+          <!--  Front Image -->
+          <td class="px-4 py-2">
+            <img
+              *ngIf="license.licenseFrontImage"
+              [src]="getImageUrl(license.licenseFrontImage)"
+              alt="Front"
+              class="w-16 h-auto border rounded shadow cursor-pointer hover:opacity-75"
+            />
+            <span *ngIf="!license.licenseFrontImage" class="text-gray-400">N/A</span>
+          </td>
+
+          <!--  Back Image -->
+          <td class="px-4 py-2">
+            <img
+              *ngIf="license.licenseBackImage"
+              [src]="getImageUrl(license.licenseBackImage)"
+              alt="Back"
+              class="w-16 h-auto border rounded shadow cursor-pointer hover:opacity-75"
+            />
+            <span *ngIf="!license.licenseBackImage" class="text-gray-400">N/A</span>
+          </td>
+
+          <!-- Actions -->
+          <td class="relative px-4 py-2 text-center">
+            <div class="relative inline-block">
+              <button
+                type="button"
+                (click)="toggleDropdown(license.id!); dropdownOpen = !dropdownOpen"
+                class="inline-flex justify-center w-8 h-8 text-sm font-medium text-gray-600 rounded-full hover:bg-gray-100 focus:outline-none disabled:opacity-50"
+                [disabled]="isLoading"
+              >
+                ⋮
+              </button>
+              <div
+                *ngIf="dropdownOpen"
+                class="absolute right-0 z-50 w-32 mt-2 origin-top-right bg-white border border-gray-200 rounded shadow-lg"
+              >
+                <button
+                  type="button"
+                  class="block w-full px-4 py-2 text-sm text-left text-gray-700 hover:bg-gray-100"
+                  (click)="editLicense(); dropdownOpen = false"
+                  [disabled]="isLoading"
+                >
+                  ✏️ Edit
+                </button>
+                <button
+                  type="button"
+                  class="block w-full px-4 py-2 text-sm text-left text-red-600 hover:bg-gray-100"
+                  (click)="confirmDelete(); dropdownOpen = false"
+                  [disabled]="isLoading"
+                >
+                  🗑️ Delete
+                </button>
+              </div>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+
+      <!-- Empty State -->
+      <tbody *ngIf="!license">
+        <tr>
+          <td colspan="8" class="px-4 py-8 text-center text-gray-500">
+            No license information added yet. Click "Add License" to get started.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 🪪 Modal Form -->
+  <div
+    *ngIf="showModal"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+  >
+    <div class="w-full max-w-2xl bg-white rounded shadow-lg overflow-y-auto max-h-[90vh] p-6">
+      <h3 class="mb-4 text-lg font-bold text-gray-800">
+        {{ isEditing ? 'Edit License Information' : 'Add License Information' }}
+      </h3>
+
+      <form
+        [formGroup]="licenseForm"
+        (ngSubmit)="onSubmit()"
+        class="grid grid-cols-1 gap-4 md:grid-cols-2"
+      >
+        <!-- License Number -->
+        <div>
+          <label class="block mb-1 text-sm font-medium"
+            >License Number <span class="text-red-500">*</span></label
+          >
+          <input
+            formControlName="licenseNumber"
+            type="text"
+            class="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="e.g., DL123456"
+          />
+        </div>
+
+        <!-- License Class (Cambodia) -->
+        <div>
+          <label class="block mb-1 text-sm font-medium">License Class</label>
+          <select
+            formControlName="licenseClass"
+            class="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Select Class...</option>
+            <option *ngFor="let cls of cambodiaLicenseClasses" [value]="cls.code">
+              {{ cls.label }}
+            </option>
+          </select>
+        </div>
+
+        <!-- Issued Date -->
+        <div>
+          <label class="block mb-1 text-sm font-medium">Issued Date</label>
+          <input
+            formControlName="issuedDate"
+            type="date"
+            class="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        <!-- Expiry Date -->
+        <div>
+          <label class="block mb-1 text-sm font-medium">Expiry Date</label>
+          <input
+            formControlName="expiryDate"
+            type="date"
+            class="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        <!-- Issuing Authority -->
+        <div class="md:col-span-2">
+          <label class="block mb-1 text-sm font-medium">Issuing Authority</label>
+          <input
+            formControlName="issuingAuthority"
+            type="text"
+            class="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="e.g., State DMV, RTO"
+          />
+        </div>
+
+        <!-- License Image URL -->
+        <div class="md:col-span-2">
+          <label class="block mb-1 text-sm font-medium">License Image URL</label>
+          <input
+            formControlName="licenseImageUrl"
+            type="url"
+            class="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="https://..."
+          />
+        </div>
+
+        <!-- 📷 Front Card Upload with Preview -->
+        <div class="md:col-span-2">
+          <label class="block mb-1 text-sm font-medium">Front Card Photo</label>
+          <div class="relative inline-block w-full">
+            <input
+              #frontFileInput
+              type="file"
+              accept="image/*"
+              (change)="onFileSelect($event, 'licenseFrontImage')"
+              class="hidden"
+            />
+            <label
+              (click)="frontFileInput.click()"
+              class="block w-full px-4 py-2 text-center text-gray-700 bg-gray-100 border-2 border-dashed border-gray-300 rounded cursor-pointer hover:bg-gray-50 hover:border-gray-400"
+            >
+              <span class="text-sm">Click to select front image (JPG/PNG, max 10MB)</span>
+            </label>
+          </div>
+
+          <img
+            *ngIf="frontPreviewUrl; else savedFront"
+            [src]="frontPreviewUrl"
+            alt="Preview Front"
+            class="w-32 mt-2 border rounded shadow"
+          />
+
+          <ng-template #savedFront>
+            <img
+              *ngIf="licenseForm.value.licenseFrontImage || license?.licenseFrontImage"
+              [src]="getImageUrl(licenseForm.value.licenseFrontImage || license?.licenseFrontImage)"
+              alt="Front License"
+              class="w-32 mt-2 border rounded shadow"
+            />
+          </ng-template>
+        </div>
+
+        <!-- 📷 Back Card Upload with Preview -->
+        <div class="md:col-span-2">
+          <label class="block mb-1 text-sm font-medium">Back Card Photo</label>
+          <div class="relative inline-block w-full">
+            <input
+              #backFileInput
+              type="file"
+              accept="image/*"
+              (change)="onFileSelect($event, 'licenseBackImage')"
+              class="hidden"
+            />
+            <label
+              (click)="backFileInput.click()"
+              class="block w-full px-4 py-2 text-center text-gray-700 bg-gray-100 border-2 border-dashed border-gray-300 rounded cursor-pointer hover:bg-gray-50 hover:border-gray-400"
+            >
+              <span class="text-sm">Click to select back image (JPG/PNG, max 10MB)</span>
+            </label>
+          </div>
+
+          <img
+            *ngIf="backPreviewUrl; else savedBack"
+            [src]="backPreviewUrl"
+            alt="Preview Back"
+            class="w-32 mt-2 border rounded shadow"
+          />
+
+          <ng-template #savedBack>
+            <img
+              *ngIf="licenseForm.value.licenseBackImage || license?.licenseBackImage"
+              [src]="getImageUrl(licenseForm.value.licenseBackImage || license?.licenseBackImage)"
+              alt="Back License"
+              class="w-32 mt-2 border rounded shadow"
+            />
+          </ng-template>
+        </div>
+
+        <!-- Notes -->
+        <div class="md:col-span-2">
+          <label class="block mb-1 text-sm font-medium">Notes</label>
+          <textarea
+            formControlName="notes"
+            rows="2"
+            class="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Additional notes..."
+          ></textarea>
+        </div>
+
+        <!-- Modal Actions -->
+        <div class="flex justify-end mt-4 space-x-3 md:col-span-2">
+          <button
+            type="button"
+            class="px-4 py-2 text-gray-700 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50"
+            (click)="closeModal()"
+            [disabled]="isLoading"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            class="px-4 py-2 text-white bg-blue-600 rounded hover:bg-blue-700 disabled:bg-gray-400 flex items-center gap-2"
+            [disabled]="licenseForm.invalid || isLoading"
+          >
+            <span
+              *ngIf="isLoading"
+              class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"
+            ></span>
+            {{ isEditing ? 'Update' : 'Save' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 🗑️ Delete Confirmation Modal -->
+  <div
+    *ngIf="showDeleteConfirm"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+  >
+    <div class="w-full max-w-sm bg-white rounded shadow-lg p-6">
+      <h3 class="mb-4 text-lg font-bold text-gray-800">Delete License?</h3>
+      <p class="mb-6 text-gray-600">
+        Are you sure you want to delete the license <strong>{{ license?.licenseNumber }}</strong
+        >? This action cannot be undone.
+      </p>
+
+      <div class="flex justify-end space-x-3">
+        <button
+          type="button"
+          class="px-4 py-2 text-gray-700 bg-gray-200 rounded hover:bg-gray-300"
+          (click)="cancelDelete()"
+          [disabled]="isLoading"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          class="px-4 py-2 text-white bg-red-600 rounded hover:bg-red-700 disabled:bg-gray-400 flex items-center gap-2"
+          (click)="onDelete()"
+          [disabled]="isLoading"
+        >
+          <span
+            *ngIf="isLoading"
+            class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"
+          ></span>
+          Delete License
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

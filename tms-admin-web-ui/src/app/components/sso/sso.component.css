@@ -1,0 +1,58 @@
+.container-fluid {
+  padding: 20px;
+}
+
+.card {
+  margin-bottom: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+  font-weight: 600;
+}
+
+.alert {
+  border-radius: 6px;
+}
+
+.btn-sm {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+}
+
+.spinner-border {
+  width: 1rem;
+  height: 1rem;
+}
+
+.form-label {
+  font-weight: 500;
+}
+
+.input-group-text {
+  background-color: #e9ecef;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .container-fluid {
+    padding: 10px;
+  }
+
+  .card-body {
+    padding: 1rem;
+  }
+
+  .row > [class*='col-'] {
+    margin-bottom: 1rem;
+  }
+}
+
+/* Token display */
+.input-group input[readonly] {
+  background-color: #f8f9fa;
+  cursor: not-allowed;
+}

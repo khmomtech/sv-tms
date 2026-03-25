@@ -1,0 +1,97 @@
+<div class="page">
+  <h2>Dispatch Approvals</h2>
+
+  <div class="controls">
+    <label>
+      Dispatch ID
+      <input type="number" [(ngModel)]="dispatchId" placeholder="e.g. 123" />
+    </label>
+    <button (click)="loadAll()" [disabled]="loading">Load</button>
+  </div>
+
+  <section class="panel">
+    <h3>Odometer Logs</h3>
+    <div *ngIf="!odometerLogs.length" class="empty">No records</div>
+    <table *ngIf="odometerLogs.length">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Start KM</th>
+          <th>End KM</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let log of odometerLogs">
+          <td>{{ log.id }}</td>
+          <td>{{ log.startKm }}</td>
+          <td>{{ log.endKm }}</td>
+          <td>{{ log.approvalStatus }}</td>
+          <td>
+            <button (click)="approveOdometer(log.id)">Approve</button>
+            <button class="danger" (click)="rejectOdometer(log.id)">Reject</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="panel">
+    <h3>Fuel Requests</h3>
+    <div *ngIf="!fuelRequests.length" class="empty">No records</div>
+    <table *ngIf="fuelRequests.length">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Amount</th>
+          <th>Liters</th>
+          <th>Station</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let req of fuelRequests">
+          <td>{{ req.id }}</td>
+          <td>{{ req.amount }}</td>
+          <td>{{ req.liters }}</td>
+          <td>{{ req.station }}</td>
+          <td>{{ req.status }}</td>
+          <td>
+            <button (click)="approveFuel(req.id)">Approve</button>
+            <button class="danger" (click)="rejectFuel(req.id)">Reject</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="panel">
+    <h3>COD Settlements</h3>
+    <div *ngIf="!codSettlements.length" class="empty">No records</div>
+    <table *ngIf="codSettlements.length">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Amount</th>
+          <th>Currency</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let s of codSettlements">
+          <td>{{ s.id }}</td>
+          <td>{{ s.amount }}</td>
+          <td>{{ s.currency }}</td>
+          <td>{{ s.status }}</td>
+          <td>
+            <button (click)="approveCod(s.id)">Approve</button>
+            <button class="danger" (click)="rejectCod(s.id)">Reject</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+</div>

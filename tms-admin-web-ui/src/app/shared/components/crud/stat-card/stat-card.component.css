@@ -1,0 +1,62 @@
+/* StatCard Component Styles */
+
+.stat-card {
+  position: relative;
+  overflow: hidden;
+  background: white;
+}
+
+/* Clickable card effects */
+.stat-card[role='button'] {
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.stat-card[role='button']:hover {
+  transform: translateY(-4px);
+  box-shadow:
+    0 10px 25px -5px rgba(0, 0, 0, 0.1),
+    0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.stat-card[role='button']:active {
+  transform: translateY(-2px);
+}
+
+.stat-card[role='button']:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Loading state */
+.stat-card .mat-spinner {
+  color: inherit;
+}
+
+/* Trend animations */
+.stat-card mat-icon[class*='trending'] {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .stat-card {
+    padding: 1rem;
+  }
+
+  .stat-card .text-3xl {
+    font-size: 1.875rem;
+  }
+}

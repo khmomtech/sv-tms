@@ -1,0 +1,70 @@
+<div class="p-6">
+  <h2 class="text-2xl font-bold mb-4">Completed Orders</h2>
+
+  <app-transport-order-list
+    [pageTitle]="'Completed Orders'"
+    [hideAddButton]="true"
+    [hideFilterToggle]="true"
+  >
+    <div list-footer class="pending-controls footer-controls mt-4 p-4 bg-white rounded shadow-sm">
+      <div class="control-search">
+        <label class="text-sm font-medium">Search</label>
+        <input
+          #searchInput
+          type="text"
+          [value]="search"
+          (input)="onSearch(searchInput.value)"
+          placeholder="Search orders..."
+          class="input"
+          aria-label="Search orders"
+        />
+      </div>
+
+      <div class="control-dates">
+        <label class="text-sm font-medium mr-2">From</label>
+        <input
+          #fromDateInput
+          type="date"
+          [value]="fromDate"
+          (change)="onFromDateChange(fromDateInput.value)"
+          class="input"
+          aria-label="From date"
+        />
+        <label class="text-sm font-medium ml-4 mr-2">To</label>
+        <input
+          #toDateInput
+          type="date"
+          [value]="toDate"
+          (change)="onToDateChange(toDateInput.value)"
+          class="input"
+          aria-label="To date"
+        />
+      </div>
+
+      <div class="controls-right">
+        <div class="control-rows">
+          <label class="text-sm font-medium">Rows per page:</label>
+          <select
+            #rowsSelect
+            [value]="pageSize"
+            (change)="onPageSizeChange(rowsSelect.value)"
+            class="input"
+            aria-label="Rows per page"
+          >
+            <option [value]="10">10</option>
+            <option [value]="20">20</option>
+            <option [value]="50">50</option>
+          </select>
+        </div>
+
+        <div class="control-paging">
+          <button (click)="prevPage()" class="btn" aria-label="First page">«</button>
+          <button (click)="prevPage()" class="btn" aria-label="Previous page">‹</button>
+          <span class="page-info">Page {{ currentPageDisplay }} of {{ totalPagesDisplay }}</span>
+          <button (click)="nextPage()" class="btn" aria-label="Next page">›</button>
+          <button (click)="nextPage()" class="btn" aria-label="Last page">»</button>
+        </div>
+      </div>
+    </div>
+  </app-transport-order-list>
+</div>

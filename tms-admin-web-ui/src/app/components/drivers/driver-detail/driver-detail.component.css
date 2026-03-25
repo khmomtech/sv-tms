@@ -1,0 +1,151 @@
+/* Container spacing */
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+/* Section styling */
+h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1d4ed8; /* Tailwind's blue-700 */
+}
+
+/* Card styling */
+.grid {
+  background-color: #ffffff;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+}
+
+/* Break long text like tokens */
+.break-words {
+  word-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+/* Image styling */
+img {
+  width: 8rem;
+  height: 8rem;
+  /* border-radius: 9999px;fully rounded */
+  object-fit: cover;
+  border: 1px solid #d1d5db; /* Tailwind's gray-300 */
+}
+img.qr-code {
+  width: 8rem;
+  height: 8rem;
+  border-radius: 0px; /* fully rounded */
+  object-fit: cover;
+  border: 1px solid #d1d5db; /* Tailwind's gray-300 */
+}
+
+/* ID card sizing (screen) */
+.id-card-print-area {
+  display: flex;
+  justify-content: center;
+}
+
+.id-card-surface {
+  width: 420px;
+  max-width: 100%;
+  aspect-ratio: 85.6 / 54; /* real ID card proportion */
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: #ffffff;
+}
+
+/* tighten internal spacing on card to fit proportion */
+.id-card-surface .p-6 {
+  padding: 1.25rem;
+}
+
+@media (min-width: 768px) {
+  .id-card-surface {
+    width: 460px;
+  }
+}
+
+/* Print styles: show only the ID card area */
+@media print {
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    background: #ffffff;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+  .print-area,
+  .print-area * {
+    visibility: visible;
+  }
+  .print-area {
+    position: static;
+    width: 100%;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    border: none !important;
+    padding: 0;
+    margin: 0 auto;
+    transform: translateX(0);
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+    min-height: 0;
+  }
+  .id-card-surface {
+    background: #ffffff !important;
+    border: 1px solid #e5e7eb !important;
+    width: 85.6mm !important;
+    height: 54mm !important;
+    padding: 4mm !important;
+    aspect-ratio: auto !important;
+    box-shadow: none !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
+/* Status colors */
+.text-green-600 {
+  color: #16a34a;
+}
+
+.text-red-500 {
+  color: #ef4444;
+}
+
+/* Error and loading message styles */
+.text-red-700 {
+  color: #b91c1c;
+}
+
+.bg-red-100 {
+  background-color: #fee2e2;
+}
+
+.border-red-300 {
+  border-color: #fca5a5;
+}
+
+.text-gray-400 {
+  color: #9ca3af;
+}
+
+.text-gray-500 {
+  color: #6b7280;
+}
+
+.text-gray-700 {
+  color: #374151;
+}

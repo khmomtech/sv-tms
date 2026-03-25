@@ -1,0 +1,2 @@
+ALTER TABLE customers
+    ADD COLUMN IF NOT EXISTS device_token VARCHAR(512) NULL;

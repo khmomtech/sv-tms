@@ -1,0 +1,217 @@
+<div class="container-fluid">
+  <h2 class="mb-4">Role Management</h2>
+
+  <!-- Error Message -->
+  <div *ngIf="error" class="alert alert-danger alert-dismissible fade show" role="alert">
+    {{ error }}
+    <button
+      type="button"
+      class="btn-close"
+      data-bs-dismiss="alert"
+      aria-label="Close"
+      (click)="error = null"
+    ></button>
+  </div>
+
+  <!-- Loading Indicator -->
+  <div *ngIf="loading" class="text-center">
+    <div class="spinner-border" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+  </div>
+
+  <!-- Create Role Form -->
+  <div class="mb-4 card">
+    <div class="card-header">
+      <h5 class="mb-0">Create New Role</h5>
+    </div>
+    <div class="card-body">
+      <form (ngSubmit)="createRole()" #roleForm="ngForm">
+        <div class="row">
+          <div class="mb-3 col-md-6">
+            <label for="roleName" class="form-label">Name *</label>
+            <input
+              type="text"
+              class="form-control"
+              id="roleName"
+              [(ngModel)]="newRole.name"
+              name="name"
+              required
+            />
+          </div>
+          <div class="mb-3 col-md-6">
+            <label for="roleDescription" class="form-label">Description</label>
+            <input
+              type="text"
+              class="form-control"
+              id="roleDescription"
+              [(ngModel)]="newRole.description"
+              name="description"
+            />
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Permissions</label>
+          <div class="row">
+            <div class="col-12">
+              <div class="form-check" *ngFor="let permission of permissions">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  [id]="'permission-' + permission.id"
+                  [value]="permission.id"
+                  (change)="togglePermission(permission.id)"
+                  [checked]="isPermissionSelected(permission.id)"
+                />
+                <label class="form-check-label" [for]="'permission-' + permission.id">
+                  {{ permission.name }} - {{ permission.description }}
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary" [disabled]="loading">
+          <span
+            *ngIf="loading"
+            class="spinner-border spinner-border-sm me-1"
+            role="status"
+            aria-hidden="true"
+          ></span>
+          Create Role
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Roles List -->
+  <div class="card">
+    <div class="card-header">
+      <h5 class="mb-0">Roles List</h5>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-striped table-hover">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Description</th>
+              <th>Permissions</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let role of roles">
+              <td>{{ role.name }}</td>
+              <td>{{ role.description }}</td>
+              <td>
+                <span *ngIf="role.rolePermissions && role.rolePermissions.length > 0">
+                  {{ role.rolePermissions.length }} permissions assigned
+                </span>
+                <span *ngIf="!role.rolePermissions || role.rolePermissions.length === 0">
+                  No permissions assigned
+                </span>
+              </td>
+              <td>
+                <button class="btn btn-sm btn-outline-primary me-1" (click)="startEditing(role)">
+                  Edit
+                </button>
+                <button class="btn btn-sm btn-outline-danger" (click)="deleteRole(role.id)">
+                  Delete
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Role Modal -->
+  <div
+    class="modal fade"
+    id="editRoleModal"
+    tabindex="-1"
+    aria-labelledby="editRoleModalLabel"
+    aria-hidden="true"
+    *ngIf="editingRole"
+  >
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="editRoleModalLabel">Edit Role</h5>
+          <button
+            type="button"
+            class="btn-close"
+            data-bs-dismiss="modal"
+            aria-label="Close"
+            (click)="cancelEditing()"
+          ></button>
+        </div>
+        <div class="modal-body">
+          <form #editForm="ngForm">
+            <div class="mb-3">
+              <label for="editName" class="form-label">Name *</label>
+              <input
+                type="text"
+                class="form-control"
+                id="editName"
+                [(ngModel)]="editingRole.name"
+                name="editName"
+                required
+              />
+            </div>
+            <div class="mb-3">
+              <label for="editDescription" class="form-label">Description</label>
+              <input
+                type="text"
+                class="form-control"
+                id="editDescription"
+                [(ngModel)]="editingRole.description"
+                name="editDescription"
+              />
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Permissions</label>
+              <div class="row">
+                <div class="col-12">
+                  <div class="form-check" *ngFor="let permission of permissions">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      [id]="'edit-permission-' + permission.id"
+                      [value]="permission.id"
+                      (change)="togglePermission(permission.id)"
+                      [checked]="isPermissionSelected(permission.id)"
+                    />
+                    <label class="form-check-label" [for]="'edit-permission-' + permission.id">
+                      {{ permission.name }} - {{ permission.description }}
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            data-bs-dismiss="modal"
+            (click)="cancelEditing()"
+          >
+            Cancel
+          </button>
+          <button type="button" class="btn btn-primary" (click)="updateRole()" [disabled]="loading">
+            <span
+              *ngIf="loading"
+              class="spinner-border spinner-border-sm me-1"
+              role="status"
+              aria-hidden="true"
+            ></span>
+            Update
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

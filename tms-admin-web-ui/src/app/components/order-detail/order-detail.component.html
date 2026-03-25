@@ -1,0 +1,155 @@
+<div class="min-h-screen p-6 bg-gray-100">
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-3xl font-bold text-gray-900">Order Detail</h1>
+      <p class="text-sm text-gray-500">
+        {{ order?.orderReference || order?.orderNumber || 'Order' }} · Status:
+        <span class="font-semibold">{{ order?.status }}</span>
+      </p>
+    </div>
+    <button (click)="goBack()" class="px-4 py-2 text-white bg-gray-600 rounded hover:bg-gray-700">
+      ← Back to Orders
+    </button>
+  </div>
+
+  <div *ngIf="isLoading" class="p-6 bg-white rounded-lg shadow text-center text-gray-600">
+    Loading order details…
+  </div>
+
+  <div *ngIf="errorMessage" class="p-4 mb-4 text-red-700 bg-red-100 rounded">
+    {{ errorMessage }}
+  </div>
+
+  <div *ngIf="order" class="space-y-6">
+    <section class="p-6 bg-white rounded-xl shadow">
+      <div class="grid gap-4 md:grid-cols-3">
+        <div>
+          <p class="text-xs uppercase text-gray-500">Order Reference</p>
+          <p class="text-lg font-semibold text-gray-900">
+            {{ order.orderReference || order.orderNumber }}
+          </p>
+        </div>
+        <div>
+          <p class="text-xs uppercase text-gray-500">Customer</p>
+          <p class="text-lg font-semibold text-gray-900">{{ order.customerName }}</p>
+          <p class="text-sm text-gray-500">Bill to: {{ order.billTo || '—' }}</p>
+        </div>
+        <div>
+          <p class="text-xs uppercase text-gray-500">Status</p>
+          <span
+            class="px-3 py-1 text-sm font-semibold rounded-full"
+            [ngClass]="{
+              'bg-yellow-100 text-yellow-700': order.status === 'PENDING',
+              'bg-green-100 text-green-700': order.status === 'CONFIRMED',
+              'bg-blue-100 text-blue-700': order.status === 'DISPATCHED',
+            }"
+          >
+            {{ order.status }}
+          </span>
+        </div>
+      </div>
+    </section>
+
+    <div class="grid gap-6 lg:grid-cols-[minmax(0,3fr)_270px] items-start">
+      <div class="space-y-6">
+        <section class="p-6 bg-white rounded-xl shadow">
+          <h2 class="mb-4 text-lg font-semibold text-gray-700">Loading Point(s)</h2>
+          <p class="text-sm text-gray-600">
+            {{ order.pickupAddress?.address || 'N/A' }} · {{ order.pickupAddress?.city || '' }}
+          </p>
+          <p class="text-sm text-gray-600">
+            Coordinates: {{ order.pickupAddress?.latitude || 'N/A' }},
+            {{ order.pickupAddress?.longitude || 'N/A' }}
+          </p>
+        </section>
+        <section class="p-6 bg-white rounded-xl shadow">
+          <h2 class="mb-4 text-lg font-semibold text-gray-700">Unload Point(s)</h2>
+          <p class="text-sm text-gray-600">
+            {{ order.dropAddress?.address || 'N/A' }} · {{ order.dropAddress?.city || '' }}
+          </p>
+          <p class="text-sm text-gray-600">
+            Coordinates: {{ order.dropAddress?.latitude || 'N/A' }},
+            {{ order.dropAddress?.longitude || 'N/A' }}
+          </p>
+        </section>
+        <section class="p-6 bg-white rounded-xl shadow">
+          <h2 class="mb-4 text-lg font-semibold text-gray-700">Order Items</h2>
+          <div class="space-y-3">
+            <p *ngFor="let item of order.items ?? []" class="text-sm text-gray-600">
+              <span class="font-semibold">{{ item.itemName }}</span> • Qty {{ item.quantity }} •
+              {{ item.unitOfMeasurement }}
+            </p>
+          </div>
+        </section>
+      </div>
+
+      <div class="space-y-6 h-full">
+        <section class="p-6 bg-white rounded-xl shadow flex flex-col gap-4 h-full">
+          <div>
+            <p class="text-xs font-semibold uppercase text-gray-500">Assign</p>
+            <h3 class="text-xl font-semibold text-gray-900">Trip Plan</h3>
+            <p class="text-sm text-gray-500">See the latest dispatches for this order.</p>
+          </div>
+          <div class="overflow-auto rounded border border-gray-200">
+            <table class="w-full text-left text-sm">
+              <thead class="bg-gray-50 text-gray-600 text-xs uppercase tracking-wide">
+                <tr>
+                  <th class="px-3 py-2">Route</th>
+                  <th class="px-3 py-2">Driver</th>
+                  <th class="px-3 py-2">Vehicle</th>
+                  <th class="px-3 py-2">Status</th>
+                  <th class="px-3 py-2">Date</th>
+                  <th class="px-3 py-2">Actions</th>
+                </tr>
+              </thead>
+              <tbody class="text-gray-700">
+                <tr *ngFor="let dispatch of order.dispatches ?? []">
+                  <td class="px-3 py-2 border-t">{{ dispatch.routeCode }}</td>
+                  <td class="px-3 py-2 border-t">{{ dispatch.driverName || 'N/A' }}</td>
+                  <td class="px-3 py-2 border-t">{{ dispatch.licensePlate || 'N/A' }}</td>
+                  <td class="px-3 py-2 border-t">
+                    <span
+                      class="px-2 py-1 text-xs font-semibold uppercase rounded"
+                      [ngClass]="{
+                        'bg-yellow-100 text-yellow-700': dispatch.status === 'ASSIGNED',
+                        'bg-blue-100 text-blue-700': dispatch.status === 'DISPATCHED',
+                        'bg-gray-100 text-gray-700': dispatch.status === 'COMPLETED',
+                        'bg-red-100 text-red-700': dispatch.status === 'CANCELLED',
+                      }"
+                    >
+                      {{ dispatch.status }}
+                    </span>
+                  </td>
+                  <td class="px-3 py-2 border-t">
+                    {{ dispatch.createdDate | date: 'dd-MMM-yyyy' }}
+                  </td>
+                  <td class="px-3 py-2 border-t">
+                    <button
+                      class="text-blue-600 underline hover:text-blue-800"
+                      (click)="openDispatchDetail(dispatch.id)"
+                    >
+                      View
+                    </button>
+                  </td>
+                </tr>
+                <tr *ngIf="!order.dispatches?.length">
+                  <td colspan="6" class="px-3 py-4 text-sm text-gray-500">
+                    No trips assigned yet.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <button
+            class="w-full px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded hover:bg-blue-700"
+            (click)="
+              router.navigate(['/dispatch/create'], { queryParams: { transportOrderId: order.id } })
+            "
+          >
+            Create Trip
+          </button>
+        </section>
+      </div>
+    </div>
+  </div>
+</div>

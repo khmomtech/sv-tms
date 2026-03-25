@@ -1,0 +1,66 @@
+/* System Initialization Component Styles */
+
+.initialization-card {
+  border: 1px solid #e5e7eb;
+  transition: box-shadow 0.2s ease-in-out;
+}
+
+.initialization-card:hover {
+  box-shadow:
+    0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.initialization-card mat-card-header {
+  padding-bottom: 0.5rem;
+}
+
+.initialization-card mat-card-title {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.initialization-card mat-card-content {
+  padding-top: 0.5rem;
+}
+
+.container {
+  max-width: 1200px;
+}
+
+/* Success snackbar styling */
+::ng-deep .success-snackbar {
+  background-color: #10b981 !important;
+  color: white !important;
+}
+
+/* Card hover effects */
+.red-card:hover {
+  background-color: #fef2f2;
+}
+
+.orange-card:hover {
+  background-color: #fff7ed;
+}
+
+.blue-card:hover {
+  background-color: #eff6ff;
+}
+
+.green-card:hover {
+  background-color: #f0fdf4;
+}
+
+.purple-card:hover {
+  background-color: #faf5ff;
+}
+
+/* Button loading states */
+button[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+mat-spinner {
+  display: inline-block;
+}

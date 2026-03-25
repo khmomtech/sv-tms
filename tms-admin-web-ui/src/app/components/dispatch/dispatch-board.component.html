@@ -1,0 +1,380 @@
+<div class="split-container">
+  <!-- LEFT PANEL -->
+  <div class="split-left" [style.width.px]="leftWidthPx" #leftPanel>
+    <div class="topbar">
+      <div class="logo">Order</div>
+      <div class="filters-row">
+        <div class="search">
+          <div class="search-group">
+            <input
+              placeholder="Search by Order #, customer, origin, destination"
+              [(ngModel)]="searchOrders"
+              (keyup.enter)="loadUnassignedOrders()"
+            />
+            <button class="btn ghost" (click)="searchOrders = ''; loadUnassignedOrders()">
+              Clear
+            </button>
+          </div>
+        </div>
+        <div class="date-filters compact">
+          <div>
+            <label>Delivery From</label>
+            <input type="date" [(ngModel)]="deliveryFrom" (change)="loadUnassignedOrders()" />
+          </div>
+          <div>
+            <label>Delivery To</label>
+            <input type="date" [(ngModel)]="deliveryTo" (change)="loadUnassignedOrders()" />
+          </div>
+        </div>
+      </div>
+      <button class="btn find" (click)="loadUnassignedOrders()">Find</button>
+    </div>
+
+    <div *ngIf="ordersError" class="note error">{{ ordersError }}</div>
+
+    <div class="section-title">Pre-Loading</div>
+    <div class="list" [style.height.px]="topSectionHeightPx">
+      <div *ngIf="loadingOrders" class="note">Loading orders…</div>
+      <div *ngIf="!loadingOrders && !filteredUnassignedOrders.length" class="note">
+        No pre-loading orders found.
+      </div>
+      <table class="table">
+        <tr>
+          <th class="checkbox">
+            <input
+              type="checkbox"
+              (change)="
+                toggleSelectAllOrders(filteredUnassignedOrders, $any($event.target).checked)
+              "
+            />
+          </th>
+          <th>No</th>
+          <th>Order Date</th>
+          <th>Delivery Date</th>
+          <th>Customer</th>
+          <th>From</th>
+          <th>To</th>
+          <th>Status</th>
+          <th>Files</th>
+          <th>Actions</th>
+        </tr>
+        <tr *ngFor="let order of filteredUnassignedOrders">
+          <td>
+            <input
+              type="checkbox"
+              [checked]="selectedOrderIds.has(order.orderId!)"
+              (change)="toggleOrderSelection(order.orderId!, $any($event.target).checked)"
+            />
+          </td>
+          <td>{{ order.orderNo }}</td>
+          <td [title]="order.orderDate || ''" class="date-cell">
+            <div class="date-display">{{ order.orderDate }}</div>
+          </td>
+          <td
+            [title]="order.deliveryDate || ''"
+            class="date-cell"
+            [ngClass]="getDateClass(order.deliveryDate)"
+          >
+            <div class="date-display">
+              {{ order.deliveryDate }}
+              <span *ngIf="getRelativeDate(order.deliveryDate)" class="date-relative">
+                ({{ getRelativeDate(order.deliveryDate) }})
+              </span>
+            </div>
+          </td>
+          <td>{{ order.customer }}</td>
+          <td [title]="order.fromFull || order.from" class="address-cell">
+            {{ order.from }}
+          </td>
+          <td [title]="order.toFull || order.to" class="address-cell">
+            {{ order.to }}
+          </td>
+          <td>
+            <span class="status-badge" [ngClass]="getStatusClass(order.transportOrderStatus)">
+              {{ order.transportOrderStatus || '—' }}
+            </span>
+          </td>
+          <td class="files-cell">
+            <span *ngIf="(order.fileCount || 0) > 0" class="file-badge">
+              📎 {{ order.fileCount }} file(s)
+            </span>
+            <span *ngIf="!order.fileCount" class="no-files">—</span>
+          </td>
+          <td class="actions-cell">
+            <div class="action-menu-wrapper">
+              <button
+                class="action-menu-btn"
+                [class.active]="openMenuOrderId === order.orderId"
+                (click)="toggleActionMenu(order.orderId!, $event)"
+                [disabled]="!order.orderId"
+              >
+                Actions ▾
+              </button>
+              <div *ngIf="openMenuOrderId === order.orderId" class="action-menu-dropdown">
+                <button class="menu-item" (click)="updateStatus(order, $event)">
+                  <span class="menu-icon">📝</span> Update Status
+                </button>
+                <button class="menu-item" (click)="safetyCheck(order, $event)">
+                  <span class="menu-icon">✅</span> Safety Check
+                </button>
+                <button class="menu-item" (click)="updateOrder(order, $event)">
+                  <span class="menu-icon">✏️</span> Update
+                </button>
+                <button class="menu-item" (click)="pickingList(order, $event)">
+                  <span class="menu-icon">📋</span> Picking List
+                </button>
+              </div>
+            </div>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="v-splitter" (mousedown)="startVerticalDrag($event)"></div>
+
+    <div class="section-title">Loading</div>
+    <div class="list">
+      <div *ngIf="assignedError" class="note error">{{ assignedError }}</div>
+      <table class="table">
+        <tr>
+          <th class="checkbox">
+            <input
+              type="checkbox"
+              (change)="
+                toggleSelectAllDispatches(filteredAssignedOrders, $any($event.target).checked)
+              "
+            />
+          </th>
+          <th>Dispatch #</th>
+          <th>Route</th>
+          <th>No</th>
+          <th>Status</th>
+          <th>Delivery Date</th>
+          <th>ETA</th>
+          <th>Customer</th>
+          <th>From</th>
+          <th>To</th>
+          <th>Driver</th>
+          <th>Truck</th>
+        </tr>
+        <tr *ngFor="let order of filteredAssignedOrders">
+          <td>
+            <input
+              type="checkbox"
+              [checked]="!!order.dispatchId && selectedDispatchIds.has(order.dispatchId)"
+              (change)="toggleDispatchSelection(order.dispatchId!, $any($event.target).checked)"
+            />
+          </td>
+          <td>{{ order.dispatchId || '—' }}</td>
+          <td>{{ order.routeCode || '—' }}</td>
+          <td>{{ order.orderNo }}</td>
+          <td>
+            <span class="status-badge" [class.pending]="order.status === 'ASSIGNED'">{{
+              order.status || '—'
+            }}</span>
+          </td>
+          <td>{{ order.deliveryDate }}</td>
+          <td>{{ order.eta || '—' }}</td>
+          <td>{{ order.customer }}</td>
+          <td [title]="order.fromFull || order.from" class="address-cell">
+            {{ order.from }}
+          </td>
+          <td [title]="order.toFull || order.to" class="address-cell">
+            {{ order.to }}
+          </td>
+          <td>{{ order.driver || '—' }}</td>
+          <td>{{ order.truck || '—' }}</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- SPLITTER -->
+  <div class="splitter" (mousedown)="startDrag()" (mouseup)="stopDrag()"></div>
+
+  <!-- RIGHT PANEL -->
+  <div class="split-right">
+    <div class="topbar">
+      <div class="logo">Driver</div>
+      <div class="search">
+        <input
+          placeholder="Search by Driver Name"
+          [ngModel]="searchDrivers"
+          (ngModelChange)="onDriverSearchChange($event)"
+        />
+      </div>
+      <button class="btn" (click)="quickPickDriver()">Find</button>
+    </div>
+
+    <div class="driver-table" *ngIf="filteredDrivers.length; else noDrivers">
+      <div class="driver-table-body">
+        <table>
+          <thead>
+            <tr>
+              <th class="checkbox-col">
+                <input
+                  type="checkbox"
+                  [checked]="allDriversSelected"
+                  (change)="selectFirstFilteredDriver()"
+                />
+              </th>
+              <th>Driver</th>
+              <th>Truck</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              *ngFor="let driver of pagedDrivers"
+              [class.active]="driver.id === selectedDriver?.id"
+              (click)="selectDriver(driver)"
+            >
+              <td class="checkbox-col">
+                <input
+                  type="checkbox"
+                  [checked]="driver.id === selectedDriver?.id"
+                  (click)="$event.stopPropagation()"
+                  (change)="selectDriver(driver)"
+                />
+              </td>
+              <td>
+                <div class="driver-name">{{ driver.name || driver.fullName }}</div>
+                <div class="driver-sub">{{ driver.phone || 'No phone' }}</div>
+              </td>
+              <td>
+                <div class="driver-sub">
+                  {{
+                    driver.assignedVehicle?.licensePlate ||
+                      driver.assignedVehicle?.manufacturer ||
+                      driver.assignedVehicle?.model ||
+                      driver.vehicleType ||
+                      'No truck'
+                  }}
+                </div>
+              </td>
+              <td>
+                <span
+                  class="status-dot"
+                  [class.online]="(driver.status || '').toLowerCase().includes('on')"
+                ></span>
+                {{ driver.status || 'Unknown' }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="driver-pagination">
+        <button
+          class="btn secondary"
+          (click)="driverPage = Math.max(driverPage - 1, 0)"
+          [disabled]="driverPage === 0"
+        >
+          ‹ Prev
+        </button>
+        <span>Page {{ driverPage + 1 }} / {{ driverPageCount }}</span>
+        <button
+          class="btn secondary"
+          (click)="driverPage = Math.min(driverPage + 1, driverPageCount - 1)"
+          [disabled]="driverPage + 1 >= driverPageCount"
+        >
+          Next ›
+        </button>
+      </div>
+      <div class="note">
+        Showing {{ filteredDrivers.length }} driver(s)
+        <span *ngIf="searchDrivers.trim()">for "{{ searchDrivers }}"</span>
+      </div>
+    </div>
+    <ng-template #noDrivers>
+      <div *ngIf="!loadingDrivers" class="note">No drivers found.</div>
+    </ng-template>
+
+    <!-- DRIVER CONTEXT -->
+    <div class="driver-panel">
+      <strong>Selected Driver</strong>
+      <ng-container *ngIf="selectedDriver; else noDriver">
+        <div class="driver-card">
+          <div>👤 {{ selectedDriver.name || selectedDriver.fullName }}</div>
+          <div>🚚 {{ selectedDriver.assignedVehicle?.licensePlate || 'No truck' }}</div>
+          <div>📞 {{ selectedDriver.phone || 'N/A' }}</div>
+          <div>📍 {{ selectedDriver.locationName || 'Location unknown' }}</div>
+          <div>Status: {{ selectedDriver.status || 'Unknown' }}</div>
+          <div>License: {{ selectedDriver.licenseNumber }}</div>
+        </div>
+      </ng-container>
+      <ng-template #noDriver>
+        <div class="note">Select a driver to assign orders.</div>
+      </ng-template>
+      <button
+        class="assign-btn"
+        [disabled]="assignBusy || (!selectedOrderIds.size && !selectedDispatchIds.size)"
+        (click)="assignSelected()"
+      >
+        Assign Selected Orders
+      </button>
+    </div>
+
+    <!-- MAP -->
+    <div class="map-wrap">
+      <ng-container *ngIf="hasMapsKey; else mapKeyMissing">
+        <ng-container *ngIf="!mapsError; else mapErrorBlock">
+          <google-map
+            [height]="'100%'"
+            [width]="'100%'"
+            [center]="mapCenter"
+            [zoom]="zoom"
+            [options]="mapOptions"
+            (mapReady)="fitMapToMarkers()"
+          >
+            <map-marker
+              *ngFor="let marker of visibleMarkers"
+              [position]="marker.position"
+              [label]="marker.label || ''"
+              [title]="marker.title || ''"
+              [options]="marker.options || {}"
+            ></map-marker>
+          </google-map>
+          <div *ngIf="!visibleMarkers.length" class="map-empty">
+            No map points yet. Add driver/order coordinates to visualize routes.
+          </div>
+        </ng-container>
+      </ng-container>
+      <ng-template #mapKeyMissing>
+        <div class="map-empty">
+          Google Maps API key missing. Set `googleMapsApiKey` in environment/__env to load the map.
+        </div>
+      </ng-template>
+      <ng-template #mapErrorBlock>
+        <div class="map-empty">
+          {{ mapsError }}
+        </div>
+      </ng-template>
+      <div class="map-controls">
+        <label>
+          <input
+            type="checkbox"
+            [checked]="showDrivers"
+            (change)="onLayerToggle('drivers', $any($event.target).checked)"
+          />
+          Drivers </label
+        ><br />
+        <label>
+          <input
+            type="checkbox"
+            [checked]="showOrders"
+            (change)="onLayerToggle('orders', $any($event.target).checked)"
+          />
+          Orders </label
+        ><br />
+        <label>
+          <input
+            type="checkbox"
+            [checked]="showDepots"
+            (change)="onLayerToggle('depots', $any($event.target).checked)"
+          />
+          Depots
+        </label>
+      </div>
+    </div>
+  </div>
+</div>

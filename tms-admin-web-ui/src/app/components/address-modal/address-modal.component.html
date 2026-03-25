@@ -1,0 +1,28 @@
+<div class="fixed inset-0 flex items-center justify-center bg-black/50">
+  <div class="p-6 bg-white rounded-lg shadow-lg w-96">
+    <h3 class="text-lg font-semibold">Select Address</h3>
+
+    <!-- Search Input -->
+    <input
+      type="text"
+      [(ngModel)]="searchText"
+      class="w-full p-2 mt-2 border rounded"
+      placeholder=" Search Address..."
+      (input)="filterAddresses()"
+    />
+
+    <!-- Address List -->
+    <ul class="mt-4 overflow-y-auto border rounded max-h-40">
+      <li
+        *ngFor="let address of filteredAddresses"
+        class="p-2 border-b cursor-pointer hover:bg-gray-200"
+        (click)="selectAddress(address)"
+      >
+        {{ address.name }} - {{ address.address }}
+      </li>
+    </ul>
+
+    <!-- Close Button -->
+    <button type="button" class="w-full mt-4 btn btn-danger" (click)="close.emit()">Close</button>
+  </div>
+</div>

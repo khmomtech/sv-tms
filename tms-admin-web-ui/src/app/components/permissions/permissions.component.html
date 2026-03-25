@@ -1,0 +1,225 @@
+<div class="container-fluid">
+  <h2 class="mb-4">Permission Management</h2>
+
+  <!-- Error Message -->
+  <div *ngIf="error" class="alert alert-danger alert-dismissible fade show" role="alert">
+    {{ error }}
+    <button
+      type="button"
+      class="btn-close"
+      data-bs-dismiss="alert"
+      aria-label="Close"
+      (click)="error = null"
+    ></button>
+  </div>
+
+  <!-- Loading Indicator -->
+  <div *ngIf="loading" class="text-center">
+    <div class="spinner-border" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+  </div>
+
+  <!-- Create Permission Form -->
+  <div class="mb-4 card">
+    <div class="card-header">
+      <h5 class="mb-0">Create New Permission</h5>
+    </div>
+    <div class="card-body">
+      <form (ngSubmit)="createPermission()" #permissionForm="ngForm">
+        <div class="row">
+          <div class="mb-3 col-md-6">
+            <label for="permissionName" class="form-label">Name *</label>
+            <input
+              type="text"
+              class="form-control"
+              id="permissionName"
+              [(ngModel)]="newPermission.name"
+              name="name"
+              required
+            />
+          </div>
+          <div class="mb-3 col-md-6">
+            <label for="permissionDescription" class="form-label">Description</label>
+            <input
+              type="text"
+              class="form-control"
+              id="permissionDescription"
+              [(ngModel)]="newPermission.description"
+              name="description"
+            />
+          </div>
+        </div>
+        <div class="row">
+          <div class="mb-3 col-md-6">
+            <label for="permissionResourceType" class="form-label">Resource Type</label>
+            <input
+              type="text"
+              class="form-control"
+              id="permissionResourceType"
+              [(ngModel)]="newPermission.resourceType"
+              name="resourceType"
+            />
+          </div>
+          <div class="mb-3 col-md-6">
+            <label for="permissionActionType" class="form-label">Action Type</label>
+            <input
+              type="text"
+              class="form-control"
+              id="permissionActionType"
+              [(ngModel)]="newPermission.actionType"
+              name="actionType"
+            />
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary" [disabled]="loading">
+          <span
+            *ngIf="loading"
+            class="spinner-border spinner-border-sm me-1"
+            role="status"
+            aria-hidden="true"
+          ></span>
+          Create Permission
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Permissions List -->
+  <div class="card">
+    <div class="card-header">
+      <h5 class="mb-0">Permissions List</h5>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-striped table-hover">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Description</th>
+              <th>Resource Type</th>
+              <th>Action Type</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let permission of permissions">
+              <td>{{ permission.name }}</td>
+              <td>{{ permission.description }}</td>
+              <td>{{ permission.resourceType }}</td>
+              <td>{{ permission.actionType }}</td>
+              <td>
+                <button
+                  class="btn btn-sm btn-outline-primary me-1"
+                  (click)="startEditing(permission)"
+                >
+                  Edit
+                </button>
+                <button
+                  class="btn btn-sm btn-outline-danger"
+                  (click)="deletePermission(permission.id)"
+                >
+                  Delete
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Permission Modal -->
+  <div
+    class="modal fade"
+    id="editPermissionModal"
+    tabindex="-1"
+    aria-labelledby="editPermissionModalLabel"
+    aria-hidden="true"
+    *ngIf="editingPermission"
+  >
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="editPermissionModalLabel">Edit Permission</h5>
+          <button
+            type="button"
+            class="btn-close"
+            data-bs-dismiss="modal"
+            aria-label="Close"
+            (click)="cancelEditing()"
+          ></button>
+        </div>
+        <div class="modal-body">
+          <form #editForm="ngForm">
+            <div class="mb-3">
+              <label for="editName" class="form-label">Name *</label>
+              <input
+                type="text"
+                class="form-control"
+                id="editName"
+                [(ngModel)]="editingPermission.name"
+                name="editName"
+                required
+              />
+            </div>
+            <div class="mb-3">
+              <label for="editDescription" class="form-label">Description</label>
+              <input
+                type="text"
+                class="form-control"
+                id="editDescription"
+                [(ngModel)]="editingPermission.description"
+                name="editDescription"
+              />
+            </div>
+            <div class="mb-3">
+              <label for="editResourceType" class="form-label">Resource Type</label>
+              <input
+                type="text"
+                class="form-control"
+                id="editResourceType"
+                [(ngModel)]="editingPermission.resourceType"
+                name="editResourceType"
+              />
+            </div>
+            <div class="mb-3">
+              <label for="editActionType" class="form-label">Action Type</label>
+              <input
+                type="text"
+                class="form-control"
+                id="editActionType"
+                [(ngModel)]="editingPermission.actionType"
+                name="editActionType"
+              />
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            data-bs-dismiss="modal"
+            (click)="cancelEditing()"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="btn btn-primary"
+            (click)="updatePermission()"
+            [disabled]="loading"
+          >
+            <span
+              *ngIf="loading"
+              class="spinner-border spinner-border-sm me-1"
+              role="status"
+              aria-hidden="true"
+            ></span>
+            Update
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,303 @@
+<div class="container-fluid p-4">
+  <!-- Breadcrumb Navigation -->
+  <nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a routerLink="/dashboard">Home</a></li>
+      <li class="breadcrumb-item"><a routerLink="/tasks">Task Management</a></li>
+      <li class="breadcrumb-item active" aria-current="page">
+        {{ isEditMode() ? 'Edit Task' : 'Create Task' }}
+      </li>
+    </ol>
+  </nav>
+
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="mb-1">{{ isEditMode() ? 'Edit Task' : 'Create Task' }}</h2>
+      <p class="text-muted mb-0">
+        {{ isEditMode() ? 'Update the task details below' : 'Fill in the details to create a new task' }}
+      </p>
+    </div>
+    <a routerLink="/tasks" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left me-2"></i>Back to List
+    </a>
+  </div>
+
+  <!-- Loading Spinner -->
+  <div *ngIf="loading()" class="text-center py-5">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+    <p class="text-muted mt-3">Loading task details...</p>
+  </div>
+
+  <!-- Form -->
+  <div *ngIf="!loading()" class="card">
+    <div class="card-body">
+      <form [formGroup]="taskForm" (ngSubmit)="onSubmit()">
+        <div class="row g-3">
+          <!-- Title -->
+          <div class="col-md-12">
+            <label for="title" class="form-label">
+              Title <span class="text-danger">*</span>
+              <small class="text-muted">(3-255 characters)</small>
+            </label>
+            <input
+              type="text"
+              class="form-control"
+              id="title"
+              formControlName="title"
+              placeholder="Enter a descriptive task title"
+              [class.is-invalid]="hasFieldError('title')"
+              [class.is-valid]="isFieldValid('title')"
+              aria-describedby="titleHelp titleError"
+              autocomplete="off"
+            />
+            <div id="titleHelp" class="form-text" *ngIf="!titleControl.touched">
+              Provide a clear, concise title (minimum 3 characters)
+            </div>
+            <div id="titleError" class="invalid-feedback" *ngIf="hasFieldError('title')">
+              {{ getFieldError('title') }}
+            </div>
+            <div class="valid-feedback" *ngIf="isFieldValid('title')">
+              ✓ Looks good!
+            </div>
+          </div>
+
+          <!-- Description -->
+          <div class="col-md-12">
+            <label for="description" class="form-label">
+              Description
+              <small class="text-muted">(Optional, max 2000 characters)</small>
+            </label>
+            <textarea
+              class="form-control"
+              id="description"
+              formControlName="description"
+              rows="4"
+              placeholder="Provide detailed information about this task..."
+              [class.is-invalid]="hasFieldError('description')"
+              aria-describedby="descriptionCount descriptionError"
+            ></textarea>
+            <div id="descriptionCount" class="d-flex justify-content-between align-items-center mt-1">
+              <small class="text-muted">
+                <i class="bi bi-textarea-t me-1"></i>
+                Character count:
+                <span [class.text-warning]="(descriptionControl.value?.length || 0) > 1800"
+                      [class.text-danger]="(descriptionControl.value?.length || 0) > 1950">
+                  {{ descriptionControl.value?.length || 0 }}/2000
+                </span>
+              </small>
+            </div>
+            <div id="descriptionError" class="invalid-feedback" *ngIf="hasFieldError('description')">
+              {{ getFieldError('description') }}
+            </div>
+          </div>
+
+          <!-- Task Type -->
+          <div class="col-md-6">
+            <label for="taskType" class="form-label">
+          <!-- Task Type ID -->
+          <div class="col-md-6">
+            <label for="taskTypeId" class="form-label">
+              Task Type <span class="text-danger">*</span>
+            </label>
+            <input
+              type="number"
+              class="form-control"
+              id="taskTypeId"
+              formControlName="taskTypeId"
+              [class.is-invalid]="f['taskTypeId'].invalid && f['taskTypeId'].touched"
+              placeholder="Enter task type ID"
+            />
+            <div class="invalid-feedback" *ngIf="f['taskTypeId'].invalid && f['taskTypeId'].touched">
+              Task Type ID is required
+            </div>
+          </div>
+
+          <!-- Vehicle ID -->
+          <div class="col-md-6">
+            <label for="vehicleId" class="form-label">
+              Vehicle <span class="text-danger">*</span>
+            </label>
+            <input
+              type="number"
+              class="form-control"
+              id="vehicleId"
+              formControlName="vehicleId"
+              [class.is-invalid]="f['vehicleId'].invalid && f['vehicleId'].touched"
+              placeholder="Enter vehicle ID"
+            />
+            <div class="invalid-feedback" *ngIf="f['vehicleId'].invalid && f['vehicleId'].touched">
+              Vehicle ID is required
+            </div>
+          </div>
+
+          <!-- Status -->
+          <div class="col-md-6">
+            <label for="status" class="form-label">
+              Status <span class="text-danger">*</span>
+            </label>
+            <select
+              class="form-select"
+              id="status"
+              formControlName="status"
+              [class.is-invalid]="f['status'].invalid && f['status'].touched"
+            >
+              <option *ngFor="let status of maintenanceStatuses" [value]="status">
+                {{ getStatusLabel(status) }}
+              </option>
+            </select>
+            <div class="invalid-feedback" *ngIf="f['status'].invalid && f['status'].touched">
+              Status is required
+            </div>
+          </div>
+
+          <!-- Due Date -->
+          <div class="col-md-6">
+            <label for="dueDate" class="form-label">
+              Due Date <span class="text-danger">*</span>
+              <i class="bi bi-calendar3 ms-1"></i>
+            </label>
+            <input
+              type="datetime-local"
+              class="form-control"
+              id="dueDate"
+              formControlName="dueDate"
+              [class.is-invalid]="hasFieldError('dueDate')"
+              [class.is-valid]="isFieldValid('dueDate')"
+              aria-describedby="dueDateHelp dueDateError"
+            />
+            <small id="dueDateHelp" class="form-text text-muted" *ngIf="!dueDateControl.touched">
+              <i class="bi bi-clock me-1"></i>Select a future date and time
+            </small>
+            <div id="dueDateError" class="invalid-feedback" *ngIf="hasFieldError('dueDate')">
+              {{ getFieldError('dueDate') }}
+            </div>
+            <div class="valid-feedback" *ngIf="isFieldValid('dueDate')">
+              ✓ Valid date
+            </div>
+          </div>
+
+          <!-- Incident -->
+          <div class="col-md-6">
+            <label for="incidentId" class="form-label">
+              Related Incident
+              <span *ngIf="loadingIncidents()" class="spinner-border spinner-border-sm ms-2"></span>
+            </label>
+            <select
+              class="form-select"
+              id="incidentId"
+              formControlName="incidentId"
+              [disabled]="loadingIncidents()"
+            >
+              <option [value]="null">No Incident</option>
+              <option *ngIf="!hasIncidents() && !loadingIncidents()" disabled>
+                No incidents available
+              </option>
+              <option *ngFor="let incident of incidents()" [value]="incident.id">
+                {{ incident.incidentCode }} - {{ incident.title }}
+              </option>
+            </select>
+            <small class="text-muted" *ngIf="!hasIncidents() && !loadingIncidents()">
+              <i class="bi bi-exclamation-circle me-1"></i>
+              No incidents found. This task will be standalone.
+            </small>
+          </div>
+
+          <!-- Assigned To -->
+          <div class="col-md-6">
+            <label for="assignedToId" class="form-label">
+              Assign To
+              <span *ngIf="loadingUsers()" class="spinner-border spinner-border-sm ms-2"></span>
+            </label>
+            <select
+              class="form-select"
+              id="assignedToId"
+              formControlName="assignedToId"
+              [disabled]="loadingUsers()"
+            >
+              <option [value]="null">Unassigned</option>
+              <option *ngIf="!hasUsers() && !loadingUsers()" disabled>
+                No users available
+              </option>
+              <option *ngFor="let user of users()" [value]="user.id">
+                {{ user.fullName }} ({{ user.username }})
+              </option>
+            </select>
+            <small class="text-muted" *ngIf="!hasUsers() && !loadingUsers()">
+              <i class="bi bi-exclamation-circle me-1"></i>
+              No users available for assignment.
+            </small>
+          </div>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="mt-4">
+          <!-- Validation Summary -->
+          <div class="alert alert-warning d-flex align-items-start"
+               *ngIf="invalidFieldCount > 0 && taskForm.touched"
+               role="alert">
+            <i class="bi bi-exclamation-triangle me-2 mt-1"></i>
+            <div>
+              <strong>Please correct the following:</strong>
+              <ul class="mb-0 mt-2">
+                <li *ngIf="hasFieldError('title')">{{ getFieldError('title') }}</li>
+                <li *ngIf="hasFieldError('description')">{{ getFieldError('description') }}</li>
+                <li *ngIf="hasFieldError('taskType')">{{ getFieldError('taskType') }}</li>
+                <li *ngIf="hasFieldError('status')">{{ getFieldError('status') }}</li>
+                <li *ngIf="hasFieldError('priority')">{{ getFieldError('priority') }}</li>
+                <li *ngIf="hasFieldError('dueDate')">{{ getFieldError('dueDate') }}</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Success Indicator -->
+          <div class="alert alert-success d-flex align-items-center"
+               *ngIf="taskForm.valid && taskForm.touched && !submitting()"
+               role="status">
+            <i class="bi bi-check-circle me-2"></i>
+            <div>
+              Form is valid and ready to submit!
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <small class="text-muted">
+                <i class="bi bi-asterisk text-danger"></i> Required fields
+              </small>
+              <span class="ms-3 badge bg-secondary" *ngIf="formDirty()">
+                <i class="bi bi-pencil me-1"></i>Unsaved changes
+              </span>
+            </div>
+            <div class="d-flex gap-2">
+              <button
+                type="button"
+                class="btn btn-secondary"
+                (click)="onCancel()"
+                [disabled]="submitting()"
+                title="{{ formDirty() ? 'Cancel and discard changes' : 'Go back to list' }}"
+              >
+                <i class="bi bi-x-circle me-2"></i>Cancel
+              </button>
+              <button
+                type="submit"
+                class="btn btn-primary"
+                [disabled]="!canSubmitForm()"
+                [class.btn-loading]="submitting()"
+                [attr.aria-busy]="submitting()"
+                title="{{ canSubmitForm() ? 'Submit the form' : 'Please fix validation errors first' }}"
+              >
+                <span *ngIf="submitting()" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                <i *ngIf="!submitting()" class="bi bi-check-circle me-2"></i>
+                <span *ngIf="!submitting()">{{ isEditMode() ? 'Update' : 'Create' }} Task</span>
+                <span *ngIf="submitting()">{{ isEditMode() ? 'Updating' : 'Creating' }}...</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

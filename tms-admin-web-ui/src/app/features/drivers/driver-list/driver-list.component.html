@@ -1,0 +1,546 @@
+<div class="container p-6 mx-auto" (keydown)="handleKeyboardShortcuts($event)" tabindex="0">
+  <!-- Header Section -->
+  <div class="flex items-start justify-between mb-6">
+    <div>
+      <div class="flex items-center gap-3">
+        <div class="flex items-center justify-center w-12 h-12 bg-blue-100 rounded-lg">
+          <mat-icon class="text-2xl text-blue-600">local_shipping</mat-icon>
+        </div>
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900">Driver Management</h1>
+          <p class="text-sm text-gray-500">Manage driver accounts, profiles, and contacts</p>
+        </div>
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <!-- Shortcuts Indicator -->
+      <div
+        class="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg"
+      >
+        <mat-icon class="text-lg text-gray-500">bolt</mat-icon>
+        <span class="font-medium">Shortcuts:</span>
+        <kbd
+          class="px-2 py-1 text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded shadow-sm"
+          >N</kbd
+        >
+        <span class="text-gray-500">New</span>
+        <kbd
+          class="px-2 py-1 text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded shadow-sm"
+          >Q</kbd
+        >
+        <span class="text-gray-500">Quick View</span>
+        <kbd
+          class="px-2 py-1 text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded shadow-sm"
+          >Ctrl+R</kbd
+        >
+        <span class="text-gray-500">Recent</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Only show content if user has view permissions -->
+  <ng-container *ngIf="canViewDrivers">
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-1 gap-4 mb-6 sm:grid-cols-2 lg:grid-cols-4">
+      <!-- Total Drivers -->
+      <div
+        class="p-4 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition"
+      >
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-gray-600">Total Drivers</p>
+            <p class="mt-1 text-2xl font-bold text-gray-900">{{ summary.total }}</p>
+          </div>
+          <div class="flex items-center justify-center w-12 h-12 bg-blue-100 rounded-full">
+            <mat-icon class="text-xl text-blue-600">groups</mat-icon>
+          </div>
+        </div>
+      </div>
+
+      <!-- Active Drivers -->
+      <div
+        class="p-4 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition"
+      >
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-gray-600">Active Drivers</p>
+            <p class="mt-1 text-2xl font-bold text-green-600">{{ summary.active }}</p>
+          </div>
+          <div class="flex items-center justify-center w-12 h-12 bg-green-100 rounded-full">
+            <mat-icon class="text-xl text-green-600">check_circle</mat-icon>
+          </div>
+        </div>
+      </div>
+
+      <!-- Companies (Drivers with Accounts) -->
+      <div
+        class="p-4 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition"
+      >
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-gray-600">With Accounts</p>
+            <p class="mt-1 text-2xl font-bold text-purple-600">{{ summary.withAccount }}</p>
+          </div>
+          <div class="flex items-center justify-center w-12 h-12 bg-purple-100 rounded-full">
+            <mat-icon class="text-xl text-purple-600">business</mat-icon>
+          </div>
+        </div>
+      </div>
+
+      <!-- Individuals (Drivers without Accounts) -->
+      <div
+        class="p-4 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition"
+      >
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-gray-600">Without Accounts</p>
+            <p class="mt-1 text-2xl font-bold text-orange-600">{{ summary.withoutAccount }}</p>
+          </div>
+          <div class="flex items-center justify-center w-12 h-12 bg-orange-100 rounded-full">
+            <mat-icon class="text-xl text-orange-600">person</mat-icon>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Action Bar -->
+    <div class="flex items-center justify-between mb-6">
+      <div class="flex items-center gap-2">
+        <button
+          *ngIf="canCreateDrivers || canManageDrivers"
+          type="button"
+          (click)="openDriverModal()"
+          class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition"
+        >
+          <mat-icon class="text-lg">add</mat-icon>
+          New Driver
+        </button>
+        <button
+          class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition"
+        >
+          <mat-icon class="text-lg">upload</mat-icon>
+          Import Excel
+        </button>
+      </div>
+      <div class="flex items-center gap-2">
+        <button
+          class="inline-flex items-center gap-2 px-3 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+        >
+          <mat-icon class="text-lg">file_download</mat-icon>
+          Export ({{ selectedIds.length }})
+        </button>
+        <span class="text-sm text-gray-500">{{ selectedIds.length }} selected</span>
+      </div>
+    </div>
+
+    <!-- Advanced Filters Section -->
+    <div class="mb-6 bg-white border border-gray-200 rounded-lg shadow-sm">
+      <button
+        (click)="showAdvancedFilters = !showAdvancedFilters"
+        class="flex items-center justify-between w-full px-4 py-3 text-left"
+      >
+        <div class="flex items-center gap-2">
+          <mat-icon class="text-gray-600">filter_alt</mat-icon>
+          <span class="text-sm font-semibold text-gray-700">Advanced Filters</span>
+        </div>
+        <mat-icon class="text-gray-400">{{
+          showAdvancedFilters ? 'expand_less' : 'expand_more'
+        }}</mat-icon>
+      </button>
+
+      <div *ngIf="showAdvancedFilters" class="px-6 pb-6">
+        <div class="mb-6">
+          <h3 class="mb-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+            SEARCH & FILTERS
+          </h3>
+
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <!-- Driver Code -->
+            <div>
+              <label class="block mb-1.5 text-sm font-medium text-gray-700">
+                <mat-icon class="text-base align-middle mr-1">tag</mat-icon>
+                Driver Code
+              </label>
+              <input
+                type="text"
+                [(ngModel)]="filters.query"
+                (input)="onSearchChange()"
+                placeholder="Enter driver code"
+                class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
+            <!-- Name -->
+            <div>
+              <label class="block mb-1.5 text-sm font-medium text-gray-700">
+                <mat-icon class="text-base align-middle mr-1">person</mat-icon>
+                Name
+              </label>
+              <input
+                type="text"
+                [(ngModel)]="filters.query"
+                (input)="onSearchChange()"
+                placeholder="Search by name"
+                class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
+            <!-- Phone -->
+            <div>
+              <label class="block mb-1.5 text-sm font-medium text-gray-700">
+                <mat-icon class="text-base align-middle mr-1">phone</mat-icon>
+                Phone
+              </label>
+              <input
+                type="text"
+                placeholder="Phone number"
+                class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
+            <!-- Email -->
+            <div>
+              <label class="block mb-1.5 text-sm font-medium text-gray-700">
+                <mat-icon class="text-base align-middle mr-1">email</mat-icon>
+                Email
+              </label>
+              <input
+                type="email"
+                placeholder="Email address"
+                class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
+            <!-- Type (Activity Status) -->
+            <div>
+              <label class="block mb-1.5 text-sm font-medium text-gray-700">
+                <mat-icon class="text-base align-middle mr-1">category</mat-icon>
+                Type
+              </label>
+              <select
+                [(ngModel)]="filters.activity"
+                (change)="applyFilters()"
+                class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="all">All Types</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </div>
+
+            <!-- Status (Driver Status) -->
+            <div>
+              <label class="block mb-1.5 text-sm font-medium text-gray-700">
+                <mat-icon class="text-base align-middle mr-1">info</mat-icon>
+                Status
+              </label>
+              <select
+                class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">All Statuses</option>
+                <option value="ON_TRIP">On Trip</option>
+                <option value="IDLE">Idle</option>
+                <option value="BUSY">Busy</option>
+                <option value="OFFLINE">Offline</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-end gap-2 mt-4">
+            <button
+              (click)="clearFilters()"
+              class="inline-flex items-center gap-2 px-4 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+            >
+              <mat-icon class="text-lg">refresh</mat-icon>
+              Reset
+            </button>
+          </div>
+        </div>
+
+        <!-- Saved Filters -->
+        <div class="pt-4 border-t border-gray-200">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <select class="px-3 py-2 text-sm border border-gray-300 rounded-lg">
+                <option>Saved Filters</option>
+              </select>
+            </div>
+            <button
+              class="inline-flex items-center gap-2 px-4 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+            >
+              <mat-icon class="text-lg">save</mat-icon>
+              Save Current Filters
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Driver List Table -->
+
+    <!-- Driver List Table -->
+    <div class="mb-6">
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center gap-2">
+          <mat-icon class="text-gray-600">view_list</mat-icon>
+          <h3 class="text-sm font-semibold text-gray-700">Driver List</h3>
+        </div>
+        <button
+          class="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+        >
+          <mat-icon class="text-base">view_column</mat-icon>
+          Columns
+        </button>
+      </div>
+
+      <div class="overflow-hidden bg-white border border-gray-200 rounded-lg shadow-sm">
+        <table data-testid="driver-list" class="w-full text-sm">
+          <thead class="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th class="w-12 px-6 py-3 text-left">
+                <input
+                  type="checkbox"
+                  (change)="toggleSelectAllOnPage($event)"
+                  [checked]="drivers.length && selectedIds.length === drivers.length"
+                  class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+              </th>
+              <th
+                class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider"
+              >
+                ID
+              </th>
+              <th
+                class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider"
+              >
+                Type
+              </th>
+              <th
+                class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider"
+              >
+                Driver Code
+              </th>
+              <th
+                class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider"
+              >
+                Driver Name
+              </th>
+              <th
+                class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider"
+              >
+                Phone
+              </th>
+              <th
+                class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider"
+              >
+                Email
+              </th>
+              <th
+                class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider"
+              >
+                Zone
+              </th>
+              <th
+                class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider"
+              >
+                Status
+              </th>
+              <th
+                class="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider"
+              >
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+            <tr *ngIf="isLoadingDrivers">
+              <td colspan="10" class="px-6 py-12 text-center">
+                <mat-spinner diameter="32" class="mx-auto"></mat-spinner>
+                <p class="mt-2 text-sm text-gray-500">Loading drivers...</p>
+              </td>
+            </tr>
+            <tr *ngIf="!isLoadingDrivers && !drivers.length">
+              <td colspan="10" class="px-6 py-12 text-center">
+                <div class="flex flex-col items-center justify-center">
+                  <mat-icon class="text-5xl text-gray-300 mb-2">person_off</mat-icon>
+                  <p class="text-sm text-gray-500">No drivers found for the current filters.</p>
+                </div>
+              </td>
+            </tr>
+            <tr
+              *ngFor="let driver of drivers; trackBy: trackByDriver"
+              class="hover:bg-gray-50 transition"
+            >
+              <td class="px-6 py-4 whitespace-nowrap">
+                <input
+                  type="checkbox"
+                  [checked]="isDriverSelected(driver.id)"
+                  (change)="toggleDriverSelection(driver.id)"
+                  class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ driver.id }}</td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <span
+                  class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800"
+                >
+                  {{ driver.user?.username ? 'Company' : 'Individual' }}
+                </span>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                {{ driver.id || 'N/A' }}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <button
+                  (click)="viewDriver(driver)"
+                  class="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                >
+                  {{ driver.fullName || driver.name || driver.firstName + ' ' + driver.lastName }}
+                </button>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ driver.phone }}</td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {{ driver.email || driver.user?.email || '—' }}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {{ driver.zone || '—' }}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <span
+                  [ngClass]="{
+                    'bg-green-100 text-green-800': driver.isActive,
+                    'bg-gray-100 text-gray-800': !driver.isActive,
+                  }"
+                  class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium"
+                >
+                  <span
+                    class="w-1.5 h-1.5 rounded-full"
+                    [ngClass]="driver.isActive ? 'bg-green-600' : 'bg-gray-600'"
+                  ></span>
+                  {{ driver.isActive ? 'Active' : 'Inactive' }}
+                </span>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-center">
+                <div class="flex items-center justify-center gap-1">
+                  <button
+                    (click)="viewDriver(driver)"
+                    class="p-1.5 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded transition"
+                    title="View driver details"
+                  >
+                    <mat-icon class="text-lg">visibility</mat-icon>
+                  </button>
+                  <div class="relative inline-block">
+                    <button
+                      (click)="toggleDropdown(driver.id)"
+                      class="p-1.5 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition"
+                      title="More actions"
+                    >
+                      <mat-icon class="text-lg">more_vert</mat-icon>
+                    </button>
+                    <div
+                      *ngIf="dropdownOpen === driver.id"
+                      class="absolute right-0 z-10 w-48 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg"
+                    >
+                      <button
+                        *ngIf="canManageDrivers"
+                        (click)="openDriverModal(driver)"
+                        class="flex items-center w-full gap-2 px-4 py-2 text-sm text-left text-gray-700 hover:bg-gray-50 transition"
+                      >
+                        <mat-icon class="text-lg text-blue-600">edit</mat-icon>
+                        Edit
+                      </button>
+                      <button
+                        *ngIf="canManageDrivers"
+                        (click)="sendMessage(driver)"
+                        class="flex items-center w-full gap-2 px-4 py-2 text-sm text-left text-gray-700 hover:bg-gray-50 transition"
+                      >
+                        <mat-icon class="text-lg text-purple-600">message</mat-icon>
+                        Message
+                      </button>
+                      <button
+                        *ngIf="canManageDriverAccounts"
+                        (click)="openCreateAccountModal(driver)"
+                        class="flex items-center w-full gap-2 px-4 py-2 text-sm text-left text-gray-700 hover:bg-gray-50 transition"
+                      >
+                        <mat-icon class="text-lg text-green-600">person_add</mat-icon>
+                        Create Account
+                      </button>
+                      <button
+                        *ngIf="canManageDrivers"
+                        (click)="deleteDriver(driver.id)"
+                        class="flex items-center w-full gap-2 px-4 py-2 text-sm text-left text-red-600 hover:bg-red-50 transition rounded-b-lg"
+                      >
+                        <mat-icon class="text-lg">delete</mat-icon>
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg">
+      <div class="flex items-center gap-2 text-sm text-gray-600">
+        Showing <strong>{{ currentPage * pageSize + 1 }}</strong> to
+        <strong>{{ Math.min((currentPage + 1) * pageSize, summary.total) }}</strong> of
+        <strong>{{ summary.total }}</strong> results
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button
+          (click)="currentPage = 0; loadDrivers()"
+          [disabled]="currentPage === 0"
+          class="px-3 py-1.5 text-sm text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+        >
+          First
+        </button>
+        <button
+          (click)="goToPreviousPage()"
+          [disabled]="currentPage === 0"
+          class="px-3 py-1.5 text-sm text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+        >
+          Prev
+        </button>
+
+        <button
+          *ngFor="let page of getPageNumbers()"
+          (click)="currentPage = page; loadDrivers()"
+          [class.bg-blue-600]="currentPage === page"
+          [class.text-white]="currentPage === page"
+          [class.border-blue-600]="currentPage === page"
+          class="px-3 py-1.5 text-sm font-medium border border-gray-300 rounded hover:bg-gray-50 transition"
+        >
+          {{ page + 1 }}
+        </button>
+
+        <button
+          (click)="goToNextPage()"
+          [disabled]="currentPage >= totalPages - 1"
+          class="px-3 py-1.5 text-sm text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+        >
+          Next
+        </button>
+        <button
+          (click)="currentPage = totalPages - 1; loadDrivers()"
+          [disabled]="currentPage >= totalPages - 1"
+          class="px-3 py-1.5 text-sm text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+        >
+          Last
+        </button>
+      </div>
+    </div>
+
+    <app-drivers-form
+      [driver]="selectedDriver"
+      [isOpen]="isModalOpen"
+      [isSaving]="isSaving"
+      (save)="onFormSave($event)"
+      (cancel)="closeModal()"
+    ></app-drivers-form>
+  </ng-container>
+</div>

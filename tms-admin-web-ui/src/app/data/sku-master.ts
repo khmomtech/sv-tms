@@ -1,0 +1,265 @@
+// src/app/data/sku-master.ts
+
+// export interface SkuItem {
+//   name: string;
+//   sku: string;
+//   weight: number;
+//   volume: number;
+// }
+
+// export const skuMaster: SkuItem[] = [
+//   { name: 'CAMBODIA BEER LITE CAN 330ML ORD', sku: 'SKU-001', weight: 1, volume: 0.01 },
+//   { name: 'CAMBODIA BEER LITE CAN 330ML NCP', sku: 'SKU-002', weight: 1.5, volume: 0.012 },
+//   { name: 'CAMBODIA WATER PET 1500ML', sku: 'SKU-003', weight: 2, volume: 0.014 },
+//   { name: 'CAMBODIA BEER DRAUGHT 25L ORD', sku: 'SKU-004', weight: 2.5, volume: 0.016 },
+//   { name: 'CAMBODIA BEER CAN 330ML NCP', sku: 'SKU-005', weight: 3, volume: 0.018 },
+//   { name: 'IZE COLA PET 300ML ORD', sku: 'SKU-006', weight: 3.5, volume: 0.01 },
+//   { name: 'IZE FRUIT PUNCH CAN 250ML ORD', sku: 'SKU-007', weight: 4, volume: 0.012 },
+//   { name: 'IZE GRAPES PET 300ML ORD', sku: 'SKU-008', weight: 4.5, volume: 0.014 },
+//   { name: 'CAMBODIA WATER PET 500ML', sku: 'SKU-009', weight: 5, volume: 0.016 },
+//   { name: 'Plastic Pallet 1x1.2m (KHB)', sku: 'SKU-010', weight: 5.5, volume: 1.2 },
+//   { name: 'WURKZ CAN 250ML NCP', sku: 'SKU-011', weight: 1, volume: 0.01 },
+//   { name: 'DAZZ CAN 250ML NCP', sku: 'SKU-012', weight: 1.5, volume: 0.012 },
+//   { name: 'EXPREZ CAN 330ML NCP', sku: 'SKU-013', weight: 2, volume: 0.014 },
+//   { name: 'IZE COLA PET 500ML NCP', sku: 'SKU-014', weight: 2.5, volume: 0.016 },
+//   { name: 'CAMBODIA WATER PET 350ML', sku: 'SKU-015', weight: 3, volume: 0.018 },
+//   { name: 'Full CO2 Cylinder', sku: 'SKU-016', weight: 3.5, volume: 0.01 },
+//   { name: 'CAMBODIA BEER SUPREME 330ML', sku: 'SKU-017', weight: 4, volume: 0.012 },
+//   { name: 'CAMBODIA WATER PET 350ML No Carton', sku: 'SKU-018', weight: 4.5, volume: 0.014 },
+//   { name: 'CAMBODIA BEER PINT 330ML', sku: 'SKU-019', weight: 5, volume: 0.016 },
+//   { name: 'CAMBODIA BEER CAN 330ML ORD', sku: 'SKU-020', weight: 5.5, volume: 0.018 },
+//   { name: 'IZE COLA CAN 250ML ORD', sku: 'SKU-021', weight: 1, volume: 0.01 },
+//   { name: 'IZE COLA PET 1500ML ORD', sku: 'SKU-022', weight: 1.5, volume: 0.012 },
+//   { name: 'IZE FRUIT PUNCH PET 1500ML ORD', sku: 'SKU-023', weight: 2, volume: 0.014 },
+//   { name: 'IZE LEMON PET 1500ML ORD', sku: 'SKU-024', weight: 2.5, volume: 0.016 },
+//   { name: 'KIZZ CAN 250ML NCP', sku: 'SKU-025', weight: 3, volume: 0.018 },
+//   { name: 'CAMBODIA BEER LITE PINT 330ML', sku: 'SKU-026', weight: 3.5, volume: 0.01 },
+//   { name: 'VIKINGZ CAN 250ML NCP', sku: 'SKU-027', weight: 4, volume: 0.012 },
+//   { name: 'ICY COOL CAN 250ML NCP', sku: 'SKU-028', weight: 4.5, volume: 0.014 },
+//   { name: 'EXPREZ PET 300ML ORD', sku: 'SKU-029', weight: 5, volume: 0.016 }
+// ];
+
+export interface SkuItem {
+  name: string;
+  sku: string;
+  weight: number;
+  volume: number;
+  qty_per_pallet: number;
+}
+
+export const skuMaster: SkuItem[] = [
+  {
+    name: 'CAMBODIA BEER CAN 330ML NCP',
+    sku: 'SKU-005',
+    weight: 3.0,
+    volume: 0.018,
+    qty_per_pallet: 96,
+  },
+  {
+    name: 'CAMBODIA BEER CAN 330ML ORD',
+    sku: 'SKU-020',
+    weight: 5.5,
+    volume: 0.018,
+    qty_per_pallet: 96,
+  },
+  {
+    name: 'CAMBODIA BEER DRAUGHT 25L ORD',
+    sku: 'SKU-004',
+    weight: 2.5,
+    volume: 0.016,
+    qty_per_pallet: 96,
+  },
+  {
+    name: 'CAMBODIA BEER LITE CAN 330ML NCP',
+    sku: 'SKU-002',
+    weight: 1.5,
+    volume: 0.012,
+    qty_per_pallet: 96,
+  },
+  {
+    name: 'CAMBODIA BEER LITE CAN 330ML ORD',
+    sku: 'SKU-001',
+    weight: 1.0,
+    volume: 0.01,
+    qty_per_pallet: 96,
+  },
+  {
+    name: 'CAMBODIA BEER LITE PINT 330ML',
+    sku: 'SKU-026',
+    weight: 3.5,
+    volume: 0.01,
+    qty_per_pallet: 96,
+  },
+  {
+    name: 'CAMBODIA BEER PINT 330ML',
+    sku: 'SKU-019',
+    weight: 5.0,
+    volume: 0.016,
+    qty_per_pallet: 96,
+  },
+  {
+    name: 'CAMBODIA BEER SUPREME 330ML',
+    sku: 'SKU-017',
+    weight: 4.0,
+    volume: 0.012,
+    qty_per_pallet: 96,
+  },
+  {
+    name: 'CAMBODIA WATER PET 1500ML',
+    sku: 'SKU-003',
+    weight: 2.0,
+    volume: 0.014,
+    qty_per_pallet: 96,
+  },
+  {
+    name: 'CAMBODIA WATER PET 350ML',
+    sku: 'SKU-015',
+    weight: 3.0,
+    volume: 0.018,
+    qty_per_pallet: 96,
+  },
+  {
+    name: 'CAMBODIA WATER PET 350ML No Carton',
+    sku: 'SKU-018',
+    weight: 4.5,
+    volume: 0.014,
+    qty_per_pallet: 96,
+  },
+  {
+    name: 'CAMBODIA WATER PET 500ML',
+    sku: 'SKU-009',
+    weight: 5.0,
+    volume: 0.016,
+    qty_per_pallet: 96,
+  },
+  {
+    name: 'CB CRAFT INDIA PALE ALE DRAUGHT 25L',
+    sku: 'SKU-030',
+    weight: 1.0,
+    volume: 0.01,
+    qty_per_pallet: 96,
+  },
+  {
+    name: 'CB CRAFT IRISH GOLD STOUT DRAUGHT 25L',
+    sku: 'SKU-031',
+    weight: 1.0,
+    volume: 0.01,
+    qty_per_pallet: 96,
+  },
+  {
+    name: 'CB CRAFT MUNCHEN HELLES DRAUGHT 25L',
+    sku: 'SKU-032',
+    weight: 1.0,
+    volume: 0.01,
+    qty_per_pallet: 96,
+  },
+  { name: 'DAZZ CAN 250ML NCP', sku: 'SKU-012', weight: 1.5, volume: 0.012, qty_per_pallet: 96 },
+  { name: 'EXPREZ CAN 330ML NCP', sku: 'SKU-013', weight: 2.0, volume: 0.014, qty_per_pallet: 96 },
+  { name: 'EXPREZ PET 300ML ORD', sku: 'SKU-029', weight: 5.0, volume: 0.016, qty_per_pallet: 96 },
+  { name: 'EXPREZ PET 500ML NCP', sku: 'SKU-033', weight: 1.0, volume: 0.01, qty_per_pallet: 96 },
+  { name: 'Full CO2 Cylinder', sku: 'SKU-016', weight: 3.5, volume: 0.01, qty_per_pallet: 96 },
+  {
+    name: 'ICY COOL CAN 250ML NCP',
+    sku: 'SKU-028',
+    weight: 4.5,
+    volume: 0.014,
+    qty_per_pallet: 96,
+  },
+  { name: 'IZE COLA CAN 250ML ORD', sku: 'SKU-021', weight: 1.0, volume: 0.01, qty_per_pallet: 96 },
+  { name: 'IZE COLA CAN 330ML ORD', sku: 'SKU-034', weight: 1.0, volume: 0.01, qty_per_pallet: 96 },
+  {
+    name: 'IZE COLA PET 1500ML ORD',
+    sku: 'SKU-022',
+    weight: 1.5,
+    volume: 0.012,
+    qty_per_pallet: 96,
+  },
+  { name: 'IZE COLA PET 300ML ORD', sku: 'SKU-006', weight: 3.5, volume: 0.01, qty_per_pallet: 96 },
+  {
+    name: 'IZE COLA PET 500ML NCP',
+    sku: 'SKU-014',
+    weight: 2.5,
+    volume: 0.016,
+    qty_per_pallet: 96,
+  },
+  {
+    name: 'IZE COLA SLEEK CAN 230ML ORD',
+    sku: 'SKU-035',
+    weight: 1.0,
+    volume: 0.01,
+    qty_per_pallet: 96,
+  },
+  {
+    name: 'IZE FRUIT PUNCH CAN 250ML ORD',
+    sku: 'SKU-007',
+    weight: 4.0,
+    volume: 0.012,
+    qty_per_pallet: 96,
+  },
+  {
+    name: 'IZE FRUIT PUNCH PET 1500ML ORD',
+    sku: 'SKU-023',
+    weight: 2.0,
+    volume: 0.014,
+    qty_per_pallet: 96,
+  },
+  {
+    name: 'IZE FRUIT PUNCH PET 500ML NCP',
+    sku: 'SKU-036',
+    weight: 1.0,
+    volume: 0.01,
+    qty_per_pallet: 96,
+  },
+  {
+    name: 'IZE FRUIT PUNCH SL CAN 330ML ORD',
+    sku: 'SKU-037',
+    weight: 1.0,
+    volume: 0.01,
+    qty_per_pallet: 96,
+  },
+  {
+    name: 'IZE GRAPES PET 300ML ORD',
+    sku: 'SKU-008',
+    weight: 4.5,
+    volume: 0.014,
+    qty_per_pallet: 96,
+  },
+  {
+    name: 'IZE LEMON CAN 250ML ORD',
+    sku: 'SKU-038',
+    weight: 1.0,
+    volume: 0.01,
+    qty_per_pallet: 96,
+  },
+  {
+    name: 'IZE LEMON CAN 330ML ORD',
+    sku: 'SKU-039',
+    weight: 1.0,
+    volume: 0.01,
+    qty_per_pallet: 96,
+  },
+  {
+    name: 'IZE LEMON PET 1500ML ORD',
+    sku: 'SKU-024',
+    weight: 2.5,
+    volume: 0.016,
+    qty_per_pallet: 96,
+  },
+  {
+    name: 'IZE LEMON PET 300ML ORD',
+    sku: 'SKU-040',
+    weight: 1.0,
+    volume: 0.01,
+    qty_per_pallet: 96,
+  },
+  {
+    name: 'IZE LEMON PET 500ML ORD',
+    sku: 'SKU-041',
+    weight: 1.0,
+    volume: 0.01,
+    qty_per_pallet: 96,
+  },
+  { name: 'KIZZ CAN 250ML NCP', sku: 'SKU-025', weight: 3.0, volume: 0.018, qty_per_pallet: 96 },
+  { name: 'VIKINGZ CAN 250ML NCP', sku: 'SKU-027', weight: 4.0, volume: 0.012, qty_per_pallet: 96 },
+  { name: 'WURKZ CAN 250ML NCP', sku: 'SKU-011', weight: 1.0, volume: 0.01, qty_per_pallet: 96 },
+];

@@ -1,0 +1,65 @@
+<div class="modal-overlay">
+  <div class="w-full max-w-lg p-6 bg-white rounded-lg shadow-lg modal-content">
+    <h2 class="flex items-center mb-4 text-2xl font-bold">📝 Add/Edit Item</h2>
+
+    <form [formGroup]="itemForm">
+      <!-- Quantity & Unit -->
+      <div class="grid grid-cols-2 gap-4 mb-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Quantity:</label>
+          <input type="number" formControlName="quantity" class="w-full input" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Unit:</label>
+          <select formControlName="unit" class="w-full input">
+            <option *ngFor="let unit of unitOptions" [value]="unit">{{ unit }}</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Item Name & palletType -->
+      <div class="grid grid-cols-2 gap-4 mb-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Item Name:</label>
+          <select formControlName="itemName" class="w-full input">
+            <option *ngFor="let item of itemOptions" [value]="item">{{ item }}</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700">palletType/Type:</label>
+          <input type="text" formControlName="palletType" class="w-full input" />
+        </div>
+      </div>
+
+      <!-- Size & Weight -->
+      <div class="grid grid-cols-2 gap-4 mb-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Size (LxWxH cm):</label>
+          <input type="text" formControlName="size" class="w-full input" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Weight:</label>
+          <input type="text" formControlName="weight" class="w-full input" />
+        </div>
+      </div>
+
+      <!-- Buttons -->
+      <div class="flex justify-between mt-6">
+        <button
+          type="button"
+          (click)="closeModal()"
+          class="px-4 py-2 text-white bg-red-500 rounded-md btn hover:bg-red-600"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          (click)="saveItem()"
+          class="px-4 py-2 text-white bg-green-500 rounded-md btn hover:bg-green-600"
+        >
+          Save
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

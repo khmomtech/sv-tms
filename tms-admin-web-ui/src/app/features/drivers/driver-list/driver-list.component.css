@@ -1,0 +1,42 @@
+/* Driver List Component Styles */
+.container {
+  outline: none;
+}
+
+/* Loading spinner center alignment */
+mat-spinner {
+  margin: 0 auto;
+}
+
+/* Dropdown menu positioning */
+.relative {
+  position: relative;
+}
+
+/* Smooth transitions */
+button {
+  transition: all 0.2s ease-in-out;
+}
+
+/* Table hover effects */
+tbody tr:hover {
+  background-color: rgba(243, 244, 246, 0.5);
+}
+
+/* Custom scrollbar for dropdown */
+.overflow-y-auto::-webkit-scrollbar {
+  width: 6px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 3px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}

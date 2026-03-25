@@ -1,0 +1,431 @@
+<section class="driver-chat-shell" data-testid="driver-chat-page">
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       LEFT NAV PANE
+  ════════════════════════════════════════════════════════════════════════ -->
+  <aside class="nav-pane">
+    <div class="nav-heading">
+      <span class="eyebrow">Communications</span>
+    </div>
+
+    <button type="button" class="nav-item" [class.active]="activeTab === 'inbox'" (click)="switchTab('inbox')">
+      <span class="nav-icon">💬</span>
+      <span>{{ 'chat.nav.inbox' | translate }}</span>
+      <span class="nav-count">{{ inboxCount }}</span>
+    </button>
+    <button type="button" class="nav-item">
+      <span class="nav-icon">🎧</span>
+      <span>{{ 'chat.nav.support' | translate }}</span>
+    </button>
+    <button type="button" class="nav-item">
+      <span class="nav-icon">📢</span>
+      <span>{{ 'chat.nav.announcements' | translate }}</span>
+    </button>
+    <button type="button" class="nav-item" [class.active]="activeTab === 'archived'" (click)="switchTab('archived')">
+      <span class="nav-icon">🗃</span>
+      <span>{{ 'chat.nav.archived' | translate }}</span>
+      <span class="nav-count" *ngIf="archivedCount > 0">{{ archivedCount }}</span>
+    </button>
+
+    <div class="labels-block">
+      <span class="eyebrow">Labels</span>
+      <div class="label-chip urgent">Urgent</div>
+      <div class="label-chip delay">Logistic Delay</div>
+      <div class="label-chip docs">Documentation</div>
+    </div>
+
+    <button type="button" class="broadcast-button">+ New Broadcast</button>
+  </aside>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       CONVERSATION LIST PANE
+  ════════════════════════════════════════════════════════════════════════ -->
+  <aside class="conversation-pane" data-testid="driver-chat-conversations">
+    <div class="pane-header">
+      <div>
+        <h1>{{ 'chat.conversations' | translate }}</h1>
+      </div>
+      <div class="toolbar">
+        <button type="button" class="icon-button">☐</button>
+        <button type="button" class="icon-button">🗑</button>
+        <button type="button" class="icon-button">⇩</button>
+      </div>
+    </div>
+
+    <label class="search-box">
+      <span class="sr-only">Search conversations</span>
+      <input
+        type="text"
+        [(ngModel)]="searchTerm"
+        (ngModelChange)="applySearch()"
+        [placeholder]="'chat.search_placeholder' | translate"
+        data-testid="driver-chat-search"
+      />
+    </label>
+
+    <div class="filter-row">
+      <button type="button" class="filter-pill active">All</button>
+      <button type="button" class="filter-pill">Pending</button>
+      <button type="button" class="filter-pill">Active</button>
+      <button type="button" class="filter-pill">Priority</button>
+    </div>
+
+    <div class="error-banner" *ngIf="errorMessage" data-testid="driver-chat-error">
+      {{ errorMessage }}
+    </div>
+    <div class="loading-state" *ngIf="isLoadingConversations" data-testid="driver-chat-loading">
+      {{ 'chat.loading_conversations' | translate }}
+    </div>
+
+    <button
+      type="button"
+      class="conversation-card"
+      data-testid="driver-chat-conversation"
+      *ngFor="let conversation of filteredConversations; trackBy: trackConversation"
+      [class.active]="selectedConversation?.driverId === conversation.driverId"
+      (click)="selectConversation(conversation)"
+    >
+      <div class="conversation-row">
+        <div>
+          <strong>{{ conversation.driverName }}</strong>
+          <div class="meta truck-id">TRUCK: ID-{{ conversation.driverId }}</div>
+        </div>
+        <div class="meta timestamp">{{ formatTime(conversation.latestMessageAt) }}</div>
+      </div>
+      <div class="status-badges">
+        <span class="badge voice" *ngIf="hasVoiceMessage(conversation)">
+          {{ (conversation.latestMessage || '').includes('🎬') ? '🎬 Video' : '🔊 Voice' }}
+        </span>
+        <span class="badge call" *ngIf="hasCallPending(conversation)">📞 Call pending</span>
+        <span class="badge location" *ngIf="(conversation.latestMessage || '').includes('📍')">📍 Location</span>
+      </div>
+
+      <div class="preview">{{ conversationPreview(conversation.latestMessage) }}</div>
+
+      <div class="conversation-row footer-row">
+        <span
+          class="status-chip"
+          [class.pending]="conversation.unreadDriverMessageCount > 0"
+          [class.resolved]="conversation.unreadDriverMessageCount === 0"
+        >
+          {{ (conversation.unreadDriverMessageCount > 0 ? 'chat.status.pending' : 'chat.status.resolved') | translate }}
+        </span>
+        <span class="tag">{{ conversation.latestSenderRole }}</span>
+      </div>
+    </button>
+  </aside>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       THREAD PANE
+  ════════════════════════════════════════════════════════════════════════ -->
+  <main
+    class="thread-pane"
+    *ngIf="selectedConversation as selected; else emptyState"
+    data-testid="driver-chat-thread"
+  >
+
+    <!-- ── Thread header ────────────────────────────────────────────────── -->
+    <header class="thread-header" data-testid="driver-chat-thread-header">
+      <div class="thread-driver">
+        <div class="driver-avatar">{{ selected.driverName.charAt(0) }}</div>
+        <div>
+          <h2>{{ selected.driverName }}</h2>
+          <p>
+            ID-{{ selected.driverId }} •
+            {{ selected.phone || selected.employeeName || 'Driver support' }}
+          </p>
+        </div>
+      </div>
+      <div class="thread-actions">
+        <button
+          type="button"
+          class="resolve-button"
+          [class.resolved]="selected.resolvedByAdmin"
+          data-testid="driver-chat-mark-read"
+          (click)="resolveConversation(selected.driverId, !selected.resolvedByAdmin)"
+          [title]="(selected.resolvedByAdmin ? 'chat.unresolved' : 'chat.mark_resolved') | translate"
+        >
+          {{ (selected.resolvedByAdmin ? 'chat.unresolved' : 'chat.mark_resolved') | translate }}
+        </button>
+        <button
+          type="button"
+          class="icon-button archive-btn"
+          [class.archived]="selected.archivedByAdmin"
+          [title]="(selected.archivedByAdmin ? 'chat.unarchive' : 'chat.archive') | translate"
+          (click)="archiveConversation(selected.driverId, !selected.archivedByAdmin)"
+        >
+          🗃
+        </button>
+        <button
+          type="button"
+          class="icon-button call-btn"
+          [class.call-btn-active]="callState !== 'idle'"
+          [title]="'chat.call_driver' | translate"
+          (click)="callDriver()"
+          [disabled]="callState !== 'idle'"
+        >
+          📞
+        </button>
+        <button type="button" class="icon-button">⋮</button>
+      </div>
+    </header>
+
+    <!-- ── Archived notice ──────────────────────────────────────────────── -->
+    <div class="archived-notice" *ngIf="selected.archivedByAdmin" data-testid="archived-notice">
+      🗃 {{ 'chat.archived_notice' | translate }}
+      <button type="button" (click)="archiveConversation(selected.driverId, false)">
+        {{ 'chat.unarchive' | translate }}
+      </button>
+    </div>
+
+    <!-- ── Incoming call banner (driver called us) ──────────────────────── -->
+    <div
+      class="incoming-call-banner"
+      *ngIf="callState === 'incoming' && callDriverId === selected.driverId"
+      data-testid="incoming-call-banner"
+    >
+      <div class="incoming-call-ring-icon">📞</div>
+      <div class="incoming-call-info">
+        <span class="incoming-call-title">{{ 'chat.call.incoming_title' | translate }} {{ callDriverName }}</span>
+        <span class="incoming-call-sub">{{ 'chat.call.incoming_sub' | translate }}</span>
+      </div>
+      <div class="incoming-call-actions">
+        <button type="button" class="btn-accept-call" (click)="acceptIncomingCall()">{{ 'chat.call.accept' | translate }}</button>
+        <button type="button" class="btn-decline-call" (click)="declineIncomingCall()">{{ 'chat.call.decline' | translate }}</button>
+      </div>
+    </div>
+
+    <!-- ── Message thread ───────────────────────────────────────────────── -->
+    <div
+      class="thread-body"
+      #threadBody
+      *ngIf="!isLoadingMessages; else loadingMessages"
+      data-testid="driver-chat-thread-body"
+    >
+      <div class="load-more-row" *ngIf="hasMoreMessages">
+        <button type="button" class="load-more-button" (click)="loadMoreMessages()" [disabled]="isLoadingMoreMessages">
+          {{ (isLoadingMoreMessages ? 'chat.loading_more' : 'chat.load_more') | translate }}
+        </button>
+      </div>
+      <div class="day-pill">{{ 'chat.today' | translate }}</div>
+
+      <article
+        *ngFor="let message of messages; trackBy: trackMessage"
+        class="message-row"
+        [class.admin]="isAdminMessage(message)"
+      >
+        <div class="avatar-shell" *ngIf="!isAdminMessage(message)">
+          {{ selected.driverName.charAt(0) }}
+        </div>
+        <div
+          class="message-bubble"
+          data-testid="driver-chat-message"
+          [class.admin]="isAdminMessage(message)"
+        >
+          <div class="sender">{{ isAdminMessage(message) ? ('chat.dispatch' | translate) : selected.driverName }}</div>
+
+          <!-- ── Call signal messages ─────────────────────────────────── -->
+          <div *ngIf="isCallSignalMessage(message)" [class]="callSignalClass(message)">
+            {{ callSignalLabel(message) }}
+            <!-- Accept button shown only for incoming CALL_REQUEST from driver -->
+            <button
+              *ngIf="isIncomingCallRequest(message) && callState === 'idle'"
+              type="button"
+              class="accept-call-button"
+              (click)="acceptCall(selected.driverId)"
+            >
+              {{ 'chat.call.accept' | translate }}
+            </button>
+          </div>
+
+          <!-- ── Plain text ────────────────────────────────────────────── -->
+          <div class="message-text" *ngIf="visibleMessageText(message) as text">
+            {{ text }}
+          </div>
+
+          <!-- ── Photo attachment ──────────────────────────────────────── -->
+          <button
+            *ngIf="extractPhotoUrl(message) as photoUrl"
+            type="button"
+            class="image-preview-card"
+            (click)="openImagePreview(photoUrl)"
+          >
+            <img [src]="photoUrl" alt="Chat attachment" />
+            <span>{{ 'chat.message.tap_preview' | translate }}</span>
+          </button>
+
+          <!-- ── Voice player ──────────────────────────────────────────── -->
+          <div *ngIf="extractVoiceUrl(message) as voiceUrl" class="voice-player-card">
+            <button type="button" class="voice-play-btn" (click)="playVoice(voiceUrl)">
+              {{ isVoicePlaying && currentVoiceUrl === voiceUrl ? '⏸' : '▶' }}
+            </button>
+            <div class="voice-track">
+              <div class="voice-progress"
+                [style.width.%]="(currentVoiceUrl === voiceUrl ? voicePlayPosition : 0) * 100">
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Video player ──────────────────────────────────────────── -->
+          <div *ngIf="extractVideoUrl(message) as videoUrl" class="video-player-card">
+            <video [src]="videoUrl" class="video-thumb" controls preload="metadata"></video>
+          </div>
+
+          <!-- ── Location card ─────────────────────────────────────────── -->
+          <div *ngIf="extractLocationParts(message) as loc" class="location-card" (click)="openMapsLink(loc.lat, loc.lng)">
+            <span class="location-pin">📍</span>
+            <div class="location-text">
+              <span class="location-address">{{ loc.address || loc.lat + ', ' + loc.lng }}</span>
+              <span class="location-sub">{{ 'chat.message.open_maps' | translate }}</span>
+            </div>
+          </div>
+
+          <div class="message-time">{{ formatTime(message.createdAt) }}</div>
+          <div class="pending-label" *ngIf="message.isPending">{{ 'chat.message.sending' | translate }}</div>
+        </div>
+      </article>
+
+      <!-- ── Remote typing indicator ─────────────────────────────────── -->
+      <div class="typing-row" *ngIf="isRemoteTyping">
+        <div class="avatar-shell">{{ selected.driverName.charAt(0) }}</div>
+        <div class="typing-bubble">
+          <span class="typing-dot"></span>
+          <span class="typing-dot"></span>
+          <span class="typing-dot"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Message composer ─────────────────────────────────────────────── -->
+    <form class="composer" (submit)="$event.preventDefault(); sendMessage()">
+      <input #fileInput type="file" accept="image/*,audio/*,video/*" hidden (change)="handleFileSelected($event)" />
+
+      <div class="composer-pill">
+        <span class="composer-emoji">😊</span>
+        <textarea
+          [(ngModel)]="draftMessage"
+          name="draftMessage"
+          rows="1"
+          placeholder="{{ isRecording ? '🔴 Recording… click ⏹ to stop' : 'Message' }}"
+          data-testid="driver-chat-composer"
+          [disabled]="isRecording"
+          (input)="onLocalTyping()"
+        ></textarea>
+        <button
+          *ngIf="!draftMessage.trim() && !isRecording"
+          type="button"
+          class="composer-attach"
+          title="Attach photo or audio"
+          (click)="triggerFileSelect()"
+        >📎</button>
+      </div>
+
+      <button
+        type="button"
+        class="composer-action"
+        [class.is-recording]="isRecording"
+        data-testid="driver-chat-send"
+        [disabled]="isSending"
+        (click)="isRecording ? toggleRecording() : (draftMessage.trim() ? sendMessage() : toggleRecording())"
+      >
+        <span *ngIf="isRecording">⏹</span>
+        <span *ngIf="!isRecording && draftMessage.trim()">➤</span>
+        <span *ngIf="!isRecording && !draftMessage.trim()">🎙</span>
+      </button>
+    </form>
+  </main>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       EMPTY STATE
+  ════════════════════════════════════════════════════════════════════════ -->
+  <ng-template #emptyState>
+    <main class="thread-pane empty-thread">
+      <h2>{{ 'chat.select_conversation' | translate }}</h2>
+      <p>{{ 'chat.select_conversation_hint' | translate }}</p>
+    </main>
+  </ng-template>
+
+  <ng-template #loadingMessages>
+    <div class="thread-body loading-state">{{ 'chat.loading_messages' | translate }}</div>
+  </ng-template>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       IMAGE PREVIEW LIGHTBOX
+  ════════════════════════════════════════════════════════════════════════ -->
+  <div
+    class="image-preview-overlay"
+    *ngIf="previewImageUrl as imageUrl"
+    (click)="closeImagePreview()"
+  >
+    <div class="image-preview-dialog" (click)="$event.stopPropagation()">
+      <button type="button" class="image-preview-close" (click)="closeImagePreview()">×</button>
+      <img [src]="imageUrl" alt="Chat attachment preview" />
+    </div>
+  </div>
+
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     CALL OVERLAY (outside section, fixed position, always on top)
+  ════════════════════════════════════════════════════════════════════════ -->
+<div
+  class="call-overlay"
+  *ngIf="callState !== 'idle'"
+  data-testid="call-overlay"
+  [class.state-outgoing]="callState === 'outgoing'"
+  [class.state-incoming]="callState === 'incoming'"
+  [class.state-connecting]="callState === 'connecting'"
+  [class.state-connected]="callState === 'connected'"
+  [class.state-ended]="callState === 'ended' || callState === 'declined'"
+  [class.state-error]="callState === 'error'"
+>
+  <!-- Avatar ring -->
+  <div class="call-avatar-ring" [class.pulsing]="callState === 'outgoing' || callState === 'incoming'">
+    <div class="call-avatar-letter">{{ callDriverName.charAt(0) }}</div>
+  </div>
+
+  <!-- Name + status -->
+  <div class="call-name">{{ callDriverName }}</div>
+  <div class="call-status-label">{{ callStatusLabel }}</div>
+
+  <!-- Controls shown while in call or while ringing -->
+  <div class="call-controls" *ngIf="callState === 'connected' || callState === 'outgoing' || callState === 'connecting'">
+    <button
+      type="button"
+      class="call-ctrl-btn mute"
+      [class.active]="isMuted"
+      (click)="toggleMute()"
+      [title]="(isMuted ? 'chat.call.unmute' : 'chat.call.mute') | translate"
+    >
+      {{ isMuted ? '🔇' : '🎤' }}
+      <span>{{ (isMuted ? 'chat.call.unmute' : 'chat.call.mute') | translate }}</span>
+    </button>
+
+    <button
+      type="button"
+      class="call-ctrl-btn hangup"
+      (click)="endCallSession()"
+      [title]="'chat.call.end' | translate"
+    >
+      📵
+      <span>{{ 'chat.call.end' | translate }}</span>
+    </button>
+  </div>
+
+  <!-- Incoming call answer/decline buttons in overlay -->
+  <div class="call-controls" *ngIf="callState === 'incoming'">
+    <button type="button" class="call-ctrl-btn answer" (click)="acceptIncomingCall()">
+      📞
+      <span>Answer</span>
+    </button>
+    <button type="button" class="call-ctrl-btn hangup" (click)="declineIncomingCall()">
+      📵
+      <span>Decline</span>
+    </button>
+  </div>
+
+  <!-- After call ends / error -->
+  <div class="call-done-hint" *ngIf="callState === 'ended' || callState === 'declined' || callState === 'error'">
+    Closing in a moment…
+  </div>
+</div>

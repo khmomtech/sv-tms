@@ -1,0 +1,570 @@
+<div class="container p-6 mx-auto" tabindex="0">
+  <!-- Header Section -->
+  <div class="flex items-start justify-between mb-6">
+    <div class="flex items-center gap-3">
+      <div class="flex items-center justify-center w-12 h-12 bg-blue-100 rounded-lg">
+        <i class="bi bi-list-task text-2xl text-blue-600"></i>
+      </div>
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900">Task Management</h1>
+        <p class="text-sm text-gray-500">Track and resolve operational tasks and follow-ups</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <div
+        class="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg"
+      >
+        <i class="bi bi-lightning-charge text-lg text-gray-500"></i>
+        <span class="font-medium">Shortcuts:</span>
+        <kbd
+          class="px-2 py-1 text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded shadow-sm"
+          >N</kbd
+        >
+        <span class="text-gray-500">New</span>
+        <kbd
+          class="px-2 py-1 text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded shadow-sm"
+          >Q</kbd
+        >
+        <span class="text-gray-500">Quick View</span>
+        <kbd
+          class="px-2 py-1 text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded shadow-sm"
+          >Ctrl+R</kbd
+        >
+        <span class="text-gray-500">Recent</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Summary Cards -->
+  <ng-container *ngIf="statistics() as stats">
+    <div class="grid grid-cols-1 gap-4 mb-6 sm:grid-cols-2 lg:grid-cols-4">
+      <div
+        class="summary-card p-4 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition"
+      >
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-gray-600">Total Tasks</p>
+            <p class="mt-1 text-2xl font-bold text-gray-900">{{ stats.totalTasks || 0 }}</p>
+          </div>
+          <div class="flex items-center justify-center w-12 h-12 bg-blue-100 rounded-full">
+            <i class="bi bi-card-list text-xl text-blue-600"></i>
+          </div>
+        </div>
+      </div>
+
+      <div
+        class="summary-card p-4 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition"
+      >
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-gray-600">Open Tasks</p>
+            <p class="mt-1 text-2xl font-bold text-orange-600">{{ stats.openTasks || 0 }}</p>
+          </div>
+          <div class="flex items-center justify-center w-12 h-12 bg-orange-100 rounded-full">
+            <i class="bi bi-hourglass-split text-xl text-orange-600"></i>
+          </div>
+        </div>
+      </div>
+
+      <div
+        class="summary-card p-4 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition"
+      >
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-gray-600">In Progress</p>
+            <p class="mt-1 text-2xl font-bold text-teal-600">{{ stats.inProgressTasks || 0 }}</p>
+          </div>
+          <div class="flex items-center justify-center w-12 h-12 bg-teal-100 rounded-full">
+            <i class="bi bi-arrow-repeat text-xl text-teal-600"></i>
+          </div>
+        </div>
+      </div>
+
+      <div
+        class="summary-card p-4 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition"
+      >
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-gray-600">Overdue</p>
+            <p class="mt-1 text-2xl font-bold text-red-600">{{ stats.overdueTasks || 0 }}</p>
+          </div>
+          <div class="flex items-center justify-center w-12 h-12 bg-red-100 rounded-full">
+            <i class="bi bi-exclamation-circle text-xl text-red-600"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+
+  <!-- Action Bar -->
+  <div class="flex items-center justify-between mb-6 gap-2">
+    <div class="flex items-center gap-2">
+      <button
+        type="button"
+        class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition"
+        routerLink="/tasks/create"
+      >
+        <i class="bi bi-plus-circle text-lg"></i>
+        Create Task
+      </button>
+      <button
+        type="button"
+        class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition"
+      >
+        <i class="bi bi-upload text-lg"></i>
+        Import
+      </button>
+    </div>
+    <div class="flex items-center gap-2">
+      <button
+        type="button"
+        class="inline-flex items-center gap-2 px-3 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+      >
+        <i class="bi bi-file-download text-lg"></i>
+        Export
+      </button>
+      <span class="text-sm text-gray-500">Updates saved automatically</span>
+    </div>
+  </div>
+
+  <!-- Advanced Filters -->
+  <div class="mb-6 bg-white border border-gray-200 rounded-xl shadow-sm">
+    <button
+      type="button"
+      class="filter-toggle flex items-center justify-between w-full px-4 py-3 text-left"
+      (click)="showAdvancedFilters.set(!showAdvancedFilters())"
+    >
+      <div class="flex items-center gap-2">
+        <i class="bi bi-funnel text-gray-600"></i>
+        <span class="text-sm font-semibold text-gray-700">Advanced Filters</span>
+      </div>
+      <i
+        class="bi"
+        [ngClass]="
+          showAdvancedFilters()
+            ? 'bi-caret-up-fill text-gray-400'
+            : 'bi-caret-down-fill text-gray-400'
+        "
+      ></i>
+    </button>
+
+    <ng-container *ngIf="showAdvancedFilters()">
+      <div class="px-6 pb-6">
+        <div class="mb-6">
+          <h3 class="mb-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+            Search & Filters
+          </h3>
+          <div class="filter-grid grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div>
+              <label class="block mb-1.5 text-sm font-medium text-gray-700">
+                <i class="bi bi-search text-base align-middle mr-1"></i>
+                Search
+              </label>
+              <input
+                type="text"
+                class="filter-control w-full"
+                placeholder="Search tasks..."
+                [value]="searchKeyword()"
+                (input)="onSearchInput($event)"
+              />
+            </div>
+
+            <div>
+              <label class="block mb-1.5 text-sm font-medium text-gray-700">
+                <i class="bi bi-info-circle text-base align-middle mr-1"></i>
+                Status
+              </label>
+              <select
+                class="filter-control w-full"
+                [ngModel]="selectedStatus()"
+                (ngModelChange)="selectedStatus.set($event); onFilterChange()"
+              >
+                <option value="">All Statuses</option>
+                <option *ngFor="let status of taskStatuses" [value]="status">
+                  {{ getStatusLabel(status) }}
+                </option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block mb-1.5 text-sm font-medium text-gray-700">
+                <i class="bi bi-flag text-base align-middle mr-1"></i>
+                Priority
+              </label>
+              <select
+                class="filter-control w-full"
+                [ngModel]="selectedPriority()"
+                (ngModelChange)="selectedPriority.set($event); onFilterChange()"
+              >
+                <option value="">All Priorities</option>
+                <option *ngFor="let priority of taskPriorities" [value]="priority">
+                  {{ getPriorityLabel(priority) }}
+                </option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block mb-1.5 text-sm font-medium text-gray-700">
+                <i class="bi bi-link text-base align-middle mr-1"></i>
+                Task Type
+              </label>
+              <select
+                class="filter-control w-full"
+                [ngModel]="selectedRelationType()"
+                (ngModelChange)="selectedRelationType.set($event); onFilterChange()"
+              >
+                <option value="">All Types</option>
+                <option value="">Standalone</option>
+                <option value="CASE">Case</option>
+                <option value="MAINTENANCE">Maintenance</option>
+                <option value="WORK_ORDER">Work Order</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block mb-1.5 text-sm font-medium text-gray-700">
+                <i class="bi bi-calendar-event text-base align-middle mr-1"></i>
+                Due Date
+              </label>
+              <input type="date" class="filter-control w-full" />
+            </div>
+
+            <div>
+              <label class="block mb-1.5 text-sm font-medium text-gray-700">&nbsp;</label>
+              <div class="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  [ngModel]="showOnlyOverdue()"
+                  (ngModelChange)="showOnlyOverdue.set($event); onFilterChange()"
+                />
+                <span class="text-sm text-gray-600">Overdue Only</span>
+              </div>
+            </div>
+          </div>
+          <div class="flex items-center justify-end gap-2 mt-4">
+            <button
+              (click)="clearFilters()"
+              class="inline-flex items-center gap-2 px-4 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+            >
+              <i class="bi bi-arrow-repeat text-lg"></i>
+              Reset
+            </button>
+          </div>
+        </div>
+
+        <div class="pt-5 mt-6 border-t border-gray-200">
+          <div class="flex items-center justify-between mb-3">
+            <select class="filter-control w-48">
+              <option>Saved Filters</option>
+            </select>
+            <button
+              class="inline-flex items-center gap-2 px-4 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+            >
+              <i class="bi bi-save text-lg"></i>
+              Save Current Filters
+            </button>
+          </div>
+        </div>
+      </div>
+    </ng-container>
+  </div>
+
+  <!-- Task List -->
+  <div class="mb-6">
+    <div class="flex items-center justify-between mb-3">
+      <div class="flex items-center gap-2">
+        <i class="bi bi-table text-gray-600"></i>
+        <h3 class="text-sm font-semibold text-gray-700">Task List</h3>
+      </div>
+      <button
+        class="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+      >
+        <i class="bi bi-view-list text-base"></i>
+        Columns
+      </button>
+    </div>
+
+    <div class="overflow-x-auto bg-white border border-gray-200 rounded-lg shadow-sm">
+      <table class="task-table w-full text-sm">
+        <thead class="bg-gray-50 border-b border-gray-200">
+          <tr>
+            <th
+              class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider"
+            >
+              Code
+            </th>
+            <th
+              class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider"
+            >
+              Title
+            </th>
+            <th
+              class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider"
+            >
+              Status
+            </th>
+            <th
+              class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider"
+            >
+              Priority
+            </th>
+            <th
+              class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider"
+            >
+              Assigned To
+            </th>
+            <th
+              class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider"
+            >
+              Due Date
+            </th>
+            <th
+              class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider"
+            >
+              Progress
+            </th>
+            <th
+              class="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider"
+            >
+              Actions
+            </th>
+          </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+          <tr *ngIf="loading()">
+            <td colspan="8" class="px-6 py-12 text-center">
+              <div class="flex flex-col items-center justify-center">
+                <div class="spinner-border text-primary" role="status">
+                  <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2 text-sm text-gray-500">Loading tasks...</p>
+              </div>
+            </td>
+          </tr>
+          <tr *ngIf="!loading() && tasks().length === 0">
+            <td colspan="8" class="px-6 py-12 text-center">
+              <div class="flex flex-col items-center justify-center">
+                <i class="bi bi-clipboard-x text-5xl text-gray-300 mb-2"></i>
+                <p class="text-sm text-gray-500">No tasks found for the current filters.</p>
+              </div>
+            </td>
+          </tr>
+          <tr
+            *ngFor="let task of tasks()"
+            class="hover:bg-gray-50 transition"
+            [class.table-danger]="isOverdue(task)"
+          >
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+              <a
+                [routerLink]="['/tasks', task.id]"
+                class="text-blue-600 hover:text-blue-800 hover:underline"
+              >
+                {{ task.code }}
+              </a>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <strong>{{ task.title }}</strong>
+              <span *ngIf="task.relationType" class="block text-xs text-gray-500 mt-1">
+                <i class="bi bi-link-45deg"></i>
+                {{ task.relationType }}: {{ task.relationCode }}
+              </span>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <span [class]="getStatusBadgeClass(task.status)" data-testid="status-badge">
+                {{ getStatusLabel(task.status) }}
+              </span>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <span [class]="getPriorityBadgeClass(task.priority)" data-testid="priority-badge">
+                {{ getPriorityLabel(task.priority) }}
+              </span>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+              {{ task.assignedToFullName || task.assignedToUsername || 'Unassigned' }}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+              <span>{{ formatDateHuman(task.dueDate) }}</span>
+              <span *ngIf="isOverdue(task)" class="block text-xs text-red-600">Overdue</span>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+              <ng-container *ngIf="task.progressPercentage !== undefined; else noProgress">
+                <div class="progress" style="height: 20px">
+                  <div
+                    class="progress-bar"
+                    [style.width.%]="task.progressPercentage"
+                    role="progressbar"
+                  >
+                    {{ task.progressPercentage }}%
+                  </div>
+                </div>
+              </ng-container>
+              <ng-template #noProgress>
+                <span class="text-muted">N/A</span>
+              </ng-template>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-center actions-cell">
+              <div class="relative inline-flex items-center gap-2">
+                <button
+                  (click)="viewTaskDetail(task)"
+                  class="inline-flex items-center justify-center w-9 h-9 text-blue-600 bg-blue-50 border border-blue-100 rounded-full hover:bg-blue-100 transition"
+                  title="View details"
+                >
+                  <svg
+                    class="action-icon"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path
+                      d="M1.5 12s3.5-6.5 10.5-6.5S22.5 12 22.5 12s-3.5 6.5-10.5 6.5S1.5 12 1.5 12Z"
+                    />
+                    <circle cx="12" cy="12" r="2.5" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  class="inline-flex items-center justify-center w-9 h-9 text-gray-700 bg-gray-50 border border-gray-200 rounded-full hover:bg-gray-100 transition"
+                  (click)="toggleMenu(task.id!)"
+                  title="More actions"
+                >
+                  <svg class="action-icon" viewBox="0 0 24 24" fill="currentColor">
+                    <circle cx="12" cy="5" r="1.6" />
+                    <circle cx="12" cy="12" r="1.6" />
+                    <circle cx="12" cy="19" r="1.6" />
+                  </svg>
+                </button>
+
+                <div
+                  *ngIf="isMenuOpen(task.id!)"
+                  class="absolute right-0 top-11 z-20 w-48 bg-white border border-gray-200 rounded-xl shadow-lg overflow-scroll"
+                >
+                  <button
+                    class="flex w-full items-center gap-3 px-4 py-3 text-sm text-gray-800 hover:bg-gray-50"
+                    (click)="viewTaskDetail(task); closeMenu()"
+                  >
+                    <i class="bi bi-eye text-green-600"></i>
+                    <span>View Details</span>
+                  </button>
+
+                  <button
+                    class="flex w-full items-center gap-3 px-4 py-3 text-sm text-blue-700 hover:bg-gray-50"
+                    (click)="editTask(task); closeMenu()"
+                  >
+                    <i class="bi bi-pencil-square"></i>
+                    <span>Edit</span>
+                  </button>
+
+                  <button
+                    *ngIf="task.status !== 'COMPLETED' && task.status !== 'CANCELLED'"
+                    class="flex w-full items-center gap-3 px-4 py-3 text-sm text-gray-800 hover:bg-gray-50"
+                    (click)="completeTask(task); closeMenu()"
+                  >
+                    <i class="bi bi-check-circle text-blue-600"></i>
+                    <span>Mark Complete</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    class="flex w-full items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 border-t border-gray-100"
+                    (click)="confirmDelete(task); closeMenu()"
+                    data-bs-toggle="modal"
+                    data-bs-target="#deleteConfirmModal"
+                  >
+                    <i class="bi bi-trash"></i>
+                    <span>Delete</span>
+                  </button>
+                </div>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Pagination -->
+  <div
+    class="flex items-center justify-between p-4 bg-gray-50 border border-gray-200 rounded-xl shadow-sm"
+  >
+    <div class="flex items-center gap-2 text-sm text-gray-600">
+      Showing <strong>{{ currentPage() * pageSize() + 1 }}</strong> to
+      <strong>{{ Math.min((currentPage() + 1) * pageSize(), totalElements()) }}</strong> of
+      <strong>{{ totalElements() }}</strong> results
+    </div>
+    <div class="flex items-center gap-2">
+      <button (click)="goToPage(0)" [disabled]="currentPage() === 0" class="pager-btn">
+        First
+      </button>
+      <button
+        (click)="goToPage(currentPage() - 1)"
+        [disabled]="currentPage() === 0"
+        class="pager-btn"
+      >
+        Prev
+      </button>
+
+      <button
+        *ngFor="let page of getPageRange()"
+        (click)="goToPage(page)"
+        [class.pager-btn-active]="currentPage() === page"
+        class="pager-btn"
+      >
+        {{ page + 1 }}
+      </button>
+
+      <button
+        (click)="goToPage(currentPage() + 1)"
+        [disabled]="currentPage() >= totalPages() - 1"
+        class="pager-btn"
+      >
+        Next
+      </button>
+      <button
+        (click)="goToPage(totalPages() - 1)"
+        [disabled]="currentPage() >= totalPages() - 1"
+        class="pager-btn"
+      >
+        Last
+      </button>
+    </div>
+  </div>
+
+  <!-- Delete Confirmation Modal -->
+  <div
+    *ngIf="taskToDelete"
+    class="modal fade show d-block"
+    id="deleteConfirmModal"
+    tabindex="-1"
+    aria-labelledby="deleteConfirmModalLabel"
+    aria-modal="true"
+    role="dialog"
+  >
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="deleteConfirmModalLabel">Confirm Delete</h5>
+          <button
+            type="button"
+            class="btn-close"
+            aria-label="Close"
+            (click)="cancelDelete()"
+          ></button>
+        </div>
+        <div class="modal-body">
+          <ng-container *ngIf="taskToDelete">
+            Are you sure you want to delete task
+            <strong>{{ taskToDelete.code || taskToDelete.title }}</strong
+            >? This action cannot be undone.
+          </ng-container>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="cancelDelete()">Cancel</button>
+          <button type="button" class="btn btn-danger" (click)="deleteTask()">Delete Task</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div *ngIf="taskToDelete" class="modal-backdrop fade show"></div>
+</div>

@@ -1,0 +1,168 @@
+<div class="p-6 mx-auto max-w-7xl">
+  <h2 class="mb-6 text-2xl font-bold text-gray-800">Load Proof Submissions</h2>
+
+  <!-- Filters -->
+  <div class="grid grid-cols-1 gap-4 mb-4 md:grid-cols-5">
+    <input
+      type="text"
+      [(ngModel)]="searchText"
+      (input)="applyFilter()"
+      placeholder="🔍 Search by text..."
+      class="w-full p-2 border border-gray-300 rounded shadow-sm"
+    />
+    <input
+      type="text"
+      [(ngModel)]="routeFilter"
+      (input)="applyFilter()"
+      placeholder="Route Code"
+      class="w-full p-2 border border-gray-300 rounded shadow-sm"
+    />
+    <select
+      [(ngModel)]="selectedDriver"
+      (change)="applyFilter()"
+      class="w-full p-2 border border-gray-300 rounded shadow-sm"
+    >
+      <option value="">👤 Driver List</option>
+      <option *ngFor="let d of driverList" [value]="d">{{ d }}</option>
+    </select>
+    <input
+      type="date"
+      [(ngModel)]="fromDate"
+      (change)="applyFilter()"
+      class="w-full p-2 border border-gray-300 rounded shadow-sm"
+    />
+    <input
+      type="date"
+      [(ngModel)]="toDate"
+      (change)="applyFilter()"
+      class="w-full p-2 border border-gray-300 rounded shadow-sm"
+    />
+  </div>
+
+  <!-- Total Records -->
+  <p class="mb-2 text-sm text-gray-600">
+    Showing {{ filteredProofs.length }} of {{ proofs.length }} records
+  </p>
+
+  <!-- Auto Refresh -->
+  <div class="flex items-center gap-4 mb-4">
+    <label class="flex items-center gap-2">
+      <input
+        type="checkbox"
+        [(ngModel)]="autoRefresh"
+        (change)="toggleAutoRefresh()"
+        class="form-checkbox"
+      />
+      <span class="text-sm">Auto Refresh</span>
+    </label>
+
+    <select
+      [value]="refreshInterval"
+      (change)="onIntervalChange($event)"
+      class="p-2 text-sm border border-gray-300 rounded shadow-sm"
+    >
+      <option *ngFor="let option of refreshOptions" [value]="option.value">
+        ⏱ {{ option.label }}
+      </option>
+    </select>
+  </div>
+
+  <!-- Reset & Export Buttons -->
+  <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
+    <button
+      (click)="resetFilters()"
+      type="button"
+      class="inline-flex items-center px-4 py-2 text-sm bg-gray-200 rounded hover:bg-gray-300"
+      title="Reset Filters"
+    >
+      <mat-icon class="mr-1 align-middle">refresh</mat-icon>
+      Reset Filters
+    </button>
+
+    <div class="flex gap-2">
+      <button
+        (click)="exportToExcelWithImages()"
+        class="px-4 py-2 text-sm text-white bg-blue-600 rounded hover:bg-blue-700"
+      >
+        📥 Export with Images
+      </button>
+
+      <button
+        (click)="exportToExcel()"
+        title="Export filtered data to Excel"
+        class="px-4 py-2 text-sm text-white bg-green-600 rounded hover:bg-green-700"
+      >
+        ⬇️ Export Excel
+      </button>
+
+      <button
+        (click)="exportToPDF()"
+        title="Export filtered data to PDF"
+        class="px-4 py-2 text-sm text-white bg-red-600 rounded hover:bg-red-700"
+      >
+        Export PDF
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading / Error -->
+  <div *ngIf="loading" class="py-6 text-center text-blue-600 animate-pulse">Loading proofs...</div>
+  <div *ngIf="error" class="mb-4 text-sm text-red-600">{{ error }}</div>
+
+  <!-- Table -->
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm text-left border border-gray-200 rounded-lg shadow-sm">
+      <thead class="text-white bg-blue-600">
+        <tr>
+          <th class="p-3 border">Dispatch ID</th>
+          <th class="p-3 border">Route</th>
+          <th class="p-3 border">Driver</th>
+          <th class="p-3 border">Photos</th>
+          <th class="p-3 border">Signature</th>
+          <th class="p-3 border">Remarks</th>
+          <th class="p-3 border">Uploaded At</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr
+          *ngFor="let proof of filteredProofs"
+          class="transition duration-150 border-b hover:bg-gray-50"
+        >
+          <td class="p-3">{{ proof.dispatchId }}</td>
+          <td class="p-3">{{ proof.routeCode }}</td>
+          <td class="p-3">{{ proof.driverName }}</td>
+          <td class="p-3">
+            <div class="flex flex-wrap gap-2">
+              <img
+                *ngFor="let img of proof.proofImagePaths; let i = index"
+                [src]="buildUploadUrl(img)"
+                alt="Proof"
+                class="object-cover w-16 h-16 border rounded shadow-sm cursor-pointer"
+                (click)="openPreview(proof.proofImagePaths, i)"
+              />
+            </div>
+          </td>
+          <td class="p-3">
+            <img
+              [src]="buildUploadUrl(proof.signaturePath)"
+              alt="Signature"
+              class="object-cover w-16 h-16 border rounded shadow-sm"
+            />
+          </td>
+          <td class="max-w-xs p-3 truncate" title="{{ proof.remarks }}">{{ proof.remarks }}</td>
+          <td class="p-3">{{ proof.uploadedAt | date: 'dd-MMM-yyyy HH:mm' }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Image Modal -->
+  <app-image-preview-modal
+    *ngIf="showModal"
+    [images]="modalImages"
+    [currentIndex]="currentImageIndex"
+    (closeModal)="closeModal()"
+    (next)="nextImage()"
+    (prev)="prevImage()"
+  />
+</div>

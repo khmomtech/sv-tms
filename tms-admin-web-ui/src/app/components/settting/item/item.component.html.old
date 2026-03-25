@@ -1,0 +1,268 @@
+<div class="container p-6 mx-auto">
+  <h2 class="flex items-center mb-6 text-3xl font-bold">Item Management</h2>
+
+  <!-- Filters & Actions -->
+  <div class="flex flex-wrap gap-4 mb-4">
+    <input
+      [(ngModel)]="keyword"
+      (input)="searchItems()"
+      placeholder="Search..."
+      class="w-64 p-2 border rounded"
+    />
+    <select [(ngModel)]="filterStatus" (change)="searchItems()" class="p-2 border rounded">
+      <option value="">All Status</option>
+      <option value="1">Active</option>
+      <option value="0">Inactive</option>
+    </select>
+    <select [(ngModel)]="filterType" (change)="searchItems()" class="p-2 border rounded">
+      <option value="">All Types</option>
+      <option *ngFor="let t of availableTypes" [value]="t">{{ t }}</option>
+    </select>
+    <button
+      (click)="openItemModal()"
+      class="px-4 py-2 text-white bg-blue-600 rounded hover:bg-blue-700"
+    >
+      + Add
+    </button>
+  </div>
+
+  <!-- Bulk Actions -->
+  <div
+    *ngIf="selectedIds.length > 0"
+    class="fixed z-50 flex items-center px-6 py-3 space-x-4 transform -translate-x-1/2 bg-white border border-gray-300 rounded-lg shadow-xl bottom-4 left-1/2"
+  >
+    <span class="text-sm font-medium text-gray-700">{{ selectedIds.length }} selected</span>
+    <button
+      (click)="deleteSelectedItems()"
+      class="px-4 py-1 text-white bg-red-600 rounded hover:bg-red-700"
+    >
+      Delete Selected
+    </button>
+  </div>
+
+  <!-- Table -->
+  <div class="overflow-visible">
+    <table class="w-full bg-white rounded-lg shadow-lg">
+      <thead class="text-white bg-blue-600">
+        <tr>
+          <th class="p-3 text-center"><input type="checkbox" (change)="toggleAll($event)" /></th>
+          <th class="p-3 text-center">ID</th>
+          <th class="p-3 text-center">Code</th>
+          <th class="p-3 text-center">Name</th>
+          <th class="p-3 text-center">Khmer Name</th>
+          <th class="p-3 text-center">Type</th>
+          <th class="p-3 text-center">Quantity</th>
+          <th class="p-3 text-center">Unit</th>
+          <th class="p-3 text-center">Size</th>
+          <th class="p-3 text-center">Weight</th>
+          <th class="p-3 text-center">Pallet</th>
+          <th class="p-3 text-center">Pallet Type</th>
+          <th class="p-3 text-center">Sort</th>
+          <th class="p-3 text-center">Status</th>
+          <th class="p-3 text-center">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let item of paginatedItems" class="transition border-b hover:bg-gray-100">
+          <td class="p-3 text-center">
+            <input
+              type="checkbox"
+              [checked]="selectedIds.includes(item.id!)"
+              (change)="toggleItemSelection(item.id!)"
+            />
+          </td>
+          <td class="p-3 text-center">{{ item.id }}</td>
+          <td class="p-3 text-center">{{ item.itemCode }}</td>
+          <td class="p-3 text-center">{{ item.itemName }}</td>
+          <td class="p-3 text-center">{{ item.itemNameKh }}</td>
+          <td class="p-3 text-center">{{ item.itemType }}</td>
+          <td class="p-3 text-center">{{ item.quantity }}</td>
+          <td class="p-3 text-center">{{ item.unit }}</td>
+          <td class="p-3 text-center">{{ item.size }}</td>
+          <td class="p-3 text-center">{{ item.weight }}</td>
+          <td class="p-3 text-center">{{ item.pallets }}</td>
+          <td class="p-3 text-center">{{ item.palletType }}</td>
+          <td class="p-3 text-center">{{ item.sortOrder }}</td>
+          <td class="p-3 text-center">
+            <span [ngClass]="item.status === 1 ? 'text-green-600' : 'text-red-600'">
+              {{ item.status === 1 ? 'Active' : 'Inactive' }}
+            </span>
+          </td>
+          <td class="relative p-3">
+            <button
+              (click)="toggleDropdown(item.id!); $event.stopPropagation()"
+              class="px-2 py-1 bg-gray-200 rounded toggle-dropdown hover:bg-gray-300"
+            >
+              <i class="fas fa-ellipsis-v"></i>
+            </button>
+            <div
+              *ngIf="dropdownOpen === item.id"
+              (click)="$event.stopPropagation()"
+              class="absolute right-0 z-50 w-40 mt-2 bg-white border rounded shadow-lg dropdown-menu"
+            >
+              <button
+                (click)="openItemModal(item)"
+                class="flex items-center w-full px-4 py-2 text-blue-600 hover:bg-gray-100"
+              >
+                <i class="mr-2 fas fa-edit"></i> Edit
+              </button>
+              <button
+                (click)="deleteItem(item.id!)"
+                class="flex items-center w-full px-4 py-2 text-red-600 hover:bg-gray-100"
+              >
+                <i class="mr-2 fas fa-trash-alt"></i> Delete
+              </button>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination Footer -->
+  <div class="flex items-center justify-between mt-4">
+    <div class="text-sm text-gray-700">
+      Showing {{ (currentPage - 1) * pageSize + 1 }} to
+      {{ Math.min(currentPage * pageSize, items.length) }} of {{ items.length }} items
+    </div>
+    <div class="flex items-center space-x-2">
+      <button
+        (click)="currentPage = currentPage - 1"
+        [disabled]="currentPage === 1"
+        class="px-3 py-1 text-sm text-white bg-gray-600 rounded disabled:opacity-50"
+      >
+        Prev
+      </button>
+      <span class="text-sm font-medium">Page {{ currentPage }} of {{ totalPages }}</span>
+      <button
+        (click)="currentPage = currentPage + 1"
+        [disabled]="currentPage === totalPages"
+        class="px-3 py-1 text-sm text-white bg-gray-600 rounded disabled:opacity-50"
+      >
+        Next
+      </button>
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div
+    *ngIf="isModalOpen"
+    class="fixed inset-0 flex items-center justify-center overflow-auto bg-black/50"
+  >
+    <div class="w-full max-w-2xl p-6 mx-4 bg-white rounded-lg shadow-lg">
+      <h3 class="mb-4 text-xl font-semibold">{{ selectedItem.id ? 'Edit' : 'Add' }} Item</h3>
+      <form #itemForm="ngForm" (ngSubmit)="saveItem()">
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div>
+            <label>Item Code:</label>
+            <input
+              name="itemCode"
+              [(ngModel)]="selectedItem.itemCode"
+              class="w-full p-2 border rounded"
+              required
+            />
+          </div>
+          <div>
+            <label>Item Name:</label>
+            <input
+              name="itemName"
+              [(ngModel)]="selectedItem.itemName"
+              class="w-full p-2 border rounded"
+              required
+            />
+          </div>
+          <div>
+            <label>Khmer Name:</label>
+            <input
+              name="itemNameKh"
+              [(ngModel)]="selectedItem.itemNameKh"
+              class="w-full p-2 border rounded"
+            />
+          </div>
+          <div>
+            <label>Item Type:</label>
+            <input
+              name="itemType"
+              [(ngModel)]="selectedItem.itemType"
+              class="w-full p-2 border rounded"
+            />
+          </div>
+          <div>
+            <label>Quantity:</label>
+            <input
+              name="quantity"
+              type="number"
+              [(ngModel)]="selectedItem.quantity"
+              class="w-full p-2 border rounded"
+              required
+            />
+          </div>
+          <div>
+            <label>Unit:</label>
+            <input name="unit" [(ngModel)]="selectedItem.unit" class="w-full p-2 border rounded" />
+          </div>
+          <div>
+            <label>Size:</label>
+            <input name="size" [(ngModel)]="selectedItem.size" class="w-full p-2 border rounded" />
+          </div>
+          <div>
+            <label>Weight:</label>
+            <input
+              name="weight"
+              [(ngModel)]="selectedItem.weight"
+              class="w-full p-2 border rounded"
+            />
+          </div>
+          <div>
+            <label>Pallets:</label>
+            <input
+              name="pallets"
+              [(ngModel)]="selectedItem.pallets"
+              class="w-full p-2 border rounded"
+            />
+          </div>
+          <div>
+            <label>Pallet Type:</label>
+            <input
+              name="palletType"
+              [(ngModel)]="selectedItem.palletType"
+              class="w-full p-2 border rounded"
+            />
+          </div>
+          <div>
+            <label>Sort Order:</label>
+            <input
+              name="sortOrder"
+              type="number"
+              [(ngModel)]="selectedItem.sortOrder"
+              class="w-full p-2 border rounded"
+            />
+          </div>
+          <div>
+            <label>Status:</label>
+            <select
+              name="status"
+              [(ngModel)]="selectedItem.status"
+              class="w-full p-2 border rounded"
+            >
+              <option [ngValue]="1">Active</option>
+              <option [ngValue]="0">Inactive</option>
+            </select>
+          </div>
+        </div>
+        <div class="flex justify-end mt-6">
+          <button
+            type="button"
+            (click)="closeModal()"
+            class="px-4 py-2 mr-2 text-white bg-gray-500 rounded hover:bg-gray-600"
+          >
+            Cancel
+          </button>
+          <button type="submit" class="px-4 py-2 text-white bg-blue-600 rounded hover:bg-blue-700">
+            Save
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

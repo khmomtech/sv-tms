@@ -1,0 +1,558 @@
+<div class="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-lg">
+  <div class="mb-6">
+    <h1 class="text-3xl font-bold text-gray-900 mb-2">Vehicle Master Setup</h1>
+    <p class="text-gray-600">
+      Complete vehicle onboarding with all required information, documents, and maintenance setup
+    </p>
+  </div>
+
+  <!-- Success Message -->
+  <div
+    *ngIf="successMessage && showSuccess"
+    class="mb-6 p-4 bg-green-50 border border-green-200 rounded-md"
+    role="alert"
+    aria-live="assertive"
+  >
+    <div class="flex items-center justify-between">
+      <div class="flex items-center">
+        <svg class="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+          <path
+            fill-rule="evenodd"
+            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+            clip-rule="evenodd"
+          />
+        </svg>
+        <span class="ml-3 text-sm font-medium text-green-800">{{ successMessage }}</span>
+      </div>
+      <button
+        type="button"
+        (click)="dismissSuccess()"
+        class="ml-4 text-green-700 hover:text-green-900 focus:outline-none"
+        aria-label="Dismiss success alert"
+      >
+        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M6 18L18 6M6 6l12 12"
+          />
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Error Message -->
+  <div
+    *ngIf="errorMessage && showError"
+    class="mb-6 p-4 bg-red-50 border border-red-200 rounded-md"
+    role="alert"
+    aria-live="assertive"
+  >
+    <div class="flex items-center justify-between">
+      <div class="flex items-center">
+        <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+          <path
+            fill-rule="evenodd"
+            d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+            clip-rule="evenodd"
+          />
+        </svg>
+        <span class="ml-3 text-sm font-medium text-red-800">{{ errorMessage }}</span>
+      </div>
+      <button
+        type="button"
+        (click)="dismissError()"
+        class="ml-4 text-red-700 hover:text-red-900 focus:outline-none"
+        aria-label="Dismiss error alert"
+      >
+        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M6 18L18 6M6 6l12 12"
+          />
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <form [formGroup]="vehicleForm" (ngSubmit)="onSubmit()" class="space-y-8">
+    <!-- Basic Vehicle Information -->
+    <div class="bg-gray-50 p-6 rounded-lg">
+      <h2 class="text-xl font-semibold text-gray-900 mb-4">Basic Vehicle Information</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">License Plate *</label>
+          <input
+            #licensePlateInput
+            type="text"
+            formControlName="licensePlate"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            [class.border-red-500]="hasError('licensePlate') || licensePlateFieldError"
+            placeholder="ABC-123"
+            autocomplete="off"
+          />
+          <p *ngIf="hasError('licensePlate')" class="mt-1 text-sm text-red-600">
+            {{ getErrorMessage('licensePlate') }}
+          </p>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">VIN *</label>
+          <input
+            type="text"
+            formControlName="vin"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            [class.border-red-500]="hasError('vin')"
+            placeholder="17-character VIN"
+          />
+          <p *ngIf="hasError('vin')" class="mt-1 text-sm text-red-600">
+            {{ getErrorMessage('vin') }}
+          </p>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Manufacturer *</label>
+          <input
+            type="text"
+            formControlName="manufacturer"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            [class.border-red-500]="hasError('manufacturer')"
+            placeholder="Toyota"
+          />
+          <p *ngIf="hasError('manufacturer')" class="mt-1 text-sm text-red-600">
+            {{ getErrorMessage('manufacturer') }}
+          </p>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Model *</label>
+          <input
+            type="text"
+            formControlName="model"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            [class.border-red-500]="hasError('model')"
+            placeholder="Camry"
+          />
+          <p *ngIf="hasError('model')" class="mt-1 text-sm text-red-600">
+            {{ getErrorMessage('model') }}
+          </p>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Year *</label>
+          <input
+            type="number"
+            formControlName="yearMade"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            [class.border-red-500]="hasError('yearMade')"
+            placeholder="2023"
+          />
+          <p *ngIf="hasError('yearMade')" class="mt-1 text-sm text-red-600">
+            {{ getErrorMessage('yearMade') }}
+          </p>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Vehicle Type *</label>
+          <select
+            formControlName="type"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option *ngFor="let type of vehicleTypes" [value]="type">{{ type }}</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Ownership *</label>
+          <select
+            formControlName="ownership"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option *ngFor="let ownership of vehicleOwnerships" [value]="ownership">
+              {{ ownership }}
+            </option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Truck Size</label>
+          <select
+            formControlName="truckSize"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Select Size</option>
+            <option *ngFor="let size of truckSizes" [value]="size">{{ size }}</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Capacity & Operational Information -->
+    <div class="bg-gray-50 p-6 rounded-lg">
+      <h2 class="text-xl font-semibold text-gray-900 mb-4">Capacity & Operational Information</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2"
+            >Fuel Consumption (L/100km) *</label
+          >
+          <input
+            type="number"
+            step="0.1"
+            formControlName="fuelConsumption"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            [class.border-red-500]="hasError('fuelConsumption')"
+            placeholder="8.5"
+          />
+          <p *ngIf="hasError('fuelConsumption')" class="mt-1 text-sm text-red-600">
+            {{ getErrorMessage('fuelConsumption') }}
+          </p>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Current Mileage (km) *</label>
+          <input
+            type="number"
+            formControlName="mileage"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            [class.border-red-500]="hasError('mileage')"
+            placeholder="50000"
+          />
+          <p *ngIf="hasError('mileage')" class="mt-1 text-sm text-red-600">
+            {{ getErrorMessage('mileage') }}
+          </p>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Max Weight (kg)</label>
+          <input
+            type="number"
+            formControlName="maxWeight"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="5000"
+          />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Max Volume (m³)</label>
+          <input
+            type="number"
+            step="0.1"
+            formControlName="maxVolume"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="10.5"
+          />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Pallet Capacity</label>
+          <input
+            type="number"
+            formControlName="qtyPalletsCapacity"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="24"
+          />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">GPS Device ID</label>
+          <input
+            type="text"
+            formControlName="gpsDeviceId"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="GPS-001"
+          />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Assigned Zone ID</label>
+          <input
+            type="number"
+            formControlName="assignedZoneId"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="12"
+          />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Required License Class</label>
+          <input
+            type="text"
+            formControlName="requiredLicenseClass"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Class C"
+          />
+        </div>
+      </div>
+
+      <div class="mt-6">
+        <label class="block text-sm font-medium text-gray-700 mb-2">Remarks</label>
+        <textarea
+          formControlName="remarks"
+          rows="3"
+          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="Additional notes about the vehicle..."
+        ></textarea>
+      </div>
+    </div>
+
+    <!-- Required Documents -->
+    <div class="bg-gray-50 p-6 rounded-lg">
+      <h2 class="text-xl font-semibold text-gray-900 mb-4">Required Documents</h2>
+      <p class="text-sm text-gray-600 mb-4">
+        All three documents are required for vehicle operation
+      </p>
+
+      <div formArrayName="documents" class="space-y-6">
+        <div
+          *ngFor="let document of documents.controls; let i = index"
+          [formGroupName]="i"
+          class="border border-gray-200 rounded-lg p-4 bg-white"
+        >
+          <h3 class="text-lg font-medium text-gray-900 mb-4">{{ requiredDocumentTypes[i] }}</h3>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Document URL *</label>
+              <input
+                type="url"
+                formControlName="documentUrl"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                [class.border-red-500]="hasError('documents.' + i + '.documentUrl')"
+                placeholder="https://example.com/document.pdf"
+              />
+              <p
+                *ngIf="hasError('documents.' + i + '.documentUrl')"
+                class="mt-1 text-sm text-red-600"
+              >
+                Document URL is required
+              </p>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Document Number</label>
+              <input
+                type="text"
+                formControlName="documentNumber"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="DOC-12345"
+              />
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Issue Date</label>
+              <input
+                type="date"
+                formControlName="issueDate"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Expiry Date *</label>
+              <input
+                type="date"
+                formControlName="expiryDate"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                [class.border-red-500]="hasError('documents.' + i + '.expiryDate')"
+                required
+              />
+              <p
+                *ngIf="hasError('documents.' + i + '.expiryDate')"
+                class="mt-1 text-sm text-red-600"
+              >
+                Expiry date is required
+              </p>
+            </div>
+          </div>
+
+          <div class="mt-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+            <textarea
+              formControlName="notes"
+              rows="2"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Additional notes..."
+            ></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Maintenance Policy (Optional) -->
+    <div class="bg-gray-50 p-6 rounded-lg">
+      <h2 class="text-xl font-semibold text-gray-900 mb-4">
+        Maintenance Policy <span class="text-sm font-normal text-gray-500">(Optional)</span>
+      </h2>
+
+      <div formGroupName="maintenancePolicy">
+        <div formArrayName="schedules" class="space-y-4">
+          <div
+            *ngFor="let schedule of maintenanceSchedules.controls; let i = index"
+            [formGroupName]="i"
+            class="border border-gray-200 rounded-lg p-4 bg-white"
+          >
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="text-lg font-medium text-gray-900">Schedule {{ i + 1 }}</h3>
+              <button
+                type="button"
+                (click)="removeMaintenanceSchedule(i)"
+                class="text-red-600 hover:text-red-800"
+              >
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Schedule Name *</label>
+                <input
+                  type="text"
+                  formControlName="scheduleName"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Oil Change"
+                />
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Trigger Type *</label>
+                <select
+                  formControlName="triggerType"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="MILEAGE">Mileage</option>
+                  <option value="TIME_BASED">Time Based</option>
+                  <option value="BOTH">Both</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2"
+                  >Trigger Interval *</label
+                >
+                <input
+                  type="number"
+                  formControlName="triggerInterval"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="10000"
+                />
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Task Type ID *</label>
+                <input
+                  type="number"
+                  formControlName="taskTypeId"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="1"
+                />
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2"
+                  >Reminder Before (km)</label
+                >
+                <input
+                  type="number"
+                  formControlName="reminderBeforeKm"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="1000"
+                />
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2"
+                  >Reminder Before (days)</label
+                >
+                <input
+                  type="number"
+                  formControlName="reminderBeforeDays"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="7"
+                />
+              </div>
+            </div>
+
+            <div class="mt-4">
+              <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+              <textarea
+                formControlName="description"
+                rows="2"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Schedule description..."
+              ></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-4">
+          <button
+            type="button"
+            (click)="addMaintenanceSchedule()"
+            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            <svg class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+              />
+            </svg>
+            Add Maintenance Schedule
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Form Actions -->
+    <div class="flex justify-end space-x-4 pt-6 border-t border-gray-200">
+      <button
+        type="button"
+        (click)="onCancel()"
+        class="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+      >
+        Cancel
+      </button>
+      <button
+        type="submit"
+        [disabled]="isLoading || vehicleForm.invalid"
+        class="px-6 py-2 border border-transparent rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+      >
+        <span *ngIf="isLoading" class="inline-flex items-center">
+          <svg
+            class="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              class="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              stroke-width="4"
+            ></circle>
+            <path
+              class="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            ></path>
+          </svg>
+          Setting up vehicle...
+        </span>
+        <span *ngIf="!isLoading">Setup Vehicle</span>
+      </button>
+    </div>
+  </form>
+</div>

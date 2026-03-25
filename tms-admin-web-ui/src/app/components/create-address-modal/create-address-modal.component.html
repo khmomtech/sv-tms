@@ -1,0 +1,70 @@
+<div class="fixed inset-0 flex items-center justify-center overflow-auto bg-black/70 z-50">
+  <div class="p-6 bg-white rounded-lg shadow-lg w-[32rem] max-h-[90vh] overflow-y-auto relative">
+    <h3 class="text-lg font-semibold mb-4">Add Bill To Address</h3>
+    <form [formGroup]="addressForm" (ngSubmit)="save()">
+      <div class="grid grid-cols-2 gap-3 mb-2">
+        <div>
+          <label>Name</label>
+          <input class="input w-full" formControlName="name" />
+        </div>
+        <div>
+          <label>Email</label>
+          <input class="input w-full" formControlName="email" />
+        </div>
+      </div>
+      <div class="mb-2">
+        <label>Address</label>
+        <textarea class="input w-full" formControlName="address"></textarea>
+      </div>
+      <div class="grid grid-cols-2 gap-3 mb-2">
+        <div>
+          <label>City</label>
+          <input class="input w-full" formControlName="city" />
+        </div>
+        <div>
+          <label>State</label>
+          <input class="input w-full" formControlName="state" />
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-3 mb-2">
+        <div>
+          <label>Zip</label>
+          <input class="input w-full" formControlName="zip" />
+        </div>
+        <div>
+          <label>Country</label>
+          <input class="input w-full" formControlName="country" />
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-3 mb-2">
+        <div>
+          <label>Contact Name</label>
+          <input class="input w-full" formControlName="contactName" />
+        </div>
+        <div>
+          <label>Contact Phone</label>
+          <input class="input w-full" formControlName="contactPhone" />
+        </div>
+      </div>
+      <div class="mb-2">
+        <label>Tax ID</label>
+        <input class="input w-full" formControlName="taxId" />
+      </div>
+      <div class="mb-2">
+        <label>Notes</label>
+        <textarea class="input w-full" formControlName="notes"></textarea>
+      </div>
+      <div class="mb-2 flex items-center">
+        <input type="checkbox" id="isPrimary" formControlName="isPrimary" class="mr-2" />
+        <label for="isPrimary">Primary bill-to</label>
+      </div>
+      <div *ngIf="error" class="text-red-500 text-sm mb-2">{{ error }}</div>
+      <div class="flex justify-end gap-2 mt-4">
+        <button type="button" class="btn btn-secondary" (click)="close.emit()" [disabled]="loading">
+          Cancel
+        </button>
+        <button type="submit" class="btn btn-primary" [disabled]="loading">Save</button>
+      </div>
+    </form>
+  </div>
+</div>

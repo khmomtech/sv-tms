@@ -1,0 +1,80 @@
+<div class="driver-dashboard">
+  <div class="dashboard-header">
+    <h2 class="dashboard-title">Driver Management Dashboard</h2>
+    <p class="dashboard-subtitle">Overview of driver operations and quick actions</p>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon">
+        <i class="fas fa-users"></i>
+      </div>
+      <div class="stat-content">
+        <h3 class="stat-number">{{ stats.totalDrivers || 0 }}</h3>
+        <p class="stat-label">Total Drivers</p>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon">
+        <i class="fas fa-user-check"></i>
+      </div>
+      <div class="stat-content">
+        <h3 class="stat-number">{{ stats.activeDrivers || 0 }}</h3>
+        <p class="stat-label">Active Drivers</p>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon">
+        <i class="fas fa-clock"></i>
+      </div>
+      <div class="stat-content">
+        <h3 class="stat-number">{{ stats.onDutyDrivers || 0 }}</h3>
+        <p class="stat-label">Online Now</p>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon">
+        <i class="fas fa-file-alt"></i>
+      </div>
+      <div class="stat-content">
+        <h3 class="stat-number">{{ stats.pendingDocuments || 0 }}</h3>
+        <p class="stat-label">Pending Documents</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="quick-actions">
+    <h3>Quick Actions</h3>
+    <div class="actions-grid">
+      <button
+        class="action-btn primary"
+        *ngFor="let action of quickActions"
+        (click)="navigateTo(action.route)"
+      >
+        <i [class]="action.icon"></i>
+        <span>{{ action.label }}</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="recent-activity">
+    <h3>Recent Activity</h3>
+    <div class="activity-list" *ngIf="recentActivities.length > 0; else noActivity">
+      <div class="activity-item" *ngFor="let activity of recentActivities">
+        <div class="activity-icon">
+          <i [class]="activity.icon"></i>
+        </div>
+        <div class="activity-content">
+          <p class="activity-text">{{ activity.driverName }} {{ activity.message }}</p>
+          <span class="activity-time">{{ formatTimeAgo(activity.timestamp) }}</span>
+        </div>
+      </div>
+    </div>
+    <ng-template #noActivity>
+      <p class="no-activity">No recent activity to display</p>
+    </ng-template>
+  </div>
+</div>

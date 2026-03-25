@@ -1,0 +1,246 @@
+/* Transport Order List styles (badges, empty state, responsive tweaks) */
+
+:root {
+  --card-bg: #ffffff;
+  --panel-bg: #f9fafb;
+  --card-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  --status-pending: #fff7ed;
+  --status-pending-text: #b45309;
+  --status-approved: #ecfdf5;
+  --status-approved-text: #059669;
+  --status-rejected: #fff1f2;
+  --status-rejected-text: #be123c;
+}
+
+.container {
+  background: var(--card-bg);
+  width: 100%;
+  overflow-x: auto;
+}
+
+/* Status badges - improved consistency */
+.status-badge {
+  display: inline-block;
+  padding: 0.35rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.badge-pending {
+  background-color: var(--status-pending);
+  color: var(--status-pending-text);
+}
+
+.badge-approved {
+  background-color: var(--status-approved);
+  color: var(--status-approved-text);
+}
+
+.badge-rejected {
+  background-color: var(--status-rejected);
+  color: var(--status-rejected-text);
+}
+
+.badge-dispatched {
+  background-color: #eff6ff;
+  color: #1d4ed8;
+}
+
+.badge-in-progress {
+  background-color: #f5f3ff;
+  color: #7c3aed;
+}
+
+.badge-completed {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+.badge-scheduled {
+  background-color: #eef2ff;
+  color: #4f46e5;
+}
+
+/* Empty state */
+.empty-state {
+  background: var(--panel-bg);
+  border-radius: 8px;
+  box-shadow: var(--card-shadow);
+  padding: 3rem 1rem;
+}
+
+.empty-icon {
+  font-size: 48px;
+  color: #9ca3af;
+}
+
+/* Table styling improvements */
+.table-wrapper {
+  overflow: auto;
+  max-width: 100%;
+  border-radius: 0.5rem;
+  box-shadow: var(--card-shadow);
+}
+
+.table-wrapper table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table-wrapper thead {
+  background-color: var(--panel-bg);
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.table-wrapper thead th {
+  position: sticky;
+  top: 0;
+  padding: 1rem 0.75rem;
+  text-align: left;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+  background: var(--panel-bg);
+  z-index: 10;
+}
+
+.table-wrapper tbody tr {
+  border-bottom: 1px solid #e5e7eb;
+  transition: background-color 0.15s ease;
+}
+
+.table-wrapper tbody tr:hover {
+  background-color: #f9fafb;
+}
+
+.table-wrapper tbody td {
+  padding: 0.75rem;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+/* Loading state animations */
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Dropdown menu improvements */
+.absolute.right-0 {
+  min-width: 12rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.absolute.right-0 button,
+.absolute.right-0 a {
+  transition: all 0.15s ease;
+}
+
+.absolute.right-0 button:disabled,
+.absolute.right-0 a[disabled] {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+  .container {
+    padding: 1rem;
+  }
+
+  .table-wrapper {
+    font-size: 0.75rem;
+  }
+
+  .table-wrapper thead th,
+  .table-wrapper tbody td {
+    padding: 0.5rem 0.25rem;
+  }
+
+  .status-badge {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.65rem;
+  }
+
+  .empty-state {
+    padding: 2rem 1rem;
+  }
+
+  .empty-icon {
+    font-size: 36px;
+  }
+
+  /* Hide non-essential columns on mobile */
+  .table-wrapper tbody tr td:nth-child(4),
+  .table-wrapper thead th:nth-child(4) {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .table-wrapper thead th,
+  .table-wrapper tbody td {
+    padding: 0.4rem 0.2rem;
+    font-size: 0.7rem;
+  }
+
+  .status-badge {
+    padding: 0.2rem 0.4rem;
+    font-size: 0.6rem;
+  }
+
+  .absolute.right-0 {
+    min-width: 10rem;
+  }
+
+  /* Stack critical info on mobile */
+  .container th:nth-child(n + 5),
+  .container td:nth-child(n + 5) {
+    display: none;
+  }
+}
+
+/* Accessibility improvements */
+button:focus,
+a:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Error state styling */
+.error-alert {
+  background-color: #fee2e2;
+  border: 1px solid #fca5a5;
+  color: #991b1b;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+/* Loading skeleton animation */
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}

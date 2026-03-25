@@ -1,0 +1,377 @@
+<div class="flex flex-col h-screen p-4 space-y-4 overflow-hidden bg-gray-50">
+  <!-- 🔍 Filters -->
+  <div class="flex flex-wrap items-center justify-between gap-4">
+    <div class="flex items-center gap-4">
+      <input type="date" class="p-2 border rounded" />
+      <select [(ngModel)]="selectedDriver" class="p-2 border rounded">
+        <option value="">All</option>
+        <option *ngFor="let driver of drivers" [value]="driver.name">
+          {{ driver.name }}
+        </option>
+      </select>
+      <input
+        type="text"
+        [(ngModel)]="searchQuery"
+        placeholder="Search by Route Code"
+        class="p-2 border rounded"
+      />
+      <button (click)="resetFilters()" class="px-4 py-2 text-sm bg-gray-200 rounded">Reset</button>
+    </div>
+
+    <div class="flex gap-2">
+      <button class="px-4 py-2 text-sm text-white bg-orange-500 rounded">➕ Add Trip</button>
+      <button class="px-4 py-2 text-sm text-white bg-blue-600 rounded">➕ Add Order</button>
+    </div>
+  </div>
+
+  <!-- 📊 Main Panel -->
+  <div class="flex flex-1 overflow-hidden">
+    <!-- 🗾 Left Panel -->
+    <div
+      class="flex flex-col space-y-4 overflow-y-auto resize-x min-w-[320px] max-w-[75%] w-2/3 pr-2"
+      style="resize: horizontal"
+    >
+      <!--  Routes Table -->
+      <div class="bg-white border rounded shadow">
+        <div class="p-2 text-lg font-semibold border-b">Routes</div>
+        <table class="w-full text-sm">
+          <thead class="bg-gray-100">
+            <tr>
+              <th class="p-2">#</th>
+              <th class="p-2">Date</th>
+              <th class="p-2">Driver</th>
+              <th class="p-2">Status</th>
+              <th class="p-2">Weight</th>
+              <th class="p-2">Start</th>
+              <th class="p-2">Finish</th>
+              <th class="p-2">Distance</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              *ngFor="let d of filterDispatches(); let i = index"
+              (click)="onSelectDispatch(d)"
+              class="cursor-pointer hover:bg-gray-50"
+              [class.bg-blue-50]="d === selectedDispatch"
+            >
+              <td class="p-2">{{ i + 1 }}</td>
+              <td class="p-2">{{ d.startTime | date: 'yyyy-MM-dd' }}</td>
+              <td class="p-2">{{ d.driverName }}</td>
+              <td class="p-2 font-semibold text-green-600">{{ d.status }}</td>
+              <td class="p-2">{{ d.transportOrder?.items?.length || 0 }}</td>
+              <td class="p-2">{{ d.startTime | date: 'HH:mm' }}</td>
+              <td class="p-2">{{ d.estimatedArrival | date: 'HH:mm' }}</td>
+              <td class="p-2">--</td>
+
+              <td class="relative">
+                <button
+                  (click)="toggleMenu(d.id!, $event)"
+                  class="px-2 py-1 rounded hover:bg-gray-200"
+                >
+                  ⋮
+                </button>
+                <div
+                  *ngIf="openMenuId === d.id!"
+                  class="absolute z-10 w-48 mt-1 bg-white border rounded shadow right-2"
+                >
+                  <ul class="text-sm">
+                    <li>
+                      <button
+                        (click)="onViewDispatch(d)"
+                        class="block w-full px-4 py-2 text-left hover:bg-gray-100"
+                      >
+                        👁 View
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        (click)="onEditDispatch(d)"
+                        class="block w-full px-4 py-2 text-left hover:bg-gray-100"
+                      >
+                        ✏️ Edit
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        (click)="onDeleteDispatch(d)"
+                        class="block w-full px-4 py-2 text-left text-red-600 hover:bg-gray-100"
+                      >
+                        🗑 Delete
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        (click)="onAssignDriver(d)"
+                        class="block w-full px-4 py-2 text-left hover:bg-gray-100"
+                      >
+                        Assign Driver
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        (click)="onManageOrders(d)"
+                        class="block w-full px-4 py-2 text-left hover:bg-gray-100"
+                      >
+                        Manage Orders
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        (click)="onTrackRoute(d)"
+                        class="block w-full px-4 py-2 text-left hover:bg-gray-100"
+                      >
+                        Track Route
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        (click)="onGenerateReport(d)"
+                        class="block w-full px-4 py-2 text-left hover:bg-gray-100"
+                      >
+                        📄 Generate Report
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        (click)="onMarkAsComplete(d)"
+                        class="block w-full px-4 py-2 text-left hover:bg-gray-100"
+                      >
+                        Mark as Complete
+                      </button>
+                    </li>
+                  </ul>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <!-- 📥 Unscheduled Orders -->
+      <div class="flex-1 p-3 text-sm bg-white border rounded shadow">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="text-lg font-semibold text-orange-600">
+            📥 Unscheduled Orders ({{ filteredUnscheduledOrders.length }})
+          </h3>
+          <div class="flex items-center gap-2">
+            <input
+              [(ngModel)]="searchUnscheduled"
+              placeholder="🔍 Filter Order..."
+              class="p-1 text-sm border rounded"
+            />
+            <button
+              class="px-3 py-1 text-sm text-white bg-green-600 rounded"
+              (click)="bulkAssignToRoute()"
+              [disabled]="selectedOrderIds.size === 0"
+            >
+              Assign to Route
+            </button>
+          </div>
+        </div>
+
+        <table class="w-full text-sm border">
+          <thead class="bg-gray-100">
+            <tr>
+              <th class="p-1 border">
+                <input
+                  type="checkbox"
+                  [checked]="areAllOrdersSelected()"
+                  (change)="toggleSelectAllOrdersFromEvent($event)"
+                />
+              </th>
+              <th class="p-1 border">Order</th>
+              <th class="p-1 border">Client</th>
+              <th class="p-1 border">Distination</th>
+              <th class="p-1 border">Pickup</th>
+              <th class="p-1 border"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              *ngFor="let order of filteredUnscheduledOrders"
+              class="cursor-pointer hover:bg-gray-50"
+              [class.bg-orange-100]="isOrderSelected(order.id)"
+            >
+              <td class="p-2 border" (click)="$event.stopPropagation()">
+                <input
+                  type="checkbox"
+                  [checked]="isOrderSelected(order.id)"
+                  (change)="onOrderCheckboxChange(order.id, $event)"
+                />
+              </td>
+              <td class="p-2 border">{{ order.orderReference }}</td>
+              <td class="p-2 border">{{ order.customerName }}</td>
+              <td class="p-2 border">
+                <ng-container *ngIf="order.dropAddress; else noAddress">
+                  <a
+                    href="https://www.google.com/maps/search/?api=1&query={{
+                      order.dropAddress.latitude
+                    }},{{ order.dropAddress.longitude }}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="text-blue-500 hover:underline"
+                    title="View on Google Maps"
+                  >
+                    {{ order.dropAddress.name || 'View Location' }}
+                  </a>
+                </ng-container>
+                <ng-template #noAddress>
+                  <span class="italic text-gray-400">No location data</span>
+                </ng-template>
+              </td>
+              <td class="p-2 border">
+                <ng-container *ngIf="order.dropAddress; else noAddress">
+                  <a
+                    href="https://www.google.com/maps/search/?api=1&query={{
+                      order.pickupAddress?.latitude
+                    }},{{ order.pickupAddress?.longitude }}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="text-blue-500 hover:underline"
+                    title="View on Google Maps"
+                  >
+                    {{ order.pickupAddress?.name || 'View Location' }}
+                  </a>
+                </ng-container>
+                <ng-template #noAddress>
+                  <span class="italic text-gray-400">No location data</span>
+                </ng-template>
+              </td>
+              <td class="relative p-2 border">
+                <button
+                  (click)="toggleOrderMenu(order.id, $event)"
+                  class="p-1 rounded hover:bg-gray-200"
+                  aria-label="Order actions"
+                >
+                  ⋮
+                </button>
+                <div
+                  *ngIf="openOrderMenuId === order.id"
+                  class="absolute z-10 mt-1 bg-white border rounded shadow right-2 w-36"
+                  (click)="$event.stopPropagation()"
+                >
+                  <ul class="text-sm divide-y">
+                    <li>
+                      <button
+                        (click)="onPlanTrip(order)"
+                        class="w-full px-4 py-2 text-left hover:bg-gray-100"
+                      >
+                        T Planning
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        (click)="onViewOrder(order)"
+                        class="w-full px-4 py-2 text-left hover:bg-gray-100"
+                      >
+                        👁 View
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        (click)="onEditOrder(order)"
+                        class="w-full px-4 py-2 text-left hover:bg-gray-100"
+                      >
+                        ✏️ Edit
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        (click)="onDeleteOrder(order)"
+                        class="w-full px-4 py-2 text-left text-red-600 hover:bg-gray-100"
+                      >
+                        🗑 Delete
+                      </button>
+                    </li>
+                  </ul>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 🗘️ Right Panel -->
+    <div class="flex flex-col flex-1 min-w-[320px] space-y-4">
+      <!-- Google Map -->
+      <div class="border rounded shadow h-[300px]">
+        <google-map [center]="mapCenter" [zoom]="zoom" height="100%" width="100%">
+          <map-marker
+            *ngFor="let marker of routeMarkers"
+            [position]="marker.position"
+            [label]="marker.label"
+            [title]="marker.title"
+          >
+          </map-marker>
+        </google-map>
+      </div>
+
+      <!-- Route Preview Info -->
+      <div class="p-4 text-sm bg-white border rounded shadow" *ngIf="selectedDispatch">
+        <h3 class="mb-2 text-lg font-semibold">Route Preview</h3>
+        <p><strong>Driver:</strong> {{ selectedDispatch.driverName }}</p>
+        <p><strong>Truck:</strong> {{ selectedDispatch.licensePlate }}</p>
+        <p><strong>Pickup:</strong> {{ selectedDispatch.pickupLocation }}</p>
+        <p><strong>Dropoff:</strong> {{ selectedDispatch.dropoffLocation }}</p>
+        <p><strong>Status:</strong> {{ selectedDispatch.status }}</p>
+      </div>
+
+      <!-- Drop Sites Table -->
+      <div class="bg-white border rounded shadow" *ngIf="selectedDispatch">
+        <div class="p-2 text-lg font-semibold border-b">Sites</div>
+        <table class="w-full text-sm">
+          <thead class="bg-gray-100">
+            <tr>
+              <th class="p-2">#</th>
+              <th class="p-2">Address</th>
+              <th class="p-2">Client</th>
+              <th class="p-2">Weight</th>
+              <th class="p-2">ETA</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let site of selectedDispatch.transportOrder?.dropAddresses; let i = index">
+              <td class="p-2">{{ i + 1 }}</td>
+              <td class="p-2">{{ site.address }}</td>
+              <td class="p-2">{{ site.name }}</td>
+              <td class="p-2">--</td>
+              <td class="p-2">--</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!--  Orders Table -->
+      <div class="bg-white border rounded shadow" *ngIf="selectedDispatch">
+        <div class="p-2 text-lg font-semibold border-b">Orders</div>
+        <table class="w-full text-sm">
+          <thead class="bg-gray-100">
+            <tr>
+              <th class="p-2">Order #</th>
+              <th class="p-2">Client</th>
+              <th class="p-2">Quantity</th>
+              <th class="p-2">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let order of selectedDispatch.transportOrder?.items">
+              <td class="p-2">{{ order.id }}</td>
+              <td class="p-2">{{ order.name }}</td>
+              <td class="p-2">{{ order.quantity }}</td>
+              <td class="p-2 text-blue-600">In Progress</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <app-trip-planning-modal
+    [order]="selectedOrder"
+    [vehicles]="vehicles"
+    [visible]="showTripModal"
+    (submitPlan)="handleTripSubmit($event)"
+    (close)="closeModal()"
+  >
+  </app-trip-planning-modal>
+</div>

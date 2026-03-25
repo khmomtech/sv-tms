@@ -1,0 +1,872 @@
+{
+  "totalViolations": 127,
+  "byRule": {
+    "AvoidStarImportCheck": 90,
+    "MemberNameCheck": 11,
+    "ConstantNameCheck": 10,
+    "MethodNameCheck": 10,
+    "UnusedImportsCheck": 5,
+    "RedundantModifierCheck": 1
+  },
+  "byFile": {
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/service/LocationIngestService.java": 11,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/repository/DriverRepository.java": 4,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/drivers/DriverVTwoController.java": 4,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/drivers/DriverController.java": 4,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/VehicleController.java": 4,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/modules/khbupload/controller/KhbSoUploadsController.java": 4,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/repository/DispatchRepository.java": 3,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/MaintenanceTaskTypeController.java": 3,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/modules/khbupload/service/TripPrePlanService.java": 3,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/dto/requests/DriverLocationUpdateDto.java": 2,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/repository/OrderAddressRepository.java": 2,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/DriverLicenseController.java": 2,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/CustomerController.java": 2,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/admin/DispatchAdminController.java": 2,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/DispatchController.java": 2,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/AuthController.java": 2,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/UserController.java": 2,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/service/DispatchService.java": 2,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/service/OrderAddressExcelService.java": 2,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/modules/khbupload/util/FinalSummaryExcelExporter.java": 2,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/modules/khbupload/util/TripPlanExcelExporter.java": 2,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/modules/khbupload/service/TripPlannerService.java": 2,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/modules/khbupload/service/KhbSoUploadService.java": 2,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/dto/DriverDto.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/dto/ImportIssue.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/dto/LocationHistoryDto.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/dto/requests/DriverCreateRequest.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/dto/ItemDto.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/dto/DeviceRegisterDto.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/settings/repository/SettingDefRepository.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/settings/repository/SettingValueRepository.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/settings/controller/AdminSettingController.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/repository/DriverAssignmentRepository.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/repository/TransportOrderRepository.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/repository/DriverLatestLocationRepository.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/core/service/GeocodingService.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/config/JacksonConfig.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/config/FirebaseConfig.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/config/WebSocketConfig.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/security/JwtAuthFilter.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/UserPermissionController.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/drivers/DriverLocationController.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/drivers/PublicAppVersionController.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/DriverIssueController.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/DashboardController.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/OrderAddressController.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/admin/TransportOrderController.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/AddressController.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/DriverAssignmentController.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/AboutAppInfoController.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/RoleController.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/DeviceRegisterController.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/ShipmentController.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/AppVersionController.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/MaintenanceTaskController.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/intergrate/ClientDriverIntegrationController.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/ItemController.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/SsoController.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/UserSettingController.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/AuditTrailController.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/PermissionController.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/model/Vehicle.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/service/MaintenanceTaskTypeService.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/service/FirebaseMessagingService.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/service/DriverLicenseService.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/service/FileStorageService.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/service/LoadProofService.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/service/MaintenanceTaskService.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/service/CustomerService.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/service/OrderAddressService.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/service/LiveDriverQueryService.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/service/ItemService.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/service/EmployeeService.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/service/DriverIssueService.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/service/VehicleService.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/modules/notification/repository/DriverNotificationRepository.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/modules/notification/controller/NotificationController.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/modules/notification/controller/DriverNotificationController.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/modules/khbupload/controller/KhbSoUploadController.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/modules/khbupload/controller/KHBUploadController.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/modules/khbupload/service/FinalSummaryService.java": 1,
+    "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/modules/khbupload/service/KhbTripPlannerService.java": 1
+  },
+  "topFiles": [
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/service/LocationIngestService.java",
+      "count": 11,
+      "violations": [
+        {
+          "line": 42,
+          "message": "Name 'SERVER_THROTTLE_MS' must match pattern '^[a-z][a-zA-Z0-9]*$'.",
+          "rule": "MemberNameCheck"
+        },
+        {
+          "line": 45,
+          "message": "Name 'SERVER_MIN_DIST_M' must match pattern '^[a-z][a-zA-Z0-9]*$'.",
+          "rule": "MemberNameCheck"
+        },
+        {
+          "line": 48,
+          "message": "Name 'MAX_IDLE_KEEPALIVE_MS' must match pattern '^[a-z][a-zA-Z0-9]*$'.",
+          "rule": "MemberNameCheck"
+        },
+        {
+          "line": 51,
+          "message": "Name 'SERVER_MIN_TIME_MS' must match pattern '^[a-z][a-zA-Z0-9]*$'.",
+          "rule": "MemberNameCheck"
+        },
+        {
+          "line": 54,
+          "message": "Name 'BATCH_FLUSH_MS' must match pattern '^[a-z][a-zA-Z0-9]*$'.",
+          "rule": "MemberNameCheck"
+        },
+        {
+          "line": 57,
+          "message": "Name 'BATCH_MAX_RECORDS' must match pattern '^[a-z][a-zA-Z0-9]*$'.",
+          "rule": "MemberNameCheck"
+        },
+        {
+          "line": 60,
+          "message": "Name 'QUEUE_CAPACITY' must match pattern '^[a-z][a-zA-Z0-9]*$'.",
+          "rule": "MemberNameCheck"
+        },
+        {
+          "line": 63,
+          "message": "Name 'PRESENCE_ONLINE_MS' must match pattern '^[a-z][a-zA-Z0-9]*$'.",
+          "rule": "MemberNameCheck"
+        },
+        {
+          "line": 66,
+          "message": "Name 'PRESENCE_IDLE_MS' must match pattern '^[a-z][a-zA-Z0-9]*$'.",
+          "rule": "MemberNameCheck"
+        },
+        {
+          "line": 69,
+          "message": "Name 'GEOCODE_MIN_DISTANCE_M' must match pattern '^[a-z][a-zA-Z0-9]*$'.",
+          "rule": "MemberNameCheck"
+        },
+        {
+          "line": 72,
+          "message": "Name 'PRESENCE_SWEEPER_MS' must match pattern '^[a-z][a-zA-Z0-9]*$'.",
+          "rule": "MemberNameCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/repository/DriverRepository.java",
+      "count": 4,
+      "violations": [
+        {
+          "line": 14,
+          "message": "Using the '.*' form of import should be avoided - org.springframework.data.jpa.repository.*.",
+          "rule": "AvoidStarImportCheck"
+        },
+        {
+          "line": 27,
+          "message": "Name 'findByUser_Username' must match pattern '^[a-z][a-zA-Z0-9]*$'.",
+          "rule": "MethodNameCheck"
+        },
+        {
+          "line": 111,
+          "message": "Name 'findByAssignedVehicle_LicensePlateIgnoreCase' must match pattern '^[a-z][a-zA-Z0-9]*$'.",
+          "rule": "MethodNameCheck"
+        },
+        {
+          "line": 114,
+          "message": "Name 'findByAssignedVehicle_LicensePlateContainingIgnoreCase' must match pattern '^[a-z][a-zA-Z0-9]*$'.",
+          "rule": "MethodNameCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/drivers/DriverVTwoController.java",
+      "count": 4,
+      "violations": [
+        {
+          "line": 5,
+          "message": "Using the '.*' form of import should be avoided - com.svtrucking.logistics.dto.*.",
+          "rule": "AvoidStarImportCheck"
+        },
+        {
+          "line": 6,
+          "message": "Using the '.*' form of import should be avoided - com.svtrucking.logistics.dto.requests.*.",
+          "rule": "AvoidStarImportCheck"
+        },
+        {
+          "line": 15,
+          "message": "Using the '.*' form of import should be avoided - com.svtrucking.logistics.service.*.",
+          "rule": "AvoidStarImportCheck"
+        },
+        {
+          "line": 29,
+          "message": "Using the '.*' form of import should be avoided - org.springframework.web.bind.annotation.*.",
+          "rule": "AvoidStarImportCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/drivers/DriverController.java",
+      "count": 4,
+      "violations": [
+        {
+          "line": 5,
+          "message": "Using the '.*' form of import should be avoided - com.svtrucking.logistics.dto.*.",
+          "rule": "AvoidStarImportCheck"
+        },
+        {
+          "line": 6,
+          "message": "Using the '.*' form of import should be avoided - com.svtrucking.logistics.dto.requests.*.",
+          "rule": "AvoidStarImportCheck"
+        },
+        {
+          "line": 15,
+          "message": "Using the '.*' form of import should be avoided - com.svtrucking.logistics.service.*.",
+          "rule": "AvoidStarImportCheck"
+        },
+        {
+          "line": 29,
+          "message": "Using the '.*' form of import should be avoided - org.springframework.web.bind.annotation.*.",
+          "rule": "AvoidStarImportCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/VehicleController.java",
+      "count": 4,
+      "violations": [
+        {
+          "line": 10,
+          "message": "Using the '.*' form of import should be avoided - java.util.*.",
+          "rule": "AvoidStarImportCheck"
+        },
+        {
+          "line": 11,
+          "message": "Using the '.*' form of import should be avoided - org.springframework.data.domain.*.",
+          "rule": "AvoidStarImportCheck"
+        },
+        {
+          "line": 12,
+          "message": "Using the '.*' form of import should be avoided - org.springframework.http.*.",
+          "rule": "AvoidStarImportCheck"
+        },
+        {
+          "line": 13,
+          "message": "Using the '.*' form of import should be avoided - org.springframework.web.bind.annotation.*.",
+          "rule": "AvoidStarImportCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/modules/khbupload/controller/KhbSoUploadsController.java",
+      "count": 4,
+      "violations": [
+        {
+          "line": 9,
+          "message": "Using the '.*' form of import should be avoided - com.svtrucking.logistics.modules.khbupload.service.*.",
+          "rule": "AvoidStarImportCheck"
+        },
+        {
+          "line": 22,
+          "message": "Using the '.*' form of import should be avoided - org.springframework.http.*.",
+          "rule": "AvoidStarImportCheck"
+        },
+        {
+          "line": 23,
+          "message": "Using the '.*' form of import should be avoided - org.springframework.web.bind.annotation.*.",
+          "rule": "AvoidStarImportCheck"
+        },
+        {
+          "line": 41,
+          "message": "Name 'log' must match pattern '^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$'.",
+          "rule": "ConstantNameCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/repository/DispatchRepository.java",
+      "count": 3,
+      "violations": [
+        {
+          "line": 24,
+          "message": "Name 'findByDriver_Id' must match pattern '^[a-z][a-zA-Z0-9]*$'.",
+          "rule": "MethodNameCheck"
+        },
+        {
+          "line": 26,
+          "message": "Name 'findByVehicle_Id' must match pattern '^[a-z][a-zA-Z0-9]*$'.",
+          "rule": "MethodNameCheck"
+        },
+        {
+          "line": 32,
+          "message": "Name 'findByDriver_IdAndStatus' must match pattern '^[a-z][a-zA-Z0-9]*$'.",
+          "rule": "MethodNameCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/MaintenanceTaskTypeController.java",
+      "count": 3,
+      "violations": [
+        {
+          "line": 10,
+          "message": "Using the '.*' form of import should be avoided - org.springframework.data.domain.*.",
+          "rule": "AvoidStarImportCheck"
+        },
+        {
+          "line": 11,
+          "message": "Using the '.*' form of import should be avoided - org.springframework.http.*.",
+          "rule": "AvoidStarImportCheck"
+        },
+        {
+          "line": 12,
+          "message": "Using the '.*' form of import should be avoided - org.springframework.web.bind.annotation.*.",
+          "rule": "AvoidStarImportCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/modules/khbupload/service/TripPrePlanService.java",
+      "count": 3,
+      "violations": [
+        {
+          "line": 6,
+          "message": "Using the '.*' form of import should be avoided - com.svtrucking.logistics.modules.khbupload.model.*.",
+          "rule": "AvoidStarImportCheck"
+        },
+        {
+          "line": 7,
+          "message": "Using the '.*' form of import should be avoided - com.svtrucking.logistics.modules.khbupload.repository.*.",
+          "rule": "AvoidStarImportCheck"
+        },
+        {
+          "line": 10,
+          "message": "Using the '.*' form of import should be avoided - java.util.*.",
+          "rule": "AvoidStarImportCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/dto/requests/DriverLocationUpdateDto.java",
+      "count": 2,
+      "violations": [
+        {
+          "line": 3,
+          "message": "Using the '.*' form of import should be avoided - com.fasterxml.jackson.annotation.*.",
+          "rule": "AvoidStarImportCheck"
+        },
+        {
+          "line": 6,
+          "message": "Using the '.*' form of import should be avoided - jakarta.validation.constraints.*.",
+          "rule": "AvoidStarImportCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/repository/OrderAddressRepository.java",
+      "count": 2,
+      "violations": [
+        {
+          "line": 10,
+          "message": "Unused import - jakarta.persistence.ManyToOne.",
+          "rule": "UnusedImportsCheck"
+        },
+        {
+          "line": 33,
+          "message": "Name 'existsByCustomer_IdAndNameIgnoreCase' must match pattern '^[a-z][a-zA-Z0-9]*$'.",
+          "rule": "MethodNameCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/DriverLicenseController.java",
+      "count": 2,
+      "violations": [
+        {
+          "line": 9,
+          "message": "Using the '.*' form of import should be avoided - org.springframework.http.*.",
+          "rule": "AvoidStarImportCheck"
+        },
+        {
+          "line": 10,
+          "message": "Using the '.*' form of import should be avoided - org.springframework.web.bind.annotation.*.",
+          "rule": "AvoidStarImportCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/CustomerController.java",
+      "count": 2,
+      "violations": [
+        {
+          "line": 11,
+          "message": "Using the '.*' form of import should be avoided - java.util.*.",
+          "rule": "AvoidStarImportCheck"
+        },
+        {
+          "line": 17,
+          "message": "Using the '.*' form of import should be avoided - org.springframework.web.bind.annotation.*.",
+          "rule": "AvoidStarImportCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/admin/DispatchAdminController.java",
+      "count": 2,
+      "violations": [
+        {
+          "line": 17,
+          "message": "Using the '.*' form of import should be avoided - java.util.*.",
+          "rule": "AvoidStarImportCheck"
+        },
+        {
+          "line": 29,
+          "message": "Using the '.*' form of import should be avoided - org.springframework.web.bind.annotation.*.",
+          "rule": "AvoidStarImportCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/DispatchController.java",
+      "count": 2,
+      "violations": [
+        {
+          "line": 18,
+          "message": "Using the '.*' form of import should be avoided - java.util.*.",
+          "rule": "AvoidStarImportCheck"
+        },
+        {
+          "line": 30,
+          "message": "Using the '.*' form of import should be avoided - org.springframework.web.bind.annotation.*.",
+          "rule": "AvoidStarImportCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/AuthController.java",
+      "count": 2,
+      "violations": [
+        {
+          "line": 3,
+          "message": "Using the '.*' form of import should be avoided - com.svtrucking.logistics.dto.*.",
+          "rule": "AvoidStarImportCheck"
+        },
+        {
+          "line": 37,
+          "message": "Using the '.*' form of import should be avoided - org.springframework.web.bind.annotation.*.",
+          "rule": "AvoidStarImportCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/UserController.java",
+      "count": 2,
+      "violations": [
+        {
+          "line": 14,
+          "message": "Using the '.*' form of import should be avoided - java.util.*.",
+          "rule": "AvoidStarImportCheck"
+        },
+        {
+          "line": 20,
+          "message": "Using the '.*' form of import should be avoided - org.springframework.web.bind.annotation.*.",
+          "rule": "AvoidStarImportCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/service/DispatchService.java",
+      "count": 2,
+      "violations": [
+        {
+          "line": 10,
+          "message": "Using the '.*' form of import should be avoided - com.svtrucking.logistics.model.*.",
+          "rule": "AvoidStarImportCheck"
+        },
+        {
+          "line": 11,
+          "message": "Using the '.*' form of import should be avoided - com.svtrucking.logistics.repository.*.",
+          "rule": "AvoidStarImportCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/service/OrderAddressExcelService.java",
+      "count": 2,
+      "violations": [
+        {
+          "line": 7,
+          "message": "Using the '.*' form of import should be avoided - java.io.*.",
+          "rule": "AvoidStarImportCheck"
+        },
+        {
+          "line": 12,
+          "message": "Using the '.*' form of import should be avoided - org.apache.poi.ss.usermodel.*.",
+          "rule": "AvoidStarImportCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/modules/khbupload/util/FinalSummaryExcelExporter.java",
+      "count": 2,
+      "violations": [
+        {
+          "line": 7,
+          "message": "Using the '.*' form of import should be avoided - java.util.*.",
+          "rule": "AvoidStarImportCheck"
+        },
+        {
+          "line": 8,
+          "message": "Using the '.*' form of import should be avoided - org.apache.poi.ss.usermodel.*.",
+          "rule": "AvoidStarImportCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/modules/khbupload/util/TripPlanExcelExporter.java",
+      "count": 2,
+      "violations": [
+        {
+          "line": 6,
+          "message": "Using the '.*' form of import should be avoided - java.util.*.",
+          "rule": "AvoidStarImportCheck"
+        },
+        {
+          "line": 8,
+          "message": "Using the '.*' form of import should be avoided - org.apache.poi.ss.usermodel.*.",
+          "rule": "AvoidStarImportCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/modules/khbupload/service/TripPlannerService.java",
+      "count": 2,
+      "violations": [
+        {
+          "line": 9,
+          "message": "Using the '.*' form of import should be avoided - com.svtrucking.logistics.modules.khbupload.repository.*.",
+          "rule": "AvoidStarImportCheck"
+        },
+        {
+          "line": 24,
+          "message": "Unused import - org.springframework.data.domain.Pageable.",
+          "rule": "UnusedImportsCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/modules/khbupload/service/KhbSoUploadService.java",
+      "count": 2,
+      "violations": [
+        {
+          "line": 15,
+          "message": "Using the '.*' form of import should be avoided - java.util.*.",
+          "rule": "AvoidStarImportCheck"
+        },
+        {
+          "line": 18,
+          "message": "Using the '.*' form of import should be avoided - org.apache.poi.ss.usermodel.*.",
+          "rule": "AvoidStarImportCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/dto/DriverDto.java",
+      "count": 1,
+      "violations": [
+        {
+          "line": 32,
+          "message": "Name 'log' must match pattern '^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$'.",
+          "rule": "ConstantNameCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/dto/ImportIssue.java",
+      "count": 1,
+      "violations": [
+        {
+          "line": 12,
+          "message": "Redundant 'public' modifier.",
+          "rule": "RedundantModifierCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/dto/LocationHistoryDto.java",
+      "count": 1,
+      "violations": [
+        {
+          "line": 8,
+          "message": "Unused import - lombok.Data.",
+          "rule": "UnusedImportsCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/dto/requests/DriverCreateRequest.java",
+      "count": 1,
+      "violations": [
+        {
+          "line": 7,
+          "message": "Using the '.*' form of import should be avoided - jakarta.validation.constraints.*.",
+          "rule": "AvoidStarImportCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/dto/ItemDto.java",
+      "count": 1,
+      "violations": [
+        {
+          "line": 12,
+          "message": "Name 'log' must match pattern '^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$'.",
+          "rule": "ConstantNameCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/dto/DeviceRegisterDto.java",
+      "count": 1,
+      "violations": [
+        {
+          "line": 12,
+          "message": "Unused import - jakarta.persistence.Entity.",
+          "rule": "UnusedImportsCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/settings/repository/SettingDefRepository.java",
+      "count": 1,
+      "violations": [
+        {
+          "line": 9,
+          "message": "Name 'findByGroup_CodeAndKeyCode' must match pattern '^[a-z][a-zA-Z0-9]*$'.",
+          "rule": "MethodNameCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/settings/repository/SettingValueRepository.java",
+      "count": 1,
+      "violations": [
+        {
+          "line": 10,
+          "message": "Name 'findTopByDef_IdAndScopeAndScopeRefOrderByVersionDesc' must match pattern '^[a-z][a-zA-Z0-9]*$'.",
+          "rule": "MethodNameCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/settings/controller/AdminSettingController.java",
+      "count": 1,
+      "violations": [
+        {
+          "line": 14,
+          "message": "Using the '.*' form of import should be avoided - org.springframework.web.bind.annotation.*.",
+          "rule": "AvoidStarImportCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/repository/DriverAssignmentRepository.java",
+      "count": 1,
+      "violations": [
+        {
+          "line": 28,
+          "message": "Name 'findByDriver_IdInAndStatusIn' must match pattern '^[a-z][a-zA-Z0-9]*$'.",
+          "rule": "MethodNameCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/repository/TransportOrderRepository.java",
+      "count": 1,
+      "violations": [
+        {
+          "line": 11,
+          "message": "Using the '.*' form of import should be avoided - org.springframework.data.jpa.repository.*.",
+          "rule": "AvoidStarImportCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/repository/DriverLatestLocationRepository.java",
+      "count": 1,
+      "violations": [
+        {
+          "line": 6,
+          "message": "Using the '.*' form of import should be avoided - org.springframework.data.jpa.repository.*.",
+          "rule": "AvoidStarImportCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/core/service/GeocodingService.java",
+      "count": 1,
+      "violations": [
+        {
+          "line": 27,
+          "message": "Name 'log' must match pattern '^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$'.",
+          "rule": "ConstantNameCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/config/JacksonConfig.java",
+      "count": 1,
+      "violations": [
+        {
+          "line": 6,
+          "message": "Using the '.*' form of import should be avoided - org.springframework.context.annotation.*.",
+          "rule": "AvoidStarImportCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/config/FirebaseConfig.java",
+      "count": 1,
+      "violations": [
+        {
+          "line": 23,
+          "message": "Name 'logger' must match pattern '^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$'.",
+          "rule": "ConstantNameCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/config/WebSocketConfig.java",
+      "count": 1,
+      "violations": [
+        {
+          "line": 21,
+          "message": "Using the '.*' form of import should be avoided - org.springframework.web.socket.config.annotation.*.",
+          "rule": "AvoidStarImportCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/security/JwtAuthFilter.java",
+      "count": 1,
+      "violations": [
+        {
+          "line": 22,
+          "message": "Name 'logger' must match pattern '^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$'.",
+          "rule": "ConstantNameCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/UserPermissionController.java",
+      "count": 1,
+      "violations": [
+        {
+          "line": 12,
+          "message": "Using the '.*' form of import should be avoided - org.springframework.web.bind.annotation.*.",
+          "rule": "AvoidStarImportCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/drivers/DriverLocationController.java",
+      "count": 1,
+      "violations": [
+        {
+          "line": 16,
+          "message": "Using the '.*' form of import should be avoided - org.springframework.web.bind.annotation.*.",
+          "rule": "AvoidStarImportCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/drivers/PublicAppVersionController.java",
+      "count": 1,
+      "violations": [
+        {
+          "line": 6,
+          "message": "Using the '.*' form of import should be avoided - org.springframework.web.bind.annotation.*.",
+          "rule": "AvoidStarImportCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/DriverIssueController.java",
+      "count": 1,
+      "violations": [
+        {
+          "line": 22,
+          "message": "Using the '.*' form of import should be avoided - org.springframework.web.bind.annotation.*.",
+          "rule": "AvoidStarImportCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/DashboardController.java",
+      "count": 1,
+      "violations": [
+        {
+          "line": 14,
+          "message": "Using the '.*' form of import should be avoided - org.springframework.web.bind.annotation.*.",
+          "rule": "AvoidStarImportCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/OrderAddressController.java",
+      "count": 1,
+      "violations": [
+        {
+          "line": 16,
+          "message": "Using the '.*' form of import should be avoided - org.springframework.web.bind.annotation.*.",
+          "rule": "AvoidStarImportCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/admin/TransportOrderController.java",
+      "count": 1,
+      "violations": [
+        {
+          "line": 19,
+          "message": "Using the '.*' form of import should be avoided - org.springframework.web.bind.annotation.*.",
+          "rule": "AvoidStarImportCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/AddressController.java",
+      "count": 1,
+      "violations": [
+        {
+          "line": 9,
+          "message": "Using the '.*' form of import should be avoided - org.springframework.web.bind.annotation.*.",
+          "rule": "AvoidStarImportCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/DriverAssignmentController.java",
+      "count": 1,
+      "violations": [
+        {
+          "line": 10,
+          "message": "Using the '.*' form of import should be avoided - org.springframework.web.bind.annotation.*.",
+          "rule": "AvoidStarImportCheck"
+        }
+      ]
+    },
+    {
+      "file": "/Users/sotheakh/Documents/develop/sv-tms/driver-app/src/main/java/com/svtrucking/logistics/controller/AboutAppInfoController.java",
+      "count": 1,
+      "violations": [
+        {
+          "line": 6,
+          "message": "Using the '.*' form of import should be avoided - org.springframework.web.bind.annotation.*.",
+          "rule": "AvoidStarImportCheck"
+        }
+      ]
+    }
+  ]
+}

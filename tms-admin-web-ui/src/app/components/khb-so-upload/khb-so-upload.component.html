@@ -1,0 +1,147 @@
+<div class="container py-4">
+  <h2 class="mb-4 text-primary fw-bold">KHB SO Upload</h2>
+
+  <!-- 📂 File Input -->
+  <div class="mb-3">
+    <label for="fileInput" class="form-label fw-semibold">Choose Excel File (.xlsx)</label>
+    <input
+      type="file"
+      id="fileInput"
+      class="form-control"
+      (change)="onFileSelected($event)"
+      accept=".xlsx"
+    />
+  </div>
+
+  <!-- ⚙️ Action Buttons -->
+  <div class="mb-4">
+    <button
+      class="btn btn-outline-primary me-2"
+      (click)="previewUpload()"
+      [disabled]="!selectedFile || loading"
+    >
+      👁️ Preview
+    </button>
+    <button
+      class="btn btn-success"
+      (click)="commitUpload()"
+      [disabled]="!previewData.length || loading"
+    >
+      Commit
+    </button>
+  </div>
+
+  <!-- 🔄 Loading Indicator -->
+  <div *ngIf="loading" class="mb-3 d-flex align-items-center">
+    <div
+      class="spinner-border text-primary"
+      role="status"
+      style="width: 1.5rem; height: 1.5rem"
+    ></div>
+    <span class="ms-2 text-primary fw-medium">Processing file...</span>
+  </div>
+
+  <!--  Error Message -->
+  <div *ngIf="errorMsg" class="alert alert-danger">
+    {{ errorMsg }}
+  </div>
+
+  <!-- 📊 Summary Section -->
+  <div *ngIf="summary && !errorMsg" class="alert alert-info">
+    <strong>📊 Summary:</strong>
+    Total: <b>{{ summary.totalRows }}</b
+    >, Valid: <b>{{ previewData.length }}</b
+    >, Skipped: <b>{{ summary.skipped }}</b
+    >, Errors: <b>{{ summary.errors }}</b>
+  </div>
+
+  <!-- 🚛 Truck Input Section
+  <div class="mt-4 mb-4 row g-3">
+    <div class="col-md-3">
+      <label class="form-label fw-semibold">SMALL_VAN_OWN_11</label>
+      <div class="input-group input-group-sm">
+        <span class="input-group-text">Pallets</span>
+        <input type="number" class="form-control" [(ngModel)]="input.smallVanOwn11.pallets" min="0" />
+        <span class="input-group-text">Trucks</span>
+        <input type="number" class="form-control" [(ngModel)]="input.smallVanOwn11.trucks" min="0" />
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <label class="form-label fw-semibold">SMALL_VAN_OWN_8</label>
+      <div class="input-group input-group-sm">
+        <span class="input-group-text">Pallets</span>
+        <input type="number" class="form-control" [(ngModel)]="input.smallVanOwn8.pallets" min="0" />
+        <span class="input-group-text">Trucks</span>
+        <input type="number" class="form-control" [(ngModel)]="input.smallVanOwn8.trucks" min="0" />
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <label class="form-label fw-semibold">SMALL_VAN_SUB_11</label>
+      <div class="input-group input-group-sm">
+        <span class="input-group-text">Pallets</span>
+        <input type="number" class="form-control" [(ngModel)]="input.smallVanSub11.pallets" min="0" />
+        <span class="input-group-text">Trucks</span>
+        <input type="number" class="form-control" [(ngModel)]="input.smallVanSub11.trucks" min="0" />
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <label class="form-label fw-semibold">SMALL_VAN_SUB_8</label>
+      <div class="input-group input-group-sm">
+        <span class="input-group-text">Pallets</span>
+        <input type="number" class="form-control" [(ngModel)]="input.smallVanSub8.pallets" min="0" />
+        <span class="input-group-text">Trucks</span>
+        <input type="number" class="form-control" [(ngModel)]="input.smallVanSub8.trucks" min="0" />
+      </div>
+    </div>
+  </div> -->
+
+  <!-- 📝 Preview Table -->
+  <div *ngIf="previewData.length" class="table-wrapper">
+    <h4 class="mb-3 fw-semibold text-success">📝 Valid Preview Data</h4>
+    <div class="table-responsive">
+      <table class="table mb-0 align-middle table-bordered table-hover table-sm text-nowrap">
+        <thead class="table-light sticky-top">
+          <tr>
+            <th *ngFor="let column of columnOrder" class="text-nowrap text-secondary small">
+              {{ columnHeaders[column] || column }}
+            </th>
+            <th *ngIf="hasErrorMessages" class="text-nowrap text-danger">Errors</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            *ngFor="let row of previewData; let i = index"
+            [ngClass]="{ 'table-danger': errorRows.has(i) }"
+          >
+            <td *ngFor="let column of columnOrder" class="text-nowrap small">
+              {{ row[column] }}
+            </td>
+            <td *ngIf="errorRows.has(i)">
+              <ul class="mb-0 small text-danger">
+                <li *ngFor="let msg of errorMessages[i]">{{ msg }}</li>
+              </ul>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ❗ Error Panel -->
+  <div *ngIf="hasErrorMessages" class="mt-4">
+    <h5 class="fw-bold text-danger">❗ Error Details ({{ summary?.errors }} rows)</h5>
+    <div class="p-3 border rounded bg-light">
+      <ul class="mb-0 small">
+        <li *ngFor="let entry of errorMessages | keyvalue">
+          <strong>Row #{{ entry.key + 1 }}</strong>
+          <ul>
+            <li *ngFor="let msg of entry.value" class="text-danger">- {{ msg }}</li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>

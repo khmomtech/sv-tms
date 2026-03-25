@@ -1,0 +1,60 @@
+<div class="max-w-5xl p-6 mx-auto bg-white rounded shadow-md">
+  <h2 class="mb-4 text-xl font-bold">KHB SO Upload</h2>
+
+  <!-- File Upload -->
+  <input type="file" (change)="onFileSelected($event)" class="mb-4" />
+  <div class="flex gap-4">
+    <button (click)="onPreview()" class="px-4 py-2 text-white bg-blue-500 rounded">
+      👁️ Preview
+    </button>
+    <button
+      (click)="onCommit()"
+      class="px-4 py-2 text-white bg-green-600 rounded"
+      [disabled]="!hasValidRows"
+    >
+      Commit
+    </button>
+  </div>
+
+  <!-- Loading Spinner -->
+  <div *ngIf="isLoading" class="mt-4 font-semibold text-blue-600">🔄 Processing...</div>
+
+  <!-- Error Message -->
+  <div *ngIf="errorMsg" class="mt-4 font-semibold text-red-600">❗{{ errorMsg }}</div>
+
+  <!-- Preview Table -->
+  <div *ngIf="hasValidRows" class="mt-6">
+    <h3 class="mb-2 text-lg font-bold">Valid Rows ({{ previewData?.totalRows || 0 }})</h3>
+    <div class="overflow-x-auto">
+      <table class="min-w-full border border-gray-300">
+        <thead>
+          <tr class="text-sm text-left bg-gray-100">
+            <th
+              class="px-3 py-2 border"
+              *ngFor="let key of objectKeys(previewData?.valid?.[0] ?? {})"
+            >
+              {{ key }}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let row of previewData?.valid">
+            <td class="px-3 py-2 border" *ngFor="let key of objectKeys(row ?? {})">
+              {{ row?.[key] ?? '' }}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Error Rows -->
+  <div *ngIf="hasErrorRows" class="mt-6">
+    <h3 class="mb-2 text-lg font-bold text-red-600">
+      Skipped Rows ({{ previewData?.skipped || 0 }})
+    </h3>
+    <ul class="text-sm text-red-700 list-disc list-inside">
+      <li *ngFor="let err of previewData?.errors">Row {{ err.row }}: {{ err.reason }}</li>
+    </ul>
+  </div>
+</div>

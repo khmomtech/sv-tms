@@ -1,0 +1,82 @@
+<div class="container mt-3">
+  <!-- 🔌 WebSocket Connection Status Banner -->
+  <div
+    class="mb-3 text-center alert"
+    [ngClass]="{
+      'alert-success': connectionStatus === 'connected',
+      'alert-danger': connectionStatus === 'disconnected',
+    }"
+  >
+    <strong>
+      {{
+        connectionStatus === 'connected'
+          ? ('telematicsConsole.connected' | translate)
+          : ('telematicsConsole.disconnected' | translate)
+      }}
+    </strong>
+  </div>
+
+  <div class="mb-3 row">
+    <div class="col-md-6">
+      <input
+        [(ngModel)]="searchTerm"
+        (input)="applySearch()"
+        class="form-control"
+        [placeholder]="'telematicsConsole.search_placeholder' | translate"
+      />
+    </div>
+    <div class="col-md-6 text-end">
+      <span class="badge bg-secondary">
+        {{ 'telematicsConsole.total_logs' | translate: { count: filteredLogs.length } }}
+      </span>
+    </div>
+  </div>
+
+  <div class="mb-4 table-responsive">
+    <table class="table table-bordered table-striped table-hover">
+      <thead class="table-dark">
+        <tr>
+          <th>#</th>
+          <th>{{ 'telematicsConsole.driver_id' | translate }}</th>
+          <th>{{ 'telematicsConsole.label' | translate }}</th>
+          <th>{{ 'telematicsConsole.latitude' | translate }}</th>
+          <th>{{ 'telematicsConsole.longitude' | translate }}</th>
+          <th>{{ 'telematicsConsole.timestamp' | translate }}</th>
+          <th>{{ 'telematicsConsole.action' | translate }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let log of filteredLogs; let i = index">
+          <td>{{ i + 1 }}</td>
+          <td>{{ log.driverId }}</td>
+          <td>{{ log.label || '-' }}</td>
+          <td>{{ log.latitude }}</td>
+          <td>{{ log.longitude }}</td>
+          <td>{{ log.timestamp ? (log.timestamp | date: 'short') : '-' }}</td>
+          <td>
+            <button class="btn btn-sm btn-primary" (click)="viewOnMap(log)">
+              {{ 'telematicsConsole.view_on_map' | translate }}
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div *ngIf="selectedLocation" class="p-3 shadow card">
+    <h5 class="mb-3">
+      {{ 'telematicsConsole.map_view' | translate: { driverId: selectedLocation.driverId } }}
+    </h5>
+    <google-map
+      height="400px"
+      width="100%"
+      [center]="{ lat: selectedLocation.latitude, lng: selectedLocation.longitude }"
+      [zoom]="15"
+    >
+      <map-marker
+        [position]="{ lat: selectedLocation.latitude, lng: selectedLocation.longitude }"
+        [label]="selectedLocation.label || selectedLocation.driverId"
+      ></map-marker>
+    </google-map>
+  </div>
+</div>

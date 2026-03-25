@@ -1,0 +1,43 @@
+<div class="flex h-full">
+  <!-- 🧍 Sidebar for Driver List -->
+  <app-driver-sidebar
+    [drivers]="filteredDrivers"
+    [focusedDriverId]="selectedDriverId"
+    (focusDriver)="onFocusDriver($event)"
+  >
+  </app-driver-sidebar>
+
+  <!--  Map Area -->
+  <div class="relative flex-1">
+    <!-- 🔍 Zone Filter Dropdown -->
+    <div class="absolute z-10 p-2 bg-white rounded shadow top-4 left-4">
+      <select (change)="onZoneChange($event)" class="p-1 border rounded">
+        <option value="">All Zones</option>
+        <option value="north">North</option>
+        <option value="south">South</option>
+        <option value="east">East</option>
+        <option value="west">West</option>
+      </select>
+    </div>
+
+    <!-- 🌍 Google Map Component -->
+    <google-map
+      height="100%"
+      width="100%"
+      [center]="mapOptions.center"
+      [zoom]="mapOptions.zoom"
+      [options]="{ gestureHandling: 'greedy' }"
+    >
+      <!-- Driver Markers -->
+      <map-marker
+        *ngFor="let driver of filteredDrivers"
+        [position]="{ lat: driver.latitude, lng: driver.longitude }"
+        [label]="driver.label || driver.driverId"
+        [title]="generateTooltip(driver)"
+        [icon]="getMarkerIcon(driver)"
+        (mapClick)="onFocusDriver(driver)"
+      >
+      </map-marker>
+    </google-map>
+  </div>
+</div>

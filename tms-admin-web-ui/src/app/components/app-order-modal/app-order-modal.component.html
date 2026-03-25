@@ -1,0 +1,75 @@
+<!-- Order Selection Modal -->
+<div
+  *ngIf="visible"
+  class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm"
+>
+  <div class="w-full max-w-2xl p-6 mx-4 transition-all duration-300 bg-white rounded-lg shadow-xl">
+    <!-- Modal Header -->
+    <div class="flex items-center justify-between pb-3 mb-4 border-b border-gray-200">
+      <h2 class="text-lg font-semibold text-gray-800">Select Transport Order</h2>
+      <button
+        class="text-xl text-gray-500 hover:text-red-600 focus:outline-none"
+        (click)="cancel()"
+        aria-label="Close Modal"
+      >
+        ✖
+      </button>
+    </div>
+
+    <!-- Search Input -->
+    <div class="relative mb-4">
+      <input
+        type="text"
+        [(ngModel)]="searchText"
+        (input)="onSearchInputChange()"
+        placeholder="Search by reference, customer, or status..."
+        class="w-full px-4 py-2 pr-10 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+      />
+      <span class="absolute right-3 top-2.5 text-gray-400 text-sm">⌕</span>
+    </div>
+
+    <!-- Order List -->
+    <div class="overflow-y-auto border border-gray-200 rounded max-h-80">
+      <ul *ngIf="orders.length > 0; else noResults">
+        <li
+          *ngFor="let order of orders"
+          (click)="select(order)"
+          tabindex="0"
+          (keydown.enter)="select(order)"
+          class="p-4 border-b cursor-pointer last:border-b-0 hover:bg-blue-50 focus:bg-blue-100 focus:outline-none"
+        >
+          <div class="text-sm font-semibold text-gray-800">
+            {{ order.orderReference || 'Order #' + order.id }}
+          </div>
+          <div class="mt-1 text-xs text-gray-600">
+            Customer: {{ order.customerName || 'N/A' }} • Status: {{ order.status }}
+          </div>
+        </li>
+      </ul>
+
+      <!-- No Results -->
+      <ng-template #noResults>
+        <div class="p-4 text-sm text-center text-gray-500">No orders found.</div>
+      </ng-template>
+    </div>
+
+    <!-- Loading Indicator (optional) -->
+    <div
+      *ngIf="orders.length === 0 && searchText.length < 2"
+      class="mt-4 text-sm text-center text-blue-500"
+    >
+      🔄 Loading orders...
+    </div>
+
+    <!-- Modal Footer -->
+    <div class="flex justify-end mt-6">
+      <button
+        type="button"
+        class="px-4 py-2 text-white bg-gray-400 rounded hover:bg-gray-500"
+        (click)="cancel()"
+      >
+        Cancel
+      </button>
+    </div>
+  </div>
+</div>

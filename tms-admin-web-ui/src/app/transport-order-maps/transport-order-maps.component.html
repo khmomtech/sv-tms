@@ -1,0 +1,104 @@
+<div class="split-layout">
+  <!--  Transport Order Form -->
+  <div class="p-3 bg-white left-pane">
+    <h4 class="mb-3">📝 Add Shipment Order</h4>
+
+    <div class="mb-3 row">
+      <div class="col-md-6">
+        <label for="origin">Origin</label>
+        <gmp-place-autocomplete
+          id="origin"
+          input-text="Origin"
+          class="autocomplete w-100"
+        ></gmp-place-autocomplete>
+      </div>
+      <div class="col-md-6">
+        <label for="destination">Main Destination</label>
+        <gmp-place-autocomplete
+          id="destination"
+          input-text="Destination"
+          class="autocomplete w-100"
+        ></gmp-place-autocomplete>
+      </div>
+    </div>
+
+    <div class="mb-3 row">
+      <div class="col-md-6">
+        <label for="truckNo">Truck No.</label>
+        <input id="truckNo" class="form-control" [(ngModel)]="truckNo" />
+      </div>
+      <div class="col-md-6">
+        <label for="driver">Driver</label>
+        <input id="driver" class="form-control" [(ngModel)]="driver" />
+      </div>
+    </div>
+
+    <div class="mb-4 row">
+      <div class="col-md-6">
+        <label for="eta">ETA</label>
+        <input id="eta" type="date" class="form-control" [(ngModel)]="eta" />
+      </div>
+    </div>
+
+    <!-- Drop-off Points -->
+    <h5>Drop-off Points</h5>
+    <ul class="mb-3 list-group">
+      <li
+        class="list-group-item d-flex align-items-center"
+        *ngFor="let drop of drops; let i = index"
+      >
+        <input
+          class="form-control me-2"
+          [(ngModel)]="drops[i]"
+          (blur)="calculateRoute()"
+          placeholder="Drop Location"
+        />
+        <button type="button" class="btn btn-sm btn-danger" (click)="removeDrop(i)">🗑️</button>
+      </li>
+    </ul>
+    <button type="button" class="mb-4 btn btn-outline-primary btn-sm" (click)="addDrop()">
+      ➕ Add Drop Location
+    </button>
+
+    <!--  Shipment Items -->
+    <h5>Shipment Items</h5>
+    <table class="table table-bordered table-sm">
+      <thead class="table-light">
+        <tr>
+          <th>#</th>
+          <th>Description</th>
+          <th>Qty</th>
+          <th>Type</th>
+          <th>Weight</th>
+          <th>Drop</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let item of shipmentItems; let i = index">
+          <td>{{ i + 1 }}</td>
+          <td><input class="form-control form-control-sm" [(ngModel)]="item.description" /></td>
+          <td>
+            <input type="number" class="form-control form-control-sm" [(ngModel)]="item.qty" />
+          </td>
+          <td><input class="form-control form-control-sm" [(ngModel)]="item.type" /></td>
+          <td>
+            <input type="number" class="form-control form-control-sm" [(ngModel)]="item.weight" />
+          </td>
+          <td><input class="form-control form-control-sm" [(ngModel)]="item.drop" /></td>
+          <td>
+            <button type="button" class="btn btn-sm btn-danger" (click)="removeRow(i)">🗑️</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <button type="button" class="btn btn-success btn-sm" (click)="addRow()">➕ Add</button>
+  </div>
+
+  <!--  Map View -->
+  <div class="right-pane map-container position-relative">
+    <div #mapRef id="map"></div>
+    <div id="totalSummary" class="p-2 bg-light border-top">{{ routeSummary }}</div>
+    <div id="legDetails" class="p-2" [innerHTML]="routeDetails"></div>
+  </div>
+</div>

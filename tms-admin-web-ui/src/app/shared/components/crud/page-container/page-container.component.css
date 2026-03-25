@@ -1,0 +1,39 @@
+/* PageContainer Component Styles */
+
+.page-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* Ensure proper spacing for content projection */
+::ng-deep [stats] {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+::ng-deep [filters] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+}
+
+::ng-deep [headerActions] {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  ::ng-deep [stats] {
+    grid-template-columns: 1fr;
+  }
+
+  ::ng-deep [filters] {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

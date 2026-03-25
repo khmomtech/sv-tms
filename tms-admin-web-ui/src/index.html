@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#1976d2" />
+    <meta
+      name="description"
+      content="SV-TMS Logistics Dashboard - Fleet and dispatch management system"
+    />
+    <link rel="manifest" href="manifest.json" />
+    <title>Logistics Dashboard - SV-TMS</title>
+
+    <!--  Required for Angular Routing -->
+    <base href="/" />
+
+    <!-- Bootstrap Icons are bundled via angular.json styles from node_modules -->
+
+    <!--  Runtime configuration (generated from env.template.js) -->
+    <script src="assets/env.js"></script>
+    <script>
+      (function (env) {
+        if (!env) {
+          console.warn('[Env] window.__env is not defined. Google Maps script not loaded.');
+          return;
+        }
+        var key = env.googleMapsApiKey;
+        if (!key) {
+          console.warn('[Env] googleMapsApiKey missing; Maps will require manual loading.');
+          return;
+        }
+        var googleScript = document.createElement('script');
+        googleScript.src =
+          'https://maps.googleapis.com/maps/api/js?key=' +
+          encodeURIComponent(key) +
+          '&libraries=places,marker,drawing&v=weekly';
+        googleScript.async = true;
+        googleScript.defer = true;
+        document.head.appendChild(googleScript);
+      })(window.__env);
+    </script>
+
+    <!--  Fonts and Icons -->
+    <!-- Roboto (Latin) and Noto Sans Khmer (Khmer glyphs) -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+Khmer:wght@300;400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+
+    <!--  Optional Styling Reset or Global CSS -->
+    <style>
+      body {
+        font-family: 'Roboto', sans-serif;
+        margin: 0;
+        padding: 0;
+      }
+      #map {
+        height: 100%;
+        width: 100%;
+      }
+    </style>
+  </head>
+
+  <body>
+    <!--  Angular Root -->
+    <app-root></app-root>
+
+    <!--  Fix global reference for some JS libs like SockJS -->
+    <script>
+      window.global = window;
+    </script>
+  </body>
+</html>

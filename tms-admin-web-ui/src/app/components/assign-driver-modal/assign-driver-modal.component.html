@@ -1,0 +1,49 @@
+<!-- Modal Overlay -->
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/75">
+  <div class="w-full max-w-md p-6 bg-white rounded shadow-xl">
+    <h3 class="mb-4 text-lg font-semibold">👤 Assign Driver</h3>
+
+    <form [formGroup]="form" (ngSubmit)="submit()">
+      <!-- Driver Autocomplete Component -->
+      <app-driver-autocomplete
+        [drivers]="drivers"
+        [label]="'Select Driver'"
+        [placeholder]="'Search driver by name or phone...'"
+        [required]="true"
+        [showStatus]="true"
+        [errorMessage]="
+          form.get('driverId')?.invalid && form.get('driverId')?.touched
+            ? 'Driver selection is required.'
+            : ''
+        "
+        formControlName="driverId"
+      ></app-driver-autocomplete>
+
+      <label
+        *ngIf="allowForceReassignment"
+        class="mt-4 flex items-center gap-2 rounded border border-orange-200 bg-orange-50 px-3 py-2 text-sm text-orange-800"
+      >
+        <input type="checkbox" formControlName="forceReassignment" />
+        Force reassignment (override validation checks)
+      </label>
+
+      <div class="flex justify-end gap-2 mt-6">
+        <button
+          type="button"
+          (click)="cancel()"
+          class="px-4 py-2 border border-gray-300 rounded hover:bg-gray-100"
+        >
+          Cancel
+        </button>
+
+        <button
+          type="submit"
+          class="px-4 py-2 text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50"
+          [disabled]="form.invalid"
+        >
+          Assign
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

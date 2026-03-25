@@ -1,0 +1,67 @@
+<div class="p-6 space-y-6">
+  <div class="flex items-center justify-between border-b pb-3">
+    <h3 class="text-lg font-semibold text-slate-800">Items / Pallets</h3>
+    <button
+      class="px-4 py-2 text-sm text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-xl"
+      (click)="addItem.emit()"
+    >
+      ＋ Add Item
+    </button>
+  </div>
+
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-100 text-slate-500 text-[11px] uppercase tracking-[0.15em]">
+        <tr>
+          <th class="py-3 px-4">Qty</th>
+          <th class="py-3 px-4">Unit</th>
+          <th class="py-3 px-4">Item Name</th>
+          <th class="py-3 px-4">Pallet</th>
+          <th class="py-3 px-4">Size</th>
+          <th class="py-3 px-4">Weight</th>
+          <th class="py-3 px-4">From</th>
+          <th class="py-3 px-4">To</th>
+          <th class="py-3 px-4">Warehouse</th>
+          <th class="py-3 px-4">Dept.</th>
+          <th class="py-3 px-4">Actions</th>
+        </tr>
+      </thead>
+      <tbody *ngIf="items.length > 0">
+        <tr
+          *ngFor="let item of items; let i = index"
+          class="border-b border-slate-100 hover:bg-slate-50 transition"
+        >
+          <td class="px-3 py-3">{{ item.qty }}</td>
+          <td class="px-3 py-3">{{ item.unit }}</td>
+          <td class="px-3 py-3">{{ item.name }}</td>
+          <td class="px-3 py-3">{{ item.pallet }}</td>
+          <td class="px-3 py-3">{{ item.size }}</td>
+          <td class="px-3 py-3">{{ item.weight }}</td>
+          <td class="px-3 py-3">{{ item.from }}</td>
+          <td class="px-3 py-3">{{ item.to }}</td>
+          <td class="px-3 py-3">{{ item.warehouse }}</td>
+          <td class="px-3 py-3">{{ item.department }}</td>
+          <td class="px-3 py-3 space-x-2">
+            <button
+              (click)="editItem.emit(i)"
+              class="px-3 py-1 text-xs rounded-full bg-yellow-100 text-amber-700"
+            >
+              Edit
+            </button>
+            <button
+              (click)="deleteItem.emit(i)"
+              class="px-3 py-1 text-xs rounded-full bg-red-100 text-red-600"
+            >
+              Delete
+            </button>
+          </td>
+        </tr>
+      </tbody>
+      <tbody *ngIf="items.length === 0">
+        <tr class="text-slate-500">
+          <td colspan="11" class="py-6 text-center italic">No items added yet.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

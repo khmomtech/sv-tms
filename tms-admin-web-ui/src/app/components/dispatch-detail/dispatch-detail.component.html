@@ -1,0 +1,620 @@
+<div class="p-6 mx-auto bg-white rounded shadow max-w-7xl">
+  <!-- Action Buttons -->
+  <div class="flex justify-end gap-2 mb-4">
+    <button
+      (click)="printTripDetails()"
+      class="px-4 py-2 text-sm text-white bg-blue-600 rounded hover:bg-blue-700"
+    >
+      🖨️ Print
+    </button>
+    <button
+      (click)="exportTripDetailsToPDF()"
+      class="px-4 py-2 text-sm text-white bg-green-600 rounded hover:bg-green-700"
+    >
+      📄 Export PDF
+    </button>
+  </div>
+
+  <!-- Content to Print/Export -->
+  <div id="tripDetailsContent" class="html2canvas-ignore" #tripDetailsContent>
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h2 class="text-3xl font-bold text-gray-800">Delivery Note</h2>
+        <p class="text-sm text-gray-500">Full delivery journey and status details</p>
+      </div>
+      <span
+        class="px-3 py-1 text-sm font-semibold text-white rounded"
+        [ngClass]="{
+          'bg-yellow-600': dispatch?.status === 'PENDING',
+          'bg-green-600': dispatch?.status === 'DELIVERED',
+          'bg-red-600': dispatch?.status === 'CANCELLED',
+        }"
+      >
+        {{ dispatch?.status }}
+      </span>
+    </div>
+
+    <div *ngIf="dispatch; else loading">
+      <!-- Trip Summary Cards -->
+      <div class="grid grid-cols-1 gap-6 mb-6 md:grid-cols-3">
+        <div class="p-4 rounded shadow bg-gray-50">
+          <h4 class="mb-2 font-semibold text-gray-700">Trip Info</h4>
+          <p><strong>Trip ID:</strong> {{ dispatch.id }}</p>
+          <p><strong>Route Code:</strong> {{ dispatch.routeCode }}</p>
+          <p class="flex items-center gap-2">
+            <strong>Ref:</strong>
+            <span class="px-2 py-0.5 rounded border font-mono">{{ dispatch.orderReference }}</span>
+            <button
+              type="butto no-print "
+              (click)="copy(dispatch.orderReference)"
+              class="px-2 py-1 text-xs border rounded no-print hover:bg-gray-50"
+            >
+              Copy
+            </button>
+          </p>
+          <p><strong>Trip No:</strong> {{ dispatch.transportOrder?.tripNo || '-' }}</p>
+        </div>
+
+        <div class="p-4 rounded shadow bg-gray-50">
+          <h4 class="mb-2 font-semibold text-gray-700">Timing</h4>
+          <p>
+            <strong>Start:</strong> {{ toDate(dispatch.startTime) | date: 'dd-MMM-yyyy HH:mm' }}
+          </p>
+          <p>
+            <strong>ETA:</strong>
+            {{
+              dispatch.estimatedArrival
+                ? (toDate(dispatch.estimatedArrival)
+                  | date
+                    : 'dd-MMM-yyyy
+            HH:mm')
+                : '-'
+            }}
+          </p>
+          <p>
+            <strong>Delivery:</strong>
+            {{
+              dispatch.expectedDelivery
+                ? (toDate(dispatch.expectedDelivery) | date: 'dd-MMM-yyyy HH:mm')
+                : '-'
+            }}
+          </p>
+          <p class="text-xs text-gray-500">TZ: {{ toDate(dispatch.startTime) | date: 'zzz' }}</p>
+        </div>
+
+        <div class="p-4 rounded shadow bg-gray-50">
+          <h4 class="mb-2 font-semibold text-gray-700">Driver & Vehicle</h4>
+          <p><strong>Name:</strong> {{ dispatch.driverName || '-' }}</p>
+          <p>
+            <strong>Phone:</strong>
+            <ng-container *ngIf="dispatch.driverPhone; else noPhone">
+              <a [href]="'tel:' + dispatch.driverPhone" class="text-blue-600 underline">{{
+                dispatch.driverPhone
+              }}</a>
+            </ng-container>
+            <ng-template #noPhone>-</ng-template>
+          </p>
+          <p>
+            <strong>Plate:</strong>
+            {{ dispatch.licensePlate || dispatch.transportOrder?.truckNumber || '-' }}
+          </p>
+        </div>
+      </div>
+
+      <div class="p-4 mb-6 bg-white border rounded">
+        <h3 class="mb-2 text-lg font-semibold">Locations</h3>
+
+        <div *ngIf="dispatch.transportOrder?.stops?.length > 0">
+          <div *ngFor="let stop of dispatch.transportOrder.stops" class="mb-2">
+            <p>
+              <strong>{{ stop.type === 'PICKUP' ? 'Loading' : 'Unloading' }}:</strong>
+              {{ stop.address?.name }} - {{ stop.address?.address }}
+            </p>
+          </div>
+        </div>
+
+        <div *ngIf="!dispatch.transportOrder?.stops?.length">
+          <p><strong>Loading:</strong> {{ dispatch.pickupLocation }}</p>
+          <p><strong>Unloading:</strong> {{ dispatch.dropoffLocation }}</p>
+        </div>
+      </div>
+
+      <!-- Order Items -->
+      <div class="p-4 mb-6 bg-white border rounded" *ngIf="dispatch.transportOrder?.items?.length">
+        <h3 class="mb-2 text-lg font-semibold">Order Items</h3>
+        <div class="overflow-auto max-h-[420px]">
+          <table class="min-w-full text-sm text-left border">
+            <thead class="text-white bg-blue-600">
+              <tr>
+                <th class="p-2" scope="col">#</th>
+                <th class="p-2" scope="col">Item Code</th>
+                <th class="p-2" scope="col">Item Name</th>
+                <th class="p-2" scope="col">Type</th>
+                <th class="p-2 text-right" scope="col">Qty</th>
+                <th class="p-2" scope="col">UOM</th>
+                <th class="p-2 text-right" scope="col">Pallet</th>
+                <th class="p-2" scope="col">From</th>
+                <th class="p-2" scope="col">To</th>
+                <th class="p-2" scope="col">Warehouse</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                *ngFor="let it of dispatch.transportOrder.items; let i = index"
+                class="odd:bg-white even:bg-gray-50"
+              >
+                <td class="p-2">{{ i + 1 }}</td>
+                <td class="p-2">{{ it.itemCode }}</td>
+                <td class="p-2">{{ it.itemName }}</td>
+                <td class="p-2">{{ it.itemType }}</td>
+                <td class="p-2 text-right">{{ it.quantity }}</td>
+                <td class="p-2">{{ it.unitOfMeasurement }}</td>
+                <td class="p-2 text-right">{{ it.palletType }}</td>
+                <td class="p-2">{{ it.fromDestination || '-' }}</td>
+                <td class="p-2">{{ it.toDestination || '-' }}</td>
+                <td class="p-2">{{ it.warehouse || '-' }}</td>
+              </tr>
+            </tbody>
+            <tfoot class="font-semibold">
+              <tr>
+                <td class="p-2" colspan="4">Totals</td>
+                <td class="p-2 text-right">{{ totalQty(dispatch.transportOrder.items) }}</td>
+                <td class="p-2"></td>
+                <td class="p-2 text-right">{{ totalPallets(dispatch.transportOrder.items) }}</td>
+                <td class="p-2" colspan="3"></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- Proof Section -->
+      <div class="grid grid-cols-1 gap-6 mb-6 lg:grid-cols-2">
+        <!-- Loading Proof -->
+        <div
+          class="p-4 bg-white border rounded shadow"
+          *ngIf="dispatch.loadingProofImages?.length || dispatch.loadingSignature"
+        >
+          <h3 class="mb-2 text-lg font-semibold">📦 Loading Proof</h3>
+          <div class="flex flex-wrap gap-4">
+            <img
+              *ngFor="let img of dispatch.loadingProofImages || []; let i = index"
+              [src]="buildUploadUrl(img)"
+              (click)="openPreview(dispatch.loadingProofImages || [], i)"
+              class="object-cover w-40 h-40 border rounded shadow cursor-pointer"
+              (error)="onImageError($event, true)"
+            />
+          </div>
+          <div *ngIf="dispatch.loadingSignature" class="mt-3">
+            <p><strong>Signature:</strong></p>
+            <img
+              [src]="dispatch.loadingSignature"
+              class="w-48 h-auto border rounded"
+              alt="Loading Signature"
+              (error)="onImageError($event, false)"
+            />
+          </div>
+        </div>
+
+        <!-- Unloading Proof -->
+        <div
+          class="p-4 bg-white border rounded shadow"
+          *ngIf="dispatch.unloadingProofImages?.length || dispatch.unloadingSignature"
+        >
+          <h3 class="mb-2 text-lg font-semibold">📥 Unloading Proof</h3>
+          <div class="flex flex-wrap gap-4">
+            <img
+              *ngFor="let img of dispatch.unloadingProofImages || []; let i = index"
+              [src]="buildUploadUrl(img)"
+              (click)="openPreview(dispatch.unloadingProofImages || [], i)"
+              class="object-cover w-40 h-40 border rounded shadow cursor-pointer"
+              (error)="onImageError($event, true)"
+            />
+          </div>
+          <div *ngIf="dispatch.unloadingSignature" class="mt-3">
+            <p><strong>Signature:</strong></p>
+            <img
+              [src]="dispatch.unloadingSignature"
+              class="w-48 h-auto border rounded"
+              alt="Unloading Signature"
+              (error)="onImageError($event, false)"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- Location Logs -->
+      <div class="mb-6" *ngIf="dispatch.locationLogs?.length">
+        <h3 class="mb-2 text-lg font-semibold">Tracking History</h3>
+        <p *ngIf="dispatch.lastLocation">
+          <strong>Last Location:</strong>
+          <a
+            [href]="
+              'https://maps.google.com/?q=' +
+              dispatch.lastLocation.lat +
+              ',' +
+              dispatch.lastLocation.lng
+            "
+            target="_blank"
+            class="text-blue-600 underline"
+          >
+            {{ dispatch.lastLocation.lat }}, {{ dispatch.lastLocation.lng }}
+          </a>
+        </p>
+
+        <div class="mt-2 overflow-auto border rounded max-h-64">
+          <table class="min-w-full text-sm text-left">
+            <thead class="sticky top-0 z-10">
+              <tr>
+                <th class="p-2">#</th>
+                <th class="p-2">Latitude</th>
+                <th class="p-2">Longitude</th>
+                <th class="p-2">Timestamp</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let log of dispatch.locationLogs; let i = index">
+                <td class="p-2">{{ i + 1 }}</td>
+                <td class="p-2">{{ log.lat }}</td>
+                <td class="p-2">{{ log.lng }}</td>
+                <td class="p-2">{{ toDate(log.timestamp) | date: 'dd-MMM-yyyy HH:mm:ss' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Dispatch Status History -->
+      <div class="pl-4 border-l-2">
+        <h3 class="mb-4 text-lg font-semibold">
+          Dispatch Status History — {{ dispatch.orderReference }}
+        </h3>
+        <div *ngFor="let entry of statusHistory" class="relative mb-6">
+          <div
+            class="absolute w-4 h-4 bg-blue-600 border-2 border-white rounded-full shadow -left-2 top-1"
+          ></div>
+          <div class="ml-4">
+            <p class="text-sm text-gray-600">
+              <strong>{{ toDate(entry.updatedAt) | date: 'dd-MMM-yyyy HH:mm' }}</strong
+              ><br />
+              <strong>Status:</strong> {{ entry.status }}<br />
+              <strong>By:</strong> {{ entry.updatedBy }}<br />
+              <span *ngIf="entry.remarks" class="italic text-gray-500">"{{ entry.remarks }}"</span
+              ><br />
+              <span *ngIf="entry.latitude && entry.longitude">
+                📍
+                <a
+                  class="text-blue-600 underline"
+                  target="_blank"
+                  [href]="'https://maps.google.com/?q=' + entry.latitude + ',' + entry.longitude"
+                >
+                  {{ entry.latitude }}, {{ entry.longitude }}
+                </a>
+              </span>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading Template -->
+  <ng-template #loading>
+    <p>⏳ Loading dispatch details...</p>
+  </ng-template>
+
+  <!-- Preview Modal -->
+  <app-image-preview-modal
+    *ngIf="showModal"
+    [images]="modalImages"
+    [currentIndex]="currentImageIndex"
+    (closeModal)="showModal = false"
+    (next)="currentImageIndex = (currentImageIndex + 1) % modalImages.length"
+    (prev)="currentImageIndex = (currentImageIndex - 1 + modalImages.length) % modalImages.length"
+  >
+  </app-image-preview-modal>
+</div>
+
+<style>
+  @media print {
+    /* ===== GLOBAL PRINT SETTINGS ===== */
+    * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
+    }
+
+    /* ===== PAGE LAYOUT ===== */
+    /* A4: 210mm x 297mm, 10mm margins on all sides */
+    body {
+      margin: 0;
+      padding: 10mm; /* Consistent with PDF export */
+      background: white;
+      font-family: Helvetica, Arial, sans-serif;
+    }
+
+    /* ===== CONTAINER & SHADOWS ===== */
+    .p-6.mx-auto.bg-white.rounded.shadow.max-w-7xl {
+      max-width: 100%;
+      margin: 0;
+      padding: 0;
+      box-shadow: none;
+      border: none;
+    }
+
+    /* ===== HIDE INTERACTIVE ELEMENTS ===== */
+    .html2canvas-ignore,
+    button,
+    .no-print,
+    app-image-preview-modal {
+      display: none !important;
+    }
+
+    /* ===== HEADERS & TEXT ===== */
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+      page-break-after: avoid;
+      margin: 0;
+      color: #1f2937 !important; /* gray-800 */
+    }
+
+    h2 {
+      font-size: 24pt;
+      margin-bottom: 8pt;
+    }
+
+    h3 {
+      font-size: 16pt;
+      margin-bottom: 6pt;
+    }
+
+    h4 {
+      font-size: 14pt;
+      margin-bottom: 4pt;
+    }
+
+    p {
+      margin: 4px 0;
+      widows: 2;
+      orphans: 2;
+      color: #1f2937 !important; /* gray-800 */
+    }
+
+    /* ===== STATUS BADGE COLORS ===== */
+    /* Must match Tailwind color definitions */
+    .bg-yellow-600 {
+      background-color: #ca8a04 !important;
+      color: white !important;
+    }
+
+    .bg-green-600 {
+      background-color: #16a34a !important;
+      color: white !important;
+    }
+
+    .bg-red-600 {
+      background-color: #dc2626 !important;
+      color: white !important;
+    }
+
+    .bg-blue-600 {
+      background-color: #2563eb !important;
+      color: white !important;
+    }
+
+    /* ===== CARD BACKGROUNDS ===== */
+    .bg-gray-50 {
+      background-color: #f9fafb !important;
+      color: #1f2937 !important;
+    }
+
+    .bg-gray-100 {
+      background-color: #f3f4f6 !important;
+    }
+
+    .bg-white {
+      background-color: white !important;
+    }
+
+    /* ===== TEXT COLORS ===== */
+    .text-gray-800 {
+      color: #1f2937 !important;
+    }
+
+    .text-gray-600 {
+      color: #4b5563 !important;
+    }
+
+    .text-gray-500 {
+      color: #6b7280 !important;
+    }
+
+    .text-white {
+      color: white !important;
+    }
+
+    .text-blue-600 {
+      color: #2563eb !important;
+    }
+
+    /* ===== BORDERS ===== */
+    .border {
+      border: 1px solid #000 !important;
+    }
+
+    .border-gray-300 {
+      border-color: #d1d5db !important;
+    }
+
+    .border-l-2 {
+      border-left: 2px solid #000 !important;
+    }
+
+    /* ===== GRID LAYOUT FOR CARDS ===== */
+    .grid {
+      display: block !important;
+      margin-bottom: 20px;
+    }
+
+    .grid > div {
+      margin-bottom: 15px;
+      page-break-inside: avoid;
+    }
+
+    .md\:grid-cols-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    /* ===== SPACING & PADDING ===== */
+    .p-4 {
+      padding: 12pt !important;
+    }
+
+    .p-6 {
+      padding: 16pt !important;
+    }
+
+    .mb-6 {
+      margin-bottom: 15pt !important;
+    }
+
+    .mb-4 {
+      margin-bottom: 10pt !important;
+    }
+
+    .mb-2 {
+      margin-bottom: 6pt !important;
+    }
+
+    /* ===== TABLE STYLING ===== */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      page-break-inside: avoid;
+      margin: 15pt 0;
+      font-size: 9pt;
+    }
+
+    thead {
+      display: table-header-group; /* Repeat headers on new pages */
+      background-color: #2563eb !important; /* blue-600 */
+      color: white !important;
+      font-weight: bold;
+    }
+
+    tbody {
+      display: table-row-group;
+    }
+
+    tfoot {
+      display: table-footer-group; /* Repeat footers on new pages */
+      background-color: #f9fafb !important; /* gray-50 */
+      font-weight: bold;
+      color: #1f2937 !important; /* gray-800 */
+    }
+
+    tr {
+      page-break-inside: avoid;
+      border: none;
+    }
+
+    th,
+    td {
+      border: 1px solid #000 !important;
+      padding: 8pt !important;
+      text-align: left;
+      color: #1f2937 !important; /* gray-800 */
+    }
+
+    th {
+      background-color: #2563eb !important; /* blue-600 */
+      color: white !important;
+      font-weight: bold;
+    }
+
+    /* Alternating row colors */
+    tbody tr:nth-child(even) {
+      background-color: #f9fafb !important; /* gray-50 */
+    }
+
+    tbody tr:nth-child(odd) {
+      background-color: white !important;
+    }
+
+    /* ===== IMAGES ===== */
+    img {
+      max-width: 100%;
+      height: auto;
+      page-break-inside: avoid;
+      margin: 10px 0;
+      border: 1px solid #d1d5db !important;
+    }
+
+    /* ===== OVERFLOW & SCROLLABLE CONTENT ===== */
+    .overflow-auto {
+      overflow: visible !important;
+      max-height: none !important;
+      height: auto !important;
+    }
+
+    .overflow-hidden {
+      overflow: visible !important;
+    }
+
+    /* ===== TIMELINE ===== */
+    .pl-4.border-l-2 {
+      border-left: 2px solid #000 !important;
+      page-break-inside: avoid;
+      padding-left: 12pt !important;
+    }
+
+    /* ===== LINKS ===== */
+    a {
+      color: #2563eb !important;
+      text-decoration: underline !important;
+    }
+
+    /* ===== FLEX LAYOUT ===== */
+    .flex {
+      display: flex;
+    }
+
+    .justify-between {
+      justify-content: space-between;
+    }
+
+    .items-center {
+      align-items: center;
+    }
+
+    .gap-2 {
+      gap: 8pt;
+    }
+
+    /* ===== PAGE BREAKS ===== */
+    .page-break {
+      page-break-before: always;
+    }
+
+    /* ===== UTILITY ===== */
+    .rounded {
+      border-radius: 0; /* Remove for print */
+    }
+
+    .shadow {
+      box-shadow: none !important;
+    }
+
+    .no-break {
+      page-break-inside: avoid;
+      page-break-before: avoid;
+      page-break-after: avoid;
+    }
+  }
+</style>

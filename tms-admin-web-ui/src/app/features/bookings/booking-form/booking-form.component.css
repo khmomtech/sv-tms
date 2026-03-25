@@ -1,0 +1,87 @@
+/* Booking form styles */
+
+/* ng-select Custom Styling */
+::ng-deep .custom-ng-select .ng-select-container {
+  border-radius: 0.75rem;
+  border: 1px solid rgb(226 232 240);
+  min-height: 42px;
+  background: white;
+}
+
+::ng-deep .custom-ng-select.ng-select-focused .ng-select-container {
+  border-color: rgb(251 146 60);
+  border-width: 2px;
+  box-shadow: 0 0 0 3px rgb(251 146 60 / 0.1);
+}
+
+::ng-deep .custom-ng-select .ng-input input {
+  font-size: 0.875rem;
+  color: rgb(51 65 85);
+}
+
+::ng-deep .custom-ng-select .ng-placeholder {
+  color: rgb(148 163 184);
+  font-size: 0.875rem;
+}
+
+::ng-deep .custom-ng-select .ng-value {
+  font-size: 0.875rem;
+  color: rgb(51 65 85);
+}
+
+/* Dropdown panel styling */
+::ng-deep .ng-dropdown-panel {
+  border-radius: 0.75rem;
+  box-shadow:
+    0 10px 15px -3px rgb(0 0 0 / 0.1),
+    0 4px 6px -4px rgb(0 0 0 / 0.1);
+  border: 1px solid rgb(226 232 240);
+  margin-top: 0.25rem;
+}
+
+::ng-deep .ng-dropdown-panel .ng-dropdown-panel-items {
+  max-height: 300px;
+}
+
+::ng-deep .ng-dropdown-panel .ng-option {
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid rgb(241 245 249);
+  background: white;
+  color: rgb(51 65 85);
+}
+
+::ng-deep .ng-dropdown-panel .ng-option:last-child {
+  border-bottom: none;
+}
+
+::ng-deep .ng-dropdown-panel .ng-option.ng-option-marked {
+  background-color: rgb(255 247 237);
+}
+
+::ng-deep .ng-dropdown-panel .ng-option.ng-option-selected {
+  background-color: rgb(254 243 199);
+  color: rgb(51 65 85);
+}
+
+::ng-deep .ng-dropdown-panel .ng-option.ng-option-disabled {
+  color: rgb(148 163 184);
+}
+
+/* Clear button */
+::ng-deep .custom-ng-select .ng-clear-wrapper {
+  color: rgb(148 163 184);
+}
+
+::ng-deep .custom-ng-select .ng-clear-wrapper:hover {
+  color: rgb(239 68 68);
+}
+
+/* Arrow */
+::ng-deep .custom-ng-select .ng-arrow-wrapper {
+  padding-right: 0.5rem;
+}
+
+::ng-deep .custom-ng-select .ng-arrow {
+  border-color: rgb(100 116 139) transparent transparent;
+  border-width: 5px 5px 2.5px;
+}

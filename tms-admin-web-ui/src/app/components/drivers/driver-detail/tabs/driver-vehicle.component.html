@@ -1,0 +1,196 @@
+<div class="space-y-6">
+  <!-- 🚗 Assigned Vehicle Display -->
+  <div *ngIf="assignedVehicle" class="p-4 border rounded bg-green-50">
+    <h3 class="text-lg font-semibold text-green-700">Currently Assigned Vehicle</h3>
+    <p class="mt-1 text-gray-700">
+      <strong>Plate:</strong> {{ assignedVehicle.licensePlate }}<br />
+      <strong>Model:</strong> {{ assignedVehicle.model }}<br />
+      <strong>Type:</strong> {{ assignedVehicle.type }}
+    </p>
+    <button
+      (click)="confirmUnassign()"
+      class="px-4 py-2 mt-3 text-white bg-red-600 rounded hover:bg-red-700"
+    >
+      Unassign Vehicle
+    </button>
+  </div>
+
+  <!-- 🔽 Vehicle Selection -->
+  <div>
+    <mat-form-field appearance="fill" class="w-full">
+      <mat-label>Select a Vehicle</mat-label>
+      <input
+        type="text"
+        placeholder="Search vehicle"
+        aria-label="Vehicle"
+        matInput
+        [(ngModel)]="vehicleSearch"
+        [matAutocomplete]="auto"
+      />
+      <mat-autocomplete #auto="matAutocomplete" (optionSelected)="onVehicleSelected($event)">
+        <mat-option *ngFor="let vehicle of filteredVehicles" [value]="vehicle.id">
+          {{ vehicle.licensePlate }} - {{ vehicle.model }} ({{ vehicle.type }})
+        </mat-option>
+      </mat-autocomplete>
+    </mat-form-field>
+
+    <button
+      class="px-4 py-2 mt-4 text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+      [disabled]="
+        !selectedVehicleId ||
+        selectedVehicleId === driverData.assignedVehicleId ||
+        isProcessing ||
+        localSubmitting
+      "
+      (click)="confirmAssign()"
+      [attr.aria-disabled]="
+        !selectedVehicleId ||
+        selectedVehicleId === driverData.assignedVehicleId ||
+        isProcessing ||
+        localSubmitting
+      "
+    >
+      <span *ngIf="isProcessing || localSubmitting" class="inline-flex items-center gap-2">
+        <svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24">
+          <circle
+            class="opacity-25"
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="currentColor"
+            stroke-width="4"
+            fill="none"
+          ></circle>
+          <path
+            class="opacity-75"
+            fill="currentColor"
+            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+          ></path>
+        </svg>
+        Assigning...
+      </span>
+      <span *ngIf="!(isProcessing || localSubmitting)">Assign Vehicle</span>
+    </button>
+
+    <div *ngIf="allVehicles.length === 0" class="mt-2 text-sm italic text-red-500">
+      No vehicles available for assignment.
+    </div>
+  </div>
+
+  <!-- 📜 Assigned Vehicle History -->
+  <div *ngIf="assignedVehicles.length > 0" class="mt-6">
+    <h3 class="mb-3 text-lg font-semibold text-gray-800">Assigned Vehicle History</h3>
+    <div class="relative overflow-visible">
+      <table class="min-w-full text-sm text-left border border-gray-300">
+        <thead class="text-gray-700 bg-gray-100">
+          <tr>
+            <th class="px-4 py-2 border">Plate</th>
+            <th class="px-4 py-2 border">Model</th>
+            <th class="px-4 py-2 border">Type</th>
+            <th class="px-4 py-2 border">Status</th>
+            <th class="w-10 px-4 py-2 text-center border">⋯</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            *ngFor="let v of assignedVehicles"
+            [ngClass]="{ 'bg-green-50 font-medium': v.id === assignedVehicle?.id }"
+          >
+            <td class="px-4 py-2 border">{{ v.licensePlate }}</td>
+            <td class="px-4 py-2 border">{{ v.model }}</td>
+            <td class="px-4 py-2 capitalize border">{{ v.type }}</td>
+            <td class="px-4 py-2 border">{{ v.status || 'N/A' }}</td>
+            <td class="relative px-2 py-2 text-center border">
+              <button
+                (click)="toggleMenu(v.id ?? -1)"
+                class="text-gray-600 hover:text-black focus:outline-none"
+              >
+                ⋯
+              </button>
+              <div
+                *ngIf="openMenuId === v.id"
+                class="absolute right-0 z-10 w-32 mt-2 bg-white border rounded shadow-lg"
+              >
+                <ul class="text-sm text-left">
+                  <li>
+                    <button class="w-full px-4 py-2 hover:bg-gray-100" (click)="viewVehicle(v)">
+                      View
+                    </button>
+                  </li>
+                  <li>
+                    <button class="w-full px-4 py-2 hover:bg-gray-100" (click)="reassignVehicle(v)">
+                      Activate
+                    </button>
+                  </li>
+                  <li>
+                    <button class="w-full px-4 py-2 hover:bg-gray-100" (click)="editVehicle(v)">
+                      Edit
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      class="w-full px-4 py-2 text-left hover:bg-gray-100 text-red-600"
+                      (click)="deleteVehicle(v)"
+                    >
+                      Delete
+                    </button>
+                  </li>
+                </ul>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <!-- ❕ Optional: message when no history -->
+  <div *ngIf="assignedVehicles.length === 0" class="mt-4 italic text-gray-500">
+    No assigned vehicle history available.
+  </div>
+  <!--  Assign Confirmation -->
+  <div *ngIf="showAssignConfirm" class="p-4 mt-2 bg-yellow-100 border rounded">
+    <p>Are you sure you want to assign this vehicle to the driver?</p>
+    <div class="flex mt-3 space-x-3">
+      <button
+        (click)="assign()"
+        class="px-4 py-1 text-white bg-green-600 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+        [disabled]="isProcessing || localSubmitting"
+      >
+        <span *ngIf="isProcessing || localSubmitting" class="inline-flex items-center gap-2">
+          <svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24">
+            <circle
+              class="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              stroke-width="4"
+              fill="none"
+            ></circle>
+            <path
+              class="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+            ></path>
+          </svg>
+          Assigning...
+        </span>
+        <span *ngIf="!(isProcessing || localSubmitting)">Yes</span>
+      </button>
+      <button (click)="showAssignConfirm = false" class="px-4 py-1 bg-gray-300 rounded">
+        Cancel
+      </button>
+    </div>
+  </div>
+
+  <!-- 🚫 Unassign Confirmation -->
+  <div *ngIf="showUnassignConfirm" class="p-4 mt-2 bg-red-100 border rounded">
+    <p>Are you sure you want to unassign the current vehicle?</p>
+    <div class="flex mt-3 space-x-3">
+      <button (click)="unassign()" class="px-4 py-1 text-white bg-red-600 rounded">Yes</button>
+      <button (click)="showUnassignConfirm = false" class="px-4 py-1 bg-gray-300 rounded">
+        Cancel
+      </button>
+    </div>
+  </div>
+</div>

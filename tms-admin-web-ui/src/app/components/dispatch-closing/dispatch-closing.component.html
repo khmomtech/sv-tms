@@ -1,0 +1,19 @@
+<div class="page">
+  <h2>Dispatch Daily Closing</h2>
+
+  <div class="controls">
+    <label>
+      Date
+      <input type="date" [(ngModel)]="date" />
+    </label>
+    <label>
+      Reason
+      <input type="text" [(ngModel)]="reason" placeholder="Optional reason" />
+    </label>
+    <button (click)="loadStatus()">Check</button>
+    <button (click)="closeDay()">Close</button>
+    <button class="danger" (click)="reopenDay()">Reopen</button>
+  </div>
+
+  <div class="status" *ngIf="status">Status: {{ status }}</div>
+</div>

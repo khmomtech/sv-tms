@@ -1,0 +1,10 @@
+<resources>
+    <string name="default_web_client_id">1:729258825838:android:18a337e97eb9e3005d2e7f</string>
+    <string name="firebase_database_url">https://sv-driver-app.firebaseio.com</string>
+    <string name="gcm_defaultSenderId">729258825838</string>
+    <string name="google_api_key">AIzaSyB62vjX_zbexXLvsvXBUOoLM5DwtE61zbk</string>
+    <string name="google_app_id">1:729258825838:android:18a337e97eb9e3005d2e7f</string>
+    <string name="google_crash_reporting_api_key">AIzaSyB62vjX_zbexXLvsvXBUOoLM5DwtE61zbk</string>
+    <string name="google_storage_bucket">sv-driver-app.firebasestorage.app</string>
+    <string name="project_id">sv-driver-app</string>
+</resources>

@@ -1,0 +1,103 @@
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+  <div class="w-full max-w-2xl p-6 bg-white rounded-xl shadow-2xl">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <p class="text-xs uppercase text-gray-500 tracking-wide">Factory Loading</p>
+        <h3 class="text-xl font-bold text-gray-900">Pre-Loading Safety Check</h3>
+        <p class="text-sm text-gray-600">Dispatch {{ dispatchCode || dispatchId }}</p>
+      </div>
+      <button
+        type="button"
+        (click)="close()"
+        class="text-gray-500 hover:text-gray-800 transition-colors"
+        aria-label="Close"
+      >
+        ✕
+      </button>
+    </div>
+
+    <form [formGroup]="form" class="space-y-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <label class="flex items-start gap-2 text-sm text-gray-800">
+          <input type="checkbox" formControlName="driverPpeOk" class="mt-1 w-4 h-4" />
+          Driver PPE
+        </label>
+        <label class="flex items-start gap-2 text-sm text-gray-800">
+          <input type="checkbox" formControlName="fireExtinguisherOk" class="mt-1 w-4 h-4" />
+          Fire Extinguisher
+        </label>
+        <label class="flex items-start gap-2 text-sm text-gray-800">
+          <input type="checkbox" formControlName="wheelChockOk" class="mt-1 w-4 h-4" />
+          Wheel Chock
+        </label>
+        <label class="flex items-start gap-2 text-sm text-gray-800">
+          <input type="checkbox" formControlName="truckLeakageOk" class="mt-1 w-4 h-4" />
+          Truck Leakage
+        </label>
+        <label class="flex items-start gap-2 text-sm text-gray-800">
+          <input type="checkbox" formControlName="truckCleanOk" class="mt-1 w-4 h-4" />
+          Truck Cleanliness
+        </label>
+        <label class="flex items-start gap-2 text-sm text-gray-800">
+          <input type="checkbox" formControlName="truckConditionOk" class="mt-1 w-4 h-4" />
+          Truck Condition
+        </label>
+      </div>
+
+      <div class="flex items-center gap-4">
+        <label class="inline-flex items-center gap-2 text-sm font-medium text-green-700">
+          <input
+            type="radio"
+            name="result"
+            value="PASS"
+            [checked]="form.value.result === 'PASS'"
+            (change)="setResult('PASS')"
+            class="w-4 h-4"
+          />
+          PASS
+        </label>
+        <label class="inline-flex items-center gap-2 text-sm font-medium text-red-700">
+          <input
+            type="radio"
+            name="result"
+            value="FAIL"
+            [checked]="form.value.result === 'FAIL'"
+            (change)="setResult('FAIL')"
+            class="w-4 h-4"
+          />
+          FAIL
+        </label>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1"
+          >Fail reason (required if FAIL)</label
+        >
+        <textarea
+          formControlName="failReason"
+          rows="3"
+          class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          placeholder="Describe the failed item and corrective action required"
+        ></textarea>
+      </div>
+
+      <div class="flex items-center justify-end gap-2 pt-2">
+        <button
+          type="button"
+          (click)="close()"
+          class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          [disabled]="loading"
+          (click)="submit()"
+          class="px-5 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-60"
+        >
+          {{ loading ? 'Saving…' : 'Save Checklist' }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

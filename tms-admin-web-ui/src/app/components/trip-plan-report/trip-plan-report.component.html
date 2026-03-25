@@ -1,0 +1,48 @@
+<!-- <div class="container">
+  <h2>Trip Plan & Final Summary Report</h2>
+
+  <form class="mb-3 form-inline">
+    <label for="uploadDate" class="mr-2">Upload Date:</label>
+    <input type="date" [(ngModel)]="uploadDate" name="uploadDate" class="mr-3 form-control" />
+
+    <label for="zone" class="mr-2">Zone:</label>
+    <input type="text" [(ngModel)]="zone" name="zone" class="mr-3 form-control" />
+
+    <label for="distributor" class="mr-2">Distributor Code:</label>
+    <input type="text" [(ngModel)]="distributorCode" name="distributor" class="mr-3 form-control" />
+
+    <button type="button" class="btn btn-primary" (click)="fetchTripPlans()">Preview</button>
+  </form>
+
+  <div *ngIf="errorMsg" class="alert alert-danger">{{ errorMsg }}</div>
+
+  <table class="table table-bordered table-sm" *ngIf="tripPlans.length">
+    <thead class="thead-light">
+      <tr>
+        <th>#</th>
+        <th>Drop Off Location</th>
+        <th>Product</th>
+        <th>Qty</th>
+        <th>Zone</th>
+        <th>Distributor</th>
+        <th>Upload Date</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let trip of tripPlans; let i = index">
+        <td>{{ i + 1 }}</td>
+        <td>{{ trip.dropOffLocation }}</td>
+        <td>{{ trip.productName }}</td>
+        <td>{{ trip.qty }}</td>
+        <td>{{ trip.zone }}</td>
+        <td>{{ trip.distributorCode }}</td>
+        <td>{{ trip.uploadDate }}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="mt-4">
+    <button class="mr-2 btn btn-success" (click)="downloadTripPlan()">⬇ Export Trip Plan Excel</button>
+    <button class="btn btn-secondary" (click)="downloadFinalSummary()">⬇ Export Final Summary Excel</button>
+  </div>
+</div> -->

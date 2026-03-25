@@ -1,0 +1,129 @@
+<header
+  class="flex flex-wrap items-center justify-between gap-4 p-4 bg-white shadow-md sm:flex-nowrap"
+>
+  <!-- 👋 Left: Logo, Title & Sidebar Toggle -->
+  <h1
+    class="flex items-center justify-between w-full text-xl font-semibold text-gray-800 sm:text-2xl sm:w-auto sm:justify-start"
+  >
+    <!-- ☰ Sidebar Toggle -->
+    <button
+      (click)="onToggleSidebar()"
+      class="mr-4 text-2xl hover:text-blue-950 focus:outline-none"
+      [attr.aria-label]="'layout.header.toggle_sidebar' | translate"
+    >
+      ☰
+    </button>
+
+    <!-- 🏢 Company Name -->
+    <span class="flex items-center gap-2">
+      <!-- <img src="assets/svtrucking-logo.png" alt="SVTRUCKING Logo" class="w-8 h-8 rounded-full" /> -->
+      <span class="font-bold text-blue-800">{{ pageTitle || '' }}</span>
+    </span>
+    <nav
+      [attr.aria-label]="'layout.header.breadcrumb' | translate"
+      class="ml-4 text-sm text-gray-500"
+    >
+      <ol class="flex items-center gap-1">
+        <li>
+          <a routerLink="/" class="hover:underline">{{ t('Home') }}</a>
+        </li>
+        <ng-container *ngFor="let bc of breadcrumbs; let last = last">
+          <li class="px-1">/</li>
+          <li *ngIf="!last">
+            <a [routerLink]="bc.url" class="hover:underline">{{ bc.label }}</a>
+          </li>
+          <li *ngIf="last" aria-current="page" class="font-medium text-gray-700">{{ bc.label }}</li>
+        </ng-container>
+      </ol>
+    </nav>
+
+    <!-- 🔊 Test Notification Sound -->
+    <!-- <button
+      (click)="playSound('/assets/audio/notification.wav')"
+      class="ml-4 px-3 py-1.5 text-sm text-white bg-blue-500 rounded hover:bg-blue-600"
+      aria-label="Test notification sound"
+    >
+      🔊 Test Sound
+    </button> -->
+  </h1>
+
+  <!-- 🛠️ Right: Notifications + User Menu -->
+  <div
+    class="flex flex-wrap items-center justify-end w-full gap-3 sm:flex-nowrap sm:gap-4 sm:w-auto"
+  >
+    <!-- 🔔 Notifications Dropdown -->
+    <app-notification-dropdown
+      [unreadCount]="unreadCount"
+      [notifications]="notificationList"
+      [dropdownOpen]="notificationDropdownOpen"
+      (toggle)="toggleNotificationDropdown()"
+      (viewAll)="navigateToNotifications()"
+    ></app-notification-dropdown>
+
+    <div
+      class="inline-flex items-center p-1 bg-gray-100 border border-gray-200 rounded-xl"
+      role="group"
+      [attr.aria-label]="'layout.header.language_switcher' | translate"
+    >
+      <button
+        type="button"
+        class="px-3 py-1.5 text-xs font-semibold rounded-lg transition"
+        [ngClass]="
+          isLanguage('kh') ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-200'
+        "
+        (click)="setLanguage('kh')"
+      >
+        KM
+      </button>
+      <span class="px-1 text-xs text-gray-400">|</span>
+      <button
+        type="button"
+        class="px-3 py-1.5 text-xs font-semibold rounded-lg transition"
+        [ngClass]="
+          isLanguage('en') ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-200'
+        "
+        (click)="setLanguage('en')"
+      >
+        EN
+      </button>
+    </div>
+
+    <!-- 🔐 Login Button -->
+    <a
+      *ngIf="!user"
+      routerLink="/login"
+      class="px-4 py-2 text-white transition bg-green-500 hover:bg-green-600"
+    >
+      {{ t('Login') }}
+    </a>
+
+    <!-- 👤 User Menu -->
+    <div *ngIf="user" class="relative user-menu">
+      <button
+        (click)="toggleDropdown()"
+        class="flex items-center gap-3 px-4 py-2.5 text-white bg-blue-500 rounded-xl hover:bg-blue-600 shadow-sm min-w-[200px] max-w-[260px]"
+        [attr.aria-label]="'layout.header.open_user_menu' | translate"
+      >
+        <div
+          class="w-8 h-8 rounded-full bg-white/80 text-blue-700 text-[11px] font-bold flex items-center justify-center"
+        >
+          {{ (user.username || 'U').slice(0, 2).toUpperCase() }}
+        </div>
+        <span class="hidden sm:inline truncate font-medium">{{ user.username }}</span>
+      </button>
+
+      <!-- 👇 Dropdown Menu -->
+      <div
+        *ngIf="isDropdownOpen"
+        class="absolute right-0 z-10 w-48 mt-2 bg-white rounded-lg shadow-lg"
+      >
+        <button
+          (click)="logout()"
+          class="block w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-200"
+        >
+          {{ t('Logout') }}
+        </button>
+      </div>
+    </div>
+  </div>
+</header>

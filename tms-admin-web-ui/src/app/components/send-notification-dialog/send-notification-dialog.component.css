@@ -1,0 +1,118 @@
+/* Container spacing and background */
+:host ::ng-deep .mat-dialog-container {
+  box-shadow: none !important;
+  background-color: transparent;
+  padding: 0;
+  border-radius: 1rem;
+}
+
+::ng-deep .mat-mdc-dialog-surface {
+  box-shadow: none !important;
+  background-color: white !important;
+  transform: scale(1) !important;
+  border-radius: 16px !important;
+  padding: 0 !important;
+}
+
+/* Headline */
+h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1f2937; /* text-gray-800 */
+  margin-bottom: 1.5rem;
+}
+
+/* Label styling */
+label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151; /* text-gray-700 */
+  margin-bottom: 0.25rem;
+}
+
+/* Input fields and textarea */
+input,
+textarea {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #d1d5db; /* border-gray-300 */
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  color: #111827;
+  background-color: #fff;
+  transition:
+    border-color 0.3s,
+    box-shadow 0.3s;
+}
+
+input:focus,
+textarea:focus {
+  outline: none;
+  border-color: #3b82f6; /* blue-500 */
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3); /* blue-500 ring */
+}
+
+/* Error text */
+.error-text {
+  font-size: 0.75rem;
+  color: #ef4444; /* red-500 */
+  margin-top: 0.25rem;
+}
+
+/* Driver dropdown list */
+ul {
+  background-color: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  max-height: 10rem;
+  overflow-y: auto;
+  margin-top: 0.5rem;
+  padding: 0;
+  list-style-type: none;
+}
+
+li {
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+li:hover {
+  background-color: #f3f4f6; /* gray-100 */
+}
+
+/* Button section */
+button {
+  font-weight: 500;
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+button[type='button'] {
+  background-color: #6b7280; /* gray-500 */
+  color: #fff;
+}
+
+button[type='button']:hover {
+  background-color: #4b5563; /* gray-600 */
+}
+
+button[type='submit'] {
+  background-color: #3b82f6; /* blue-600 */
+  color: #fff;
+}
+
+button[type='submit']:hover {
+  background-color: #2563eb; /* blue-700 */
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

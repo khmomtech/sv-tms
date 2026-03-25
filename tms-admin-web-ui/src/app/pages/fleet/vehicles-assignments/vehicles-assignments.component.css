@@ -1,0 +1,35 @@
+.page {
+  padding: 16px;
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.table th,
+.table td {
+  border-bottom: 1px solid #e0e0e0;
+  padding: 8px;
+  text-align: left;
+}
+.chip {
+  margin-left: 8px;
+  padding: 2px 6px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+.chip-red {
+  background-color: #fdecea;
+  color: #c62828;
+}
+.chip-orange {
+  background-color: #fff3e0;
+  color: #ef6c00;
+}
+.chip-green {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+}
+.error {
+  color: #c62828;
+  margin-bottom: 12px;
+}

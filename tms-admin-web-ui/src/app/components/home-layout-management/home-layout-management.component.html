@@ -1,0 +1,244 @@
+<div class="home-layout-management">
+  <div class="header">
+    <h1>Driver Home Screen Layout</h1>
+    <div class="actions">
+      <button class="btn btn-secondary" (click)="initializeDefaults()">Initialize Defaults</button>
+      <button class="btn btn-primary" (click)="showCreateForm()">
+        <span class="icon">+</span> Add Section
+      </button>
+    </div>
+  </div>
+
+  <!-- Filter -->
+  <div class="filter-bar">
+    <label for="categoryFilter">Filter by Category:</label>
+    <select
+      id="categoryFilter"
+      [(ngModel)]="selectedCategory"
+      (change)="onCategoryChange()"
+      class="form-select"
+    >
+      <option *ngFor="let cat of categories" [value]="cat.value">
+        {{ cat.label }}
+      </option>
+    </select>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="isLoading" class="loading">
+    <div class="spinner"></div>
+    <p>Loading sections...</p>
+  </div>
+
+  <!-- Sections List (Drag & Drop) -->
+  <div *ngIf="!isLoading && !showForm" class="sections-list">
+    <p class="hint">Drag and drop to reorder sections. Toggle switches to show/hide.</p>
+
+    <div cdkDropList class="section-drop-list" (cdkDropListDropped)="onDrop($event)">
+      <div *ngFor="let section of filteredSections" class="section-card" cdkDrag>
+        <div class="drag-handle" cdkDragHandle>
+          <span class="icon">☰</span>
+        </div>
+
+        <div class="section-content">
+          <div class="section-header">
+            <div class="section-info">
+              <span class="section-icon" *ngIf="section.icon">
+                <i class="material-icons">{{ section.icon }}</i>
+              </span>
+              <div>
+                <h3>
+                  {{ section.sectionName }}
+                  <span *ngIf="section.sectionNameKh" class="khmer-text"
+                    >({{ section.sectionNameKh }})</span
+                  >
+                </h3>
+                <p class="section-key">{{ section.sectionKey }}</p>
+              </div>
+            </div>
+
+            <div class="section-controls">
+              <label class="toggle">
+                <input
+                  type="checkbox"
+                  [checked]="section.visible"
+                  [disabled]="section.isMandatory"
+                  (change)="toggleVisibility(section)"
+                />
+                <span class="toggle-slider"></span>
+                <span class="toggle-label">{{ section.visible ? 'Visible' : 'Hidden' }}</span>
+              </label>
+
+              <span *ngIf="section.isMandatory" class="badge badge-mandatory">Mandatory</span>
+              <span class="badge badge-order">Order: {{ section.displayOrder }}</span>
+              <span class="badge badge-category">{{ section.category }}</span>
+            </div>
+          </div>
+
+          <div class="section-description" *ngIf="section.description">
+            <p>{{ section.description }}</p>
+            <p *ngIf="section.descriptionKh" class="khmer-text">{{ section.descriptionKh }}</p>
+          </div>
+
+          <div class="section-actions">
+            <button class="btn btn-sm btn-secondary" (click)="editSection(section)">Edit</button>
+            <button
+              class="btn btn-sm btn-danger"
+              (click)="deleteSection(section)"
+              [disabled]="section.isMandatory"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div *ngIf="filteredSections.length === 0" class="empty-state">
+      <p>No sections found</p>
+      <button class="btn btn-primary" (click)="initializeDefaults()">
+        Initialize Default Sections
+      </button>
+    </div>
+  </div>
+
+  <!-- Form (Create/Edit) -->
+  <div *ngIf="showForm" class="form-panel">
+    <h2>{{ isEditing ? 'Edit Section' : 'Create New Section' }}</h2>
+
+    <form (ngSubmit)="saveSection()">
+      <div class="form-row">
+        <div class="form-group">
+          <label for="sectionKey">Section Key *</label>
+          <input
+            type="text"
+            id="sectionKey"
+            [(ngModel)]="sectionForm.sectionKey"
+            name="sectionKey"
+            [readonly]="isEditing"
+            placeholder="e.g., safety_status"
+            class="form-input"
+            required
+          />
+          <small>Unique identifier (lowercase, underscores only)</small>
+        </div>
+
+        <div class="form-group">
+          <label for="displayOrder">Display Order *</label>
+          <input
+            type="number"
+            id="displayOrder"
+            [(ngModel)]="sectionForm.displayOrder"
+            name="displayOrder"
+            placeholder="0"
+            class="form-input"
+            min="0"
+            required
+          />
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="sectionName">Section Name (English) *</label>
+          <input
+            type="text"
+            id="sectionName"
+            [(ngModel)]="sectionForm.sectionName"
+            name="sectionName"
+            placeholder="e.g., Safety Status"
+            class="form-input"
+            required
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="sectionNameKh">Section Name (Khmer)</label>
+          <input
+            type="text"
+            id="sectionNameKh"
+            [(ngModel)]="sectionForm.sectionNameKh"
+            name="sectionNameKh"
+            placeholder="e.g., ស្ថានភាពសុវត្ថិភាព"
+            class="form-input"
+          />
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="description">Description (English)</label>
+          <textarea
+            id="description"
+            [(ngModel)]="sectionForm.description"
+            name="description"
+            placeholder="What does this section show?"
+            class="form-input"
+            rows="2"
+          ></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="descriptionKh">Description (Khmer)</label>
+          <textarea
+            id="descriptionKh"
+            [(ngModel)]="sectionForm.descriptionKh"
+            name="descriptionKh"
+            class="form-input"
+            rows="2"
+          ></textarea>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="icon">Icon</label>
+          <select id="icon" [(ngModel)]="sectionForm.icon" name="icon" class="form-select">
+            <option *ngFor="let iconName of availableIcons" [value]="iconName">
+              {{ iconName }}
+            </option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="category">Category</label>
+          <select
+            id="category"
+            [(ngModel)]="sectionForm.category"
+            name="category"
+            class="form-select"
+          >
+            <option
+              *ngFor="let cat of categories"
+              [value]="cat.value"
+              [disabled]="cat.value === 'all'"
+            >
+              {{ cat.label }}
+            </option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="checkbox-label">
+          <input type="checkbox" [(ngModel)]="sectionForm.visible" name="visible" />
+          Visible to drivers
+        </label>
+      </div>
+
+      <div class="form-group">
+        <label class="checkbox-label">
+          <input type="checkbox" [(ngModel)]="sectionForm.isMandatory" name="isMandatory" />
+          Mandatory (cannot be hidden or deleted)
+        </label>
+      </div>
+
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" (click)="cancelForm()">Cancel</button>
+        <button type="submit" class="btn btn-primary" [disabled]="isLoading">
+          {{ isLoading ? 'Saving...' : isEditing ? 'Update Section' : 'Create Section' }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

@@ -1,0 +1,54 @@
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+  <div class="w-full max-w-md p-6 bg-white rounded-lg shadow-xl">
+    <!-- Modal Header -->
+    <div class="flex items-center justify-between pb-2 mb-4 border-b">
+      <h3 class="text-lg font-semibold text-gray-800">Select Customer</h3>
+      <button class="text-xl text-gray-400 hover:text-red-500" (click)="onClose()">✖</button>
+    </div>
+
+    <!-- Search Field -->
+    <input
+      type="text"
+      [(ngModel)]="searchText"
+      (input)="onSearchChange()"
+      placeholder="🔍 Search by name, ID, or phone"
+      class="w-full px-4 py-2 mb-4 border rounded focus:ring focus:ring-blue-300"
+    />
+
+    <!-- Search Result List -->
+    <div class="overflow-y-auto max-h-60">
+      <ul *ngIf="filteredCustomers.length > 0">
+        <li
+          *ngFor="let customer of filteredCustomers"
+          (click)="selectCustomer(customer)"
+          class="p-3 border-b cursor-pointer hover:bg-blue-50"
+        >
+          <div class="font-medium text-gray-800">
+            {{ customer.name }} <span class="text-xs text-gray-500">({{ customer.type }})</span>
+          </div>
+          <div class="text-sm text-gray-600">
+            ID: {{ customer.id }} | Phone: {{ customer.phone || 'N/A' }} | Email:
+            {{ customer.email || 'N/A' }}
+          </div>
+          <div class="text-sm text-gray-500 truncate">Address: {{ customer.address || 'N/A' }}</div>
+        </li>
+      </ul>
+
+      <div
+        *ngIf="!isLoading && filteredCustomers.length === 0"
+        class="py-4 text-center text-gray-500"
+      >
+        No customers found.
+      </div>
+
+      <div *ngIf="isLoading" class="py-4 text-center text-blue-500">Loading...</div>
+    </div>
+
+    <!-- Footer -->
+    <div class="flex justify-end mt-4">
+      <button (click)="onClose()" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">
+        Cancel
+      </button>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,80 @@
+<div class="page-container min-h-screen flex flex-col" [ngClass]="containerClass">
+  <!-- Breadcrumbs -->
+  <nav
+    *ngIf="breadcrumbs.length > 0"
+    [ngClass]="breadcrumbClasses"
+    class="px-6 pt-4"
+    aria-label="Breadcrumb"
+  >
+    <ol class="flex items-center space-x-2">
+      <li *ngFor="let crumb of breadcrumbs; let last = last" class="flex items-center">
+        <mat-icon *ngIf="crumb.icon" class="text-gray-400 mr-1" [attr.aria-hidden]="true">{{
+          crumb.icon
+        }}</mat-icon>
+        <a
+          *ngIf="crumb.link && !last"
+          [routerLink]="crumb.link"
+          class="hover:text-blue-600 transition-colors"
+          [attr.aria-current]="last ? 'page' : null"
+        >
+          {{ crumb.label }}
+        </a>
+        <span
+          *ngIf="!crumb.link || last"
+          class="font-medium"
+          [class.text-gray-900]="last"
+          [attr.aria-current]="last ? 'page' : null"
+        >
+          {{ crumb.label }}
+        </span>
+        <mat-icon *ngIf="!last" class="text-gray-400 mx-2" [attr.aria-hidden]="true"
+          >chevron_right</mat-icon
+        >
+      </li>
+    </ol>
+  </nav>
+
+  <!-- Header -->
+  <header [ngClass]="headerClasses">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center space-x-4">
+        <button
+          *ngIf="showBackButton"
+          mat-icon-button
+          (click)="onBackClick()"
+          aria-label="Go back"
+          matTooltip="Go back"
+        >
+          <mat-icon>arrow_back</mat-icon>
+        </button>
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900">{{ title }}</h1>
+          <p *ngIf="subtitle" class="text-sm text-gray-600 mt-1">{{ subtitle }}</p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-2">
+        <ng-content select="[headerActions]"></ng-content>
+      </div>
+    </div>
+  </header>
+
+  <!-- Stats Section -->
+  <section *ngIf="showStats" class="px-6 py-4 bg-white border-b border-gray-200">
+    <ng-content select="[stats]"></ng-content>
+  </section>
+
+  <!-- Filters Section -->
+  <section *ngIf="showFilters" class="px-6 py-4 bg-gray-50 border-b border-gray-200">
+    <ng-content select="[filters]"></ng-content>
+  </section>
+
+  <!-- Main Content -->
+  <main [ngClass]="contentClasses" class="flex-1">
+    <ng-content select="[content]"></ng-content>
+  </main>
+
+  <!-- Footer -->
+  <footer *ngIf="showFooter" [ngClass]="footerClasses">
+    <ng-content select="[footer]"></ng-content>
+  </footer>
+</div>

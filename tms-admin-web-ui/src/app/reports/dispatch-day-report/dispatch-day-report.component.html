@@ -1,0 +1,282 @@
+<div class="container p-6 mx-auto bg-gray-100 rounded-lg shadow-lg">
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="text-2xl font-bold">{{ 'reports.dispatchDay.title' | translate }}</h2>
+  </div>
+
+  <!-- Filters -->
+  <div class="flex flex-wrap items-end gap-4 mb-3">
+    <div>
+      <label for="planFrom" class="block font-semibold">{{
+        'reports.dispatchDay.plan_from' | translate
+      }}</label>
+      <input
+        id="planFrom"
+        type="date"
+        [(ngModel)]="planFrom"
+        class="input"
+        (keyup.enter)="search()"
+      />
+    </div>
+
+    <div>
+      <label for="planTo" class="block font-semibold">{{
+        'reports.dispatchDay.plan_to' | translate
+      }}</label>
+      <input id="planTo" type="date" [(ngModel)]="planTo" class="input" (keyup.enter)="search()" />
+    </div>
+
+    <div>
+      <label for="fromTime" class="block font-semibold">{{
+        'reports.dispatchDay.from_time_optional' | translate
+      }}</label>
+      <input
+        id="fromTime"
+        type="time"
+        [(ngModel)]="fromTime"
+        class="input"
+        placeholder="HH:mm"
+        (keyup.enter)="search()"
+      />
+      <!-- <p class="mt-1 text-xs text-gray-500">Example: 07:00</p> -->
+    </div>
+
+    <div>
+      <label for="toTime" class="block font-semibold">{{
+        'reports.dispatchDay.to_time_optional' | translate
+      }}</label>
+      <input
+        id="toTime"
+        type="time"
+        [(ngModel)]="toTime"
+        class="input"
+        placeholder="HH:mm"
+        (keyup.enter)="search()"
+      />
+      <!-- <p class="mt-1 text-xs text-gray-500">Example: 22:00</p> -->
+    </div>
+
+    <div>
+      <label for="toExtraDays" class="block font-semibold">{{
+        'reports.dispatchDay.to_extra_days_optional' | translate
+      }}</label>
+      <input
+        id="toExtraDays"
+        type="number"
+        min="0"
+        [(ngModel)]="toExtraDays"
+        class="input"
+        placeholder="2"
+        [disabled]="!!toTime"
+        [class.opacity-60]="!!toTime"
+      />
+      <!-- <p class="mt-1 text-xs text-gray-500">
+        Used when <strong>To Time</strong> is empty.
+        <span *ngIf="toTime" class="text-amber-700">Disabled because To Time is set.</span>
+      </p> -->
+    </div>
+
+    <div class="flex items-end gap-2">
+      <button (click)="search()" class="btn btn-primary" [disabled]="loading">
+        {{ 'common.search' | translate }}
+      </button>
+      <button (click)="exportCsv()" class="btn btn-secondary" [disabled]="loading || !rows?.length">
+        {{ 'reports.dispatchDay.export_csv' | translate }}
+      </button>
+      <button
+        (click)="exportExcel()"
+        class="btn btn-secondary"
+        [disabled]="loading || !rows?.length"
+      >
+        {{ 'reports.dispatchDay.export_excel' | translate }}
+      </button>
+      <button (click)="resetFilters()" class="btn btn-light" [disabled]="loading">
+        {{ 'common.reset' | translate }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Quick presets -->
+  <div class="flex flex-wrap items-center gap-2 mb-4 text-sm">
+    <span class="mr-1 text-gray-600">{{ 'reports.dispatchDay.quick_range' | translate }}</span>
+    <button class="px-2 py-1 bg-white border rounded hover:bg-gray-50" (click)="presetToday()">
+      {{ 'reports.dispatchDay.today_full' | translate }}
+    </button>
+    <button class="px-2 py-1 bg-white border rounded hover:bg-gray-50" (click)="presetYesterday()">
+      {{ 'reports.dispatchDay.yesterday' | translate }}
+    </button>
+    <button class="px-2 py-1 bg-white border rounded hover:bg-gray-50" (click)="presetDateOnly(2)">
+      {{ 'reports.dispatchDay.date_only_plus_2_days' | translate }}
+    </button>
+    <button class="px-2 py-1 bg-white border rounded hover:bg-gray-50" (click)="presetLast7Days()">
+      {{ 'reports.dispatchDay.last_7_days' | translate }}
+    </button>
+  </div>
+
+  <!-- Applied range summary -->
+  <div class="mb-3 text-sm text-gray-600" *ngIf="!loading && (planFrom || planTo)">
+    <span *ngIf="planFrom && planTo">{{
+      'reports.dispatchDay.range' | translate: { from: planFrom, to: planTo }
+    }}</span>
+    <span *ngIf="fromTime" class="ml-2 px-2 py-0.5 rounded bg-blue-100 text-blue-700">{{
+      'reports.dispatchDay.from' | translate: { time: fromTime }
+    }}</span>
+    <span *ngIf="toTime" class="ml-1 px-2 py-0.5 rounded bg-blue-100 text-blue-700">{{
+      'reports.dispatchDay.to' | translate: { time: toTime }
+    }}</span>
+    <span
+      *ngIf="!toTime && toExtraDays != null"
+      class="ml-1 px-2 py-0.5 rounded bg-amber-100 text-amber-800"
+    >
+      {{ 'reports.dispatchDay.to_plus_days' | translate: { days: toExtraDays } }}
+    </span>
+  </div>
+
+  <!-- Error -->
+  <div *ngIf="error" class="p-2 mb-4 text-red-700 bg-red-100 rounded">
+    {{ error }}
+  </div>
+
+  <!-- Loading -->
+  <div *ngIf="loading" class="mb-4 text-blue-700">
+    {{ 'reports.dispatchDay.loading_report' | translate }}
+  </div>
+
+  <!-- Desktop / Tablet Table -->
+  <div *ngIf="!loading && rows.length > 0" class="hidden overflow-x-auto md:block">
+    <table
+      class="min-w-full overflow-hidden bg-white border border-gray-200 shadow-sm whitespace-nowrap rounded-xl"
+    >
+      <thead class="sticky top-0 z-10">
+        <tr
+          class="text-[11px] tracking-wider uppercase text-gray-600 bg-gradient-to-r from-gray-50 to-gray-100"
+        >
+          <th class="px-4 py-3 text-left">#</th>
+          <th class="px-4 py-3 text-left">{{ 'reports.dispatchDay.plan_date' | translate }}</th>
+          <th class="px-4 py-3 text-left">{{ 'reports.dispatchDay.truck_no' | translate }}</th>
+          <th class="px-4 py-3 text-left">{{ 'reports.dispatchDay.truck_trip' | translate }}</th>
+          <th class="px-4 py-3 text-left">{{ 'reports.dispatchDay.depot' | translate }}</th>
+          <th class="px-4 py-3 text-right">{{ 'reports.dispatchDay.pallets' | translate }}</th>
+          <th class="px-4 py-3 text-left">{{ 'reports.dispatchDay.truck_type' | translate }}</th>
+          <th class="px-4 py-3 text-left">
+            {{ 'reports.dispatchDay.factory_departure' | translate }}
+          </th>
+          <th class="px-4 py-3 text-left">{{ 'reports.dispatchDay.depot_arrival' | translate }}</th>
+          <th class="px-4 py-3 text-left">
+            {{ 'reports.dispatchDay.planned_depot_arrival' | translate }}
+          </th>
+          <th class="px-4 py-3 text-left">
+            {{ 'reports.dispatchDay.unloading_complete' | translate }}
+          </th>
+          <th class="px-4 py-3 text-left">
+            {{ 'reports.dispatchDay.final_destination' | translate }}
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr
+          *ngFor="let r of rows; let i = index; trackBy: trackRow"
+          class="transition-colors duration-150 odd:bg-white even:bg-gray-50 hover:bg-blue-50"
+        >
+          <td class="px-4 py-2 text-sm text-gray-500">{{ i + 1 }}</td>
+          <td class="px-4 py-2 text-sm font-medium text-gray-900">{{ fmtDate(r.planDate) }}</td>
+          <td class="px-4 py-2 text-sm">{{ r.truckNo || '—' }}</td>
+          <td class="px-4 py-2 text-sm">{{ r.truckTrip || '—' }}</td>
+          <td class="px-4 py-2 text-sm">{{ r.depot || '—' }}</td>
+          <td class="px-4 py-2 text-sm font-semibold text-right text-gray-800">
+            {{ r.numberOfPallets ?? '—' }}
+          </td>
+          <td class="px-4 py-2 text-sm text-gray-800">{{ r.truckType || '—' }}</td>
+          <td class="px-4 py-2 text-sm text-gray-600">{{ fmtDt(r.factoryDeparture) || '—' }}</td>
+          <td class="px-4 py-2 text-sm text-gray-600">{{ fmtDt(r.depotArrival) || '—' }}</td>
+          <td class="px-4 py-2 text-sm text-gray-600">{{ fmtDt(r.plannedDepotArrival) || '—' }}</td>
+          <td class="px-4 py-2 text-sm text-gray-600">{{ fmtDt(r.unloadingComplete) || '—' }}</td>
+          <td class="px-4 py-2 text-sm font-medium text-blue-700">
+            {{ r.finalDestinationText || '—' }}
+          </td>
+        </tr>
+      </tbody>
+
+      <!-- Totals footer -->
+      <tfoot>
+        <tr class="text-sm bg-gray-50">
+          <td class="px-4 py-2 font-medium text-gray-700" colspan="4">
+            {{ 'common.totals' | translate }}
+          </td>
+          <td class="px-4 py-2 font-semibold text-right text-gray-900">{{ totalPallets }}</td>
+          <td class="px-4 py-2 text-gray-700" colspan="6"></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <!-- Mobile Cards -->
+  <div *ngIf="!loading && rows.length > 0" class="space-y-3 md:hidden">
+    <div
+      *ngFor="let r of rows; let i = index; trackBy: trackRow"
+      class="p-4 bg-white border border-gray-200 shadow-sm rounded-xl"
+    >
+      <div class="flex items-center justify-between mb-2">
+        <div class="text-sm font-medium text-gray-900">
+          #{{ i + 1 }} • {{ fmtDate(r.planDate) }}
+        </div>
+        <div class="px-2 py-1 text-xs text-gray-600 bg-gray-100 rounded-full">
+          {{ r.truckType || '—' }}
+        </div>
+      </div>
+      <dl class="grid grid-cols-2 gap-x-4 gap-y-1 text-[13px]">
+        <div>
+          <dt class="text-gray-500">{{ 'reports.dispatchDay.truck_no' | translate }}</dt>
+          <dd class="font-medium text-gray-800">{{ r.truckNo || '—' }}</dd>
+        </div>
+        <div>
+          <dt class="text-gray-500">{{ 'reports.dispatchDay.depot' | translate }}</dt>
+          <dd class="font-medium text-gray-800">{{ r.depot || '—' }}</dd>
+        </div>
+        <div>
+          <dt class="text-gray-500">{{ 'reports.dispatchDay.pallets' | translate }}</dt>
+          <dd class="font-semibold text-gray-900">{{ r.numberOfPallets ?? '—' }}</dd>
+        </div>
+        <div>
+          <dt class="text-gray-500">
+            {{ 'reports.dispatchDay.planned_depot_arrival' | translate }}
+          </dt>
+          <dd class="text-gray-800">{{ fmtDt(r.plannedDepotArrival) || '—' }}</dd>
+        </div>
+        <div class="col-span-2">
+          <dt class="text-gray-500">{{ 'reports.dispatchDay.factory_departure' | translate }}</dt>
+          <dd class="text-gray-800">{{ fmtDt(r.factoryDeparture) || '—' }}</dd>
+        </div>
+        <div class="col-span-2">
+          <dt class="text-gray-500">{{ 'reports.dispatchDay.depot_arrival' | translate }}</dt>
+          <dd class="text-gray-800">{{ fmtDt(r.depotArrival) || '—' }}</dd>
+        </div>
+        <div class="col-span-2">
+          <dt class="text-gray-500">{{ 'reports.dispatchDay.unloading_complete' | translate }}</dt>
+          <dd class="text-gray-800">{{ fmtDt(r.unloadingComplete) || '—' }}</dd>
+        </div>
+        <div class="col-span-2">
+          <dt class="text-gray-500">{{ 'reports.dispatchDay.final_destination' | translate }}</dt>
+          <dd class="font-medium text-blue-700">{{ r.finalDestinationText || '—' }}</dd>
+        </div>
+      </dl>
+    </div>
+
+    <!-- Mobile totals -->
+    <div class="p-4 text-sm bg-white border border-gray-200 rounded-xl">
+      <div class="flex items-center justify-between">
+        <span class="font-medium text-gray-700">{{
+          'reports.dispatchDay.total_pallets' | translate
+        }}</span>
+        <span class="font-semibold text-gray-900">{{ totalPallets }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Empty state -->
+  <div
+    *ngIf="!loading && rows.length === 0"
+    class="p-8 text-center text-gray-500 bg-white border border-gray-300 border-dashed rounded-xl"
+  >
+    No data available for this date range.
+  </div>
+</div>

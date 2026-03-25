@@ -1,0 +1,67 @@
+<div
+  [ngClass]="cardClasses"
+  (click)="onClick()"
+  [attr.role]="config.clickable ? 'button' : null"
+  [attr.tabindex]="config.clickable ? 0 : null"
+  [attr.aria-label]="ariaLabel"
+  (keydown.enter)="onClick()"
+  (keydown.space)="onClick()"
+>
+  <!-- Loading Overlay -->
+  <div
+    *ngIf="config.loading"
+    class="absolute inset-0 bg-white/50 flex items-center justify-center z-10"
+    aria-live="polite"
+    aria-busy="true"
+  >
+    <mat-spinner [diameter]="32"></mat-spinner>
+  </div>
+
+  <!-- Content -->
+  <div class="flex items-start justify-between">
+    <!-- Left: Icon and Label -->
+    <div class="flex-1">
+      <div class="flex items-center space-x-2 mb-2">
+        <mat-icon
+          *ngIf="config.icon"
+          [ngClass]="iconColorClass"
+          class="text-3xl"
+          [attr.aria-hidden]="true"
+        >
+          {{ config.icon }}
+        </mat-icon>
+        <span class="text-sm font-medium text-gray-600 uppercase tracking-wide">
+          {{ config.label }}
+        </span>
+      </div>
+
+      <!-- Value -->
+      <div class="text-3xl font-bold text-gray-900 mb-2">
+        {{ formattedValue }}
+        <span *ngIf="config.unit" class="text-lg text-gray-600 ml-1">{{ config.unit }}</span>
+      </div>
+
+      <!-- Trend -->
+      <div *ngIf="config.trend" class="flex items-center space-x-1">
+        <mat-icon [ngClass]="trendColorClass" class="text-sm" [attr.aria-hidden]="true">
+          {{ trendIcon }}
+        </mat-icon>
+        <span [ngClass]="trendColorClass" class="text-sm font-medium">
+          {{ config.trend.value }}%
+        </span>
+        <span *ngIf="config.trend.label" class="text-xs text-gray-500 ml-1">
+          {{ config.trend.label }}
+        </span>
+      </div>
+    </div>
+
+    <!-- Right: Clickable Indicator -->
+    <mat-icon
+      *ngIf="config.clickable && !config.loading"
+      class="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity"
+      [attr.aria-hidden]="true"
+    >
+      arrow_forward
+    </mat-icon>
+  </div>
+</div>

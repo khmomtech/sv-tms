@@ -1,0 +1,56 @@
+<div class="container mt-4">
+  <h3>📊 Final Summary Report</h3>
+
+  <div class="mb-3 row g-2 align-items-center">
+    <div class="col-auto">
+      <label for="date" class="form-label">Date</label>
+      <input type="date" [(ngModel)]="date" class="form-control" />
+    </div>
+
+    <div class="col-auto">
+      <button class="mt-4 btn btn-secondary" (click)="fetchPreviewTable()">Preview Table</button>
+      <button class="mt-4 btn btn-primary" (click)="downloadFinalSummary()">
+        Export Summary Excel
+      </button>
+    </div>
+  </div>
+
+  <div *ngIf="loading" class="alert alert-info">⏳ Loading...</div>
+  <div *ngIf="errorMsg" class="alert alert-danger">{{ errorMsg }}</div>
+
+  <div *ngIf="summaryData.length" class="mt-4 table-responsive">
+    <table class="table table-bordered table-sm">
+      <thead class="table-light">
+        <tr>
+          <th>Trip</th>
+          <th>Truck No</th>
+          <th>Driver</th>
+          <th>Region</th>
+          <th>Location</th>
+          <th>Distributor</th>
+          <th>SO #</th>
+          <th>Pallets</th>
+          <th>Weight (kg)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let row of summaryData">
+          <td>{{ row.trip }}</td>
+          <td>{{ row.truckNo }}</td>
+          <td>{{ row.driverName || row.driverFullName || row.assignedDriver || 'Unassigned' }}</td>
+          <td>{{ row.region || '-' }}</td>
+          <td>{{ row.location }}</td>
+          <td>{{ row.distributorName }}</td>
+          <td>{{ row.soNumber }}</td>
+          <td>{{ row.palletQty }}</td>
+          <td>{{ row.weightInKg }}</td>
+        </tr>
+        <tr class="table-secondary fw-bold">
+          <td colspan="7" class="text-end">TOTAL</td>
+          <td>{{ getTotalPallets() }}</td>
+          <td>{{ getTotalWeight() | number: '1.2-2' }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

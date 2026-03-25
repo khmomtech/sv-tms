@@ -1,0 +1,269 @@
+<div class="p-6 mx-auto space-y-6 max-w-7xl">
+  <!--  Page Header -->
+  <h2 class="flex items-center gap-3 text-3xl font-bold text-blue-700">
+    <i class="text-2xl fas fa-route"></i> Route Planning & Dispatch Center
+  </h2>
+
+  <!--  Modal Backdrop -->
+  <div
+    *ngIf="showDriverModal || showVehicleModal || showOrderModal"
+    class="fixed inset-0 z-40 bg-black bg-opacity-30 backdrop-blur-sm"
+  ></div>
+
+  <!--  Driver Modal -->
+  <app-driver-modal
+    *ngIf="showDriverModal"
+    [visible]="showDriverModal"
+    (selected)="selectDriver($event)"
+    (closed)="showDriverModal = false"
+    class="z-50"
+  >
+  </app-driver-modal>
+
+  <!--  Vehicle Modal -->
+  <app-vehicle-modal
+    *ngIf="showVehicleModal"
+    [visible]="showVehicleModal"
+    (vehicleSelected)="selectVehicle($event)"
+    (closed)="showVehicleModal = false"
+    class="z-50"
+  >
+  </app-vehicle-modal>
+
+  <!--  Order Modal -->
+  <app-order-modal
+    *ngIf="showOrderModal"
+    [visible]="showOrderModal"
+    (orderSelected)="selectOrder($event)"
+    (closed)="showOrderModal = false"
+    class="z-50"
+  >
+  </app-order-modal>
+
+  <!--  Dispatch Form Panel -->
+  <div *ngIf="showTripForm" class="fixed inset-0 z-50 flex">
+    <!-- Overlay -->
+    <div class="absolute inset-0 backdrop-blur-sm bg-blue-900/25" (click)="handleCancel()"></div>
+
+    <!-- Panel -->
+    <div
+      class="relative flex flex-row h-full ml-auto transition-all duration-300 ease-in-out bg-white shadow-xl"
+      [ngStyle]="{ width: panelWidth + 'px' }"
+    >
+      <!-- Resize Handle -->
+      <div
+        class="w-2 bg-blue-100 cursor-col-resize hover:bg-blue-300"
+        (mousedown)="startResizing($event)"
+      ></div>
+
+      <!-- Form Content -->
+      <div class="w-full max-w-full p-6 overflow-y-auto">
+        <div class="flex items-center justify-between pb-2 mb-4 border-b">
+          <h2 class="text-lg font-semibold text-blue-700">
+            {{ existingDispatch ? 'Edit Dispatch Trip' : '➕ New Dispatch Trip' }}
+          </h2>
+
+          <button (click)="handleCancel()" class="text-xl text-gray-500 hover:text-red-600">
+            ✖
+          </button>
+        </div>
+
+        <!-- Dispatch Form Component -->
+        <app-dispatch-form
+          *ngIf="showTripForm && isFormReady && dispatchForm"
+          [form]="dispatchForm"
+          [selectedDriver]="selectedDriver"
+          [selectedVehicle]="selectedVehicle"
+          (submitForm)="handleSubmit($event)"
+          (cancel)="handleCancel()"
+        ></app-dispatch-form>
+      </div>
+    </div>
+  </div>
+
+  <!--  Main Content -->
+  <div [class.pointer-events-none]="showDriverModal || showVehicleModal || showOrderModal">
+    <!-- Order Summary + Map -->
+    <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
+      <!--  Order Summary -->
+      <div class="space-y-4">
+        <div class="p-4 bg-white border shadow rounded-xl">
+          <p class="text-xs text-gray-500">Order Ref</p>
+          <p class="font-semibold text-blue-800">{{ selectedOrder?.orderReference }}</p>
+        </div>
+
+        <div *ngIf="selectedOrder?.pickupAddress" class="p-4 bg-white border shadow rounded-xl">
+          <p class="text-xs text-gray-500">Pickup</p>
+          <p class="text-sm">{{ selectedOrder?.pickupAddress?.address }}</p>
+          <p class="text-xs text-gray-400">
+            {{ selectedOrder?.pickupAddress?.latitude }},
+            {{ selectedOrder?.pickupAddress?.longitude }}
+          </p>
+        </div>
+
+        <div *ngIf="selectedOrder?.dropAddress" class="p-4 bg-white border shadow rounded-xl">
+          <p class="text-xs text-gray-500">Dropoff</p>
+          <p class="text-sm">{{ selectedOrder?.dropAddress?.name }}</p>
+        </div>
+
+        <!--  Items -->
+        <div class="p-4 bg-white border shadow rounded-xl">
+          <p class="mb-2 text-sm font-semibold">Goods / Items</p>
+          <div *ngFor="let item of selectedOrder?.items" class="py-2 text-sm border-t">
+            <p class="font-medium text-blue-600">{{ item.itemName }}</p>
+            <p class="text-xs text-gray-500">
+              Qty: {{ item.quantity }} {{ item.unitOfMeasurement }} | Weight: {{ item.weight }} kg
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!--  Map Section -->
+      <div class="col-span-2 p-4 bg-white border shadow rounded-xl">
+        <google-map
+          [center]="mapCenter"
+          [zoom]="12"
+          [height]="'420px'"
+          [width]="'100%'"
+          (mapInitialized)="onMapInitialized()"
+          (mapClick)="onMapClick($event)"
+          class="w-full shadow-inner rounded-xl"
+        >
+          <ng-container *ngFor="let stop of stops">
+            <map-marker
+              *ngIf="getStopPosition(stop) as position"
+              [position]="position"
+              [label]="stop.stopSequence"
+              [options]="getMarkerOptions(stop.type)"
+              (mapClick)="selectStop(stop)"
+            >
+            </map-marker>
+          </ng-container>
+
+          <ng-container *ngFor="let marker of allDispatchMarkers">
+            <map-marker
+              *ngIf="getDispatchMarkerPosition(marker) as markerPosition"
+              [position]="markerPosition"
+              [options]="getMarkerOptions(marker.type)"
+              (mapClick)="selectDispatchMarker(marker)"
+            ></map-marker>
+          </ng-container>
+
+          <map-directions-renderer
+            *ngIf="directions"
+            [directions]="directions"
+            [options]="{ draggable: false }"
+          >
+          </map-directions-renderer>
+
+          <map-polyline
+            *ngIf="!directions && fallbackPath.length >= 2"
+            [path]="fallbackPath"
+            [options]="{ strokeColor: '#2563eb', strokeOpacity: 0.85, strokeWeight: 4 }"
+          ></map-polyline>
+
+          <map-info-window
+            *ngIf="showInfoWindow && infoWindowPosition"
+            [position]="infoWindowPosition"
+            (closeclick)="showInfoWindow = false"
+          >
+            <div class="text-sm font-semibold text-gray-700">
+              {{ infoWindowContent }}
+            </div>
+          </map-info-window>
+        </google-map>
+
+        <div
+          class="mt-4 text-sm text-gray-700 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div class="space-y-1">
+            <p><strong>Total Distance:</strong> {{ routeDistanceText }}</p>
+            <p><strong>Total ETA:</strong> {{ routeDurationText }}</p>
+          </div>
+          <button
+            type="button"
+            (click)="openRouteInGoogleMaps()"
+            class="px-3 py-2 text-white bg-emerald-600 rounded hover:bg-emerald-700 sm:self-auto self-start whitespace-nowrap"
+          >
+            Open in Google Maps
+          </button>
+        </div>
+
+        <div
+          *ngIf="routeLegSummaries.length > 0"
+          class="mt-3 p-3 border rounded bg-slate-50 text-sm max-h-56 overflow-auto"
+        >
+          <p class="font-semibold text-slate-700 mb-2">Directions</p>
+          <div
+            *ngFor="let leg of routeLegSummaries; let i = index"
+            class="py-2 border-b last:border-b-0"
+          >
+            <p class="font-medium text-slate-800">
+              Leg {{ i + 1 }}: {{ leg.distance }} • {{ leg.duration }}
+            </p>
+            <p class="text-slate-600 break-words">From: {{ leg.from }}</p>
+            <p class="text-slate-600 break-words">To: {{ leg.to }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!--  Dispatch Table -->
+    <div class="p-4 mt-6 bg-white border shadow rounded-xl">
+      <div class="flex justify-between mb-3">
+        <h3 class="text-lg font-semibold text-gray-800">Dispatch Trips</h3>
+        <button
+          (click)="openNewTripForm()"
+          class="px-4 py-2 text-sm text-white bg-blue-700 rounded-lg"
+        >
+          ➕ New Plan
+        </button>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm text-left border">
+          <thead class="text-white bg-blue-600">
+            <tr>
+              <th class="px-4 py-2 border">Route Code</th>
+              <th class="px-4 py-2 border">Driver</th>
+              <th class="px-4 py-2 border">Vehicle</th>
+              <th class="px-4 py-2 border">Start Time</th>
+              <th class="px-4 py-2 border">ETA</th>
+              <th class="px-4 py-2 border">Status</th>
+              <th class="px-4 py-2 border">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Safe iteration and safe date conversion -->
+            <tr *ngFor="let trip of selectedOrder?.dispatches || []" class="border-b">
+              <td class="px-4 py-2">{{ trip.routeCode }}</td>
+              <td class="px-4 py-2">{{ trip.driverName }}</td>
+              <td class="px-4 py-2">{{ trip.licensePlate }}</td>
+              <td class="px-4 py-2">
+                {{ trip.startTime | svSafeDate | date: 'dd-MMM-yyyy HH:mm' }}
+              </td>
+              <td class="px-4 py-2">
+                {{ trip.estimatedArrival | svSafeDate | date: 'dd-MMM-yyyy HH:mm' }}
+              </td>
+              <td class="px-4 py-2">{{ trip.status }}</td>
+              <td class="px-4 py-2 space-x-2">
+                <button
+                  (click)="editTrip(trip)"
+                  class="px-2 py-1 text-xs text-white bg-yellow-500 rounded"
+                >
+                  Edit
+                </button>
+                <button
+                  (click)="deleteTrip(trip.id!)"
+                  class="px-2 py-1 text-xs text-white bg-red-600 rounded"
+                >
+                  Delete
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,112 @@
+<div class="driver-overview">
+  <header class="overview-header">
+    <div>
+      <p class="breadcrumbs">Home / Drivers / Overview</p>
+      <h1>Driver Overview & Monitoring</h1>
+    </div>
+
+    <div class="header-actions">
+      <button mat-stroked-button type="button" disabled>
+        <mat-icon>filter_alt</mat-icon> Filters
+      </button>
+      <button mat-stroked-button type="button" disabled>
+        <mat-icon>file_download</mat-icon> Export
+      </button>
+
+      <button mat-flat-button color="primary" type="button" (click)="refresh()">
+        <mat-icon>refresh</mat-icon> Refresh
+      </button>
+
+      <div class="live-indicator" title="Live data"><span class="pulse"></span>Live</div>
+    </div>
+  </header>
+
+  <div class="error-banner" *ngIf="errorMessage">
+    <mat-icon>error_outline</mat-icon>
+    <span>{{ errorMessage }}</span>
+    <button mat-button color="accent" type="button" (click)="refresh()">Retry</button>
+  </div>
+
+  <section class="kpi-grid" aria-label="Driver KPI summary">
+    <article class="kpi-card" *ngFor="let card of kpiCards">
+      <p class="kpi-label">{{ card.label }}</p>
+      <p class="kpi-value">{{ loadingStats ? '—' : card.metric() }}</p>
+      <p class="kpi-subtitle">{{ card.subtitle }}</p>
+    </article>
+  </section>
+
+  <section class="compliance-section">
+    <div class="section-header">
+      <div>
+        <p class="section-label">Compliance snapshot</p>
+        <h2>Uncompliant drivers</h2>
+      </div>
+      <p class="section-note">
+        Showing the latest drivers who are missing documents or have expired records.
+      </p>
+    </div>
+
+    <div *ngIf="loadingUncompliant" class="compliance-loading">Loading compliance data…</div>
+
+    <div *ngIf="uncompliantError" class="error-banner compliance-error">
+      <mat-icon>error_outline</mat-icon>
+      <span>{{ uncompliantError }}</span>
+    </div>
+
+    <table class="compliance-table" *ngIf="!loadingUncompliant && uncompliantDrivers?.length">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Driver</th>
+          <th>Phone</th>
+          <th>License</th>
+          <th>ID Card</th>
+          <th>Expired Docs</th>
+          <th>Compliance</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr
+          *ngFor="let driver of uncompliantDrivers"
+          class="clickable-row"
+          (click)="goToDriverDetails(driver.driverId)"
+        >
+          <td>{{ driver.driverId }}</td>
+          <td>{{ driver.driverName }}</td>
+          <td>{{ driver.phone || '—' }}</td>
+          <td>{{ driver.licenseStatus || 'Unknown' }}</td>
+          <td>{{ driver.idCardStatus || 'Unknown' }}</td>
+          <td>
+            {{ driver.expiredDocumentCount ?? 0 }}
+            <p class="expired-docs" *ngIf="driver.expiredDocuments">
+              {{ driver.expiredDocuments }}
+            </p>
+          </td>
+          <td>
+            <div
+              class="compliance-status"
+              [class.compliant]="isDriverCompliant(driver)"
+              [class.non-compliant]="!isDriverCompliant(driver)"
+            >
+              <span>
+                {{ isDriverCompliant(driver) ? '✅ COMPLIANT' : '❌ NOT COMPLIANT' }}
+              </span>
+            </div>
+            <ul class="compliance-notes" *ngIf="getComplianceNotes(driver)?.length">
+              <li *ngFor="let note of getComplianceNotes(driver)">
+                {{ note }}
+              </li>
+            </ul>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p
+      class="empty-placeholder"
+      *ngIf="!loadingUncompliant && !uncompliantDrivers?.length && !uncompliantError"
+    >
+      No uncompliant drivers currently flagged.
+    </p>
+  </section>
+</div>

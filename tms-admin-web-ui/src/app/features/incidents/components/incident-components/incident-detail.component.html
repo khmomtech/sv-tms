@@ -1,0 +1,650 @@
+<div class="page">
+  <!-- Breadcrumb -->
+  <div class="breadcrumb" *ngIf="!loading()">
+    <a routerLink="/" class="breadcrumb-link">Home</a>
+    <span class="breadcrumb-separator">/</span>
+    <a routerLink="/incidents" class="breadcrumb-link">Incident Management</a>
+    <span class="breadcrumb-separator">/</span>
+    <span class="breadcrumb-current">Details</span>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading()" class="loading-state">
+    <div class="spinner"></div>
+    <div class="text-muted">Loading incident details...</div>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="error()" class="card error-card">
+    <div style="display: flex; justify-content: space-between; align-items: center">
+      <div style="color: #dc2626">⚠️ {{ error() }}</div>
+      <button type="button" class="btn-close" (click)="error.set(null)">✕</button>
+    </div>
+  </div>
+
+  <!-- Incident Details -->
+  <div *ngIf="!loading() && !error() && incident()">
+    <!-- Header with Actions -->
+    <div class="page-header">
+      <div>
+        <h1>Issue Report Details</h1>
+        <div class="subtitle">Review details before validate or escalate to Case.</div>
+      </div>
+      <div class="header-actions" *ngIf="canTakeAction()">
+        <button
+          class="btn btn-sm btn-success"
+          (click)="closeAsSmallIssue()"
+          [disabled]="processing()"
+        >
+          <i class="bi bi-check-circle"></i> Close Issue
+        </button>
+        <button
+          *ngIf="canEscalateToCase()"
+          class="btn btn-sm btn-warning"
+          (click)="showEscalateModal = true"
+          [disabled]="processing()"
+        >
+          <i class="bi bi-box-arrow-up-right"></i> Escalate
+        </button>
+        <button
+          class="btn btn-sm btn-primary"
+          (click)="validateIncident()"
+          *ngIf="incident()!.incidentStatus === 'NEW'"
+          [disabled]="processing()"
+        >
+          <i class="bi bi-shield-check"></i> Validate
+        </button>
+      </div>
+    </div>
+
+    <!-- Summary Header -->
+    <div class="card summary-card">
+      <div class="summary-header">
+        <div>
+          <div class="incident-code">{{ incident()!.code || 'INC-' + incident()!.id }}</div>
+          <h2>{{ incident()!.title }}</h2>
+        </div>
+        <div class="summary-badges">
+          <span class="badge" [ngClass]="getStatusClass(incident()!.incidentStatus)">
+            {{ formatStatus(incident()!.incidentStatus) }}
+          </span>
+          <span class="badge" [ngClass]="getSeverityClass(incident()!.severity)">
+            {{ incident()!.severity }}
+          </span>
+          <span class="badge" [ngClass]="getSLAClass(incident()!)">
+            {{ getSLAStatus(incident()!) }}
+          </span>
+        </div>
+      </div>
+      <div class="summary-meta">
+        <span
+          ><i class="bi bi-calendar"></i> Reported:
+          {{ formatDate(incident()!.reportedAt, 'DD-MMM-YYYY HH:mm') }}</span
+        >
+        <span *ngIf="incident()!.reportedByUsername"
+          ><i class="bi bi-person"></i> By: {{ incident()!.reportedByUsername }}</span
+        >
+        <span *ngIf="incident()!.resolvedAt"
+          ><i class="bi bi-check-circle"></i> Resolved:
+          {{ formatDate(incident()!.resolvedAt, 'DD-MMM-YYYY HH:mm') }}</span
+        >
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="detail-tabs">
+      <button
+        class="detail-tab"
+        [class.active]="activeTab() === 'overview'"
+        type="button"
+        (click)="setActiveTab('overview')"
+      >
+        <i class="bi bi-info-circle"></i> Overview
+      </button>
+      <button
+        class="detail-tab"
+        [class.active]="activeTab() === 'tasks'"
+        type="button"
+        (click)="setActiveTab('tasks')"
+      >
+        <i class="bi bi-list-check"></i> Tasks
+      </button>
+      <button
+        class="detail-tab"
+        [class.active]="activeTab() === 'attachments'"
+        type="button"
+        (click)="setActiveTab('attachments')"
+      >
+        <i class="bi bi-paperclip"></i> Attachments
+      </button>
+      <button
+        class="detail-tab"
+        [class.active]="activeTab() === 'resolution'"
+        type="button"
+        (click)="setActiveTab('resolution')"
+      >
+        <i class="bi bi-check-square"></i> Resolution
+      </button>
+      <button
+        class="detail-tab"
+        [class.active]="activeTab() === 'timeline'"
+        type="button"
+        (click)="setActiveTab('timeline')"
+      >
+        <i class="bi bi-clock-history"></i> Timeline
+      </button>
+    </div>
+
+    <!-- Overview Tab -->
+    <div *ngIf="activeTab() === 'overview'" class="tab-content">
+      <div class="card">
+        <h3 class="section-title"><i class="bi bi-info-circle"></i> Incident Details</h3>
+        <div class="detail-grid">
+          <div class="detail-item">
+            <div class="detail-label">Incident ID</div>
+            <div class="detail-value">{{ incident()!.code || 'INC-' + incident()!.id }}</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Incident Type</div>
+            <div class="detail-value">{{ incident()!.incidentType || 'Not specified' }}</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Group</div>
+            <div class="detail-value">{{ formatGroup(incident()!.incidentGroup) }}</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Severity</div>
+            <div class="detail-value">
+              <span class="badge" [ngClass]="getSeverityClass(incident()!.severity)">
+                {{ incident()!.severity }}
+              </span>
+            </div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Status</div>
+            <div class="detail-value">
+              <span class="badge" [ngClass]="getStatusClass(incident()!.incidentStatus)">
+                {{ formatStatus(incident()!.incidentStatus) }}
+              </span>
+            </div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Driver</div>
+            <div class="detail-value">{{ incident()!.driverName || 'Not assigned' }}</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Vehicle</div>
+            <div class="detail-value">{{ incident()!.vehiclePlate || 'Not assigned' }}</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Reported At</div>
+            <div class="detail-value">
+              {{ formatDate(incident()!.reportedAt, 'DD-MMM-YYYY HH:mm') }}
+            </div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Reported By</div>
+            <div class="detail-value">{{ incident()!.reportedByUsername || 'System' }}</div>
+          </div>
+          <div class="detail-item" *ngIf="incident()!.tripReference">
+            <div class="detail-label">Trip Reference</div>
+            <div class="detail-value">{{ incident()!.tripReference }}</div>
+          </div>
+          <div class="detail-item" *ngIf="incident()!.locationText">
+            <div class="detail-label">Location</div>
+            <div class="detail-value">{{ incident()!.locationText }}</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">SLA Status</div>
+            <div class="detail-value">
+              <span class="badge" [ngClass]="getSLAClass(incident()!)">
+                {{ getSLAStatus(incident()!) }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" *ngIf="incident()!.description">
+        <h3 class="section-title"><i class="bi bi-file-text"></i> Description</h3>
+        <p class="description-text">{{ incident()!.description }}</p>
+      </div>
+
+      <div class="card" *ngIf="incident()!.location">
+        <h3 class="section-title"><i class="bi bi-geo-alt"></i> Location</h3>
+        <div class="map-preview">
+          <div style="color: #888">Map preview placeholder</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tasks Tab -->
+    <div *ngIf="activeTab() === 'tasks'" class="tab-content">
+      <div class="d-flex justify-content-end mb-2">
+        <button
+          class="btn btn-sm btn-primary"
+          (click)="createTask()"
+          [disabled]="processing() || !canCreateTasks()"
+        >
+          <i class="bi bi-plus-lg"></i> Add Task
+        </button>
+      </div>
+      <!-- Tasks Summary -->
+      <div class="tasks-summary-grid">
+        <div class="summary-stat-card">
+          <div class="summary-stat-value">{{ getTaskCount('NOT_STARTED') }}</div>
+          <div class="summary-stat-label">Not Started</div>
+          <div class="summary-stat-subtext">Tasks assigned to me: 0</div>
+        </div>
+        <div class="summary-stat-card">
+          <div class="summary-stat-value">{{ getTaskCount('IN_PROGRESS') }}</div>
+          <div class="summary-stat-label">In Progress</div>
+          <div class="summary-stat-subtext">Tasks assigned to me: 0</div>
+        </div>
+        <div class="summary-stat-card">
+          <div class="summary-stat-value">{{ getTaskCount('TESTING') }}</div>
+          <div class="summary-stat-label">Testing</div>
+          <div class="summary-stat-subtext">Tasks assigned to me: 0</div>
+        </div>
+        <div class="summary-stat-card">
+          <div class="summary-stat-value">{{ getTaskCount('AWAITING_FEEDBACK') }}</div>
+          <div class="summary-stat-label">Awaiting Feedback</div>
+          <div class="summary-stat-subtext">Tasks assigned to me: 0</div>
+        </div>
+        <div class="summary-stat-card highlight">
+          <div class="summary-stat-value">{{ getTaskCount('COMPLETED') }}</div>
+          <div class="summary-stat-label">Complete</div>
+          <div class="summary-stat-subtext">Tasks assigned to me: 0</div>
+        </div>
+      </div>
+
+      <div class="table-responsive" *ngIf="canReadTasks(); else noTaskPermission">
+        <table class="table table-hover mb-0">
+          <thead class="table-header-gradient">
+            <tr>
+              <th style="width: 120px">Code</th>
+              <th>Task</th>
+              <th style="width: 120px">Status</th>
+              <th style="width: 120px">Priority</th>
+              <th style="width: 160px">Due</th>
+              <th style="width: 100px" class="text-end">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="table-row" *ngFor="let task of tasks()">
+              <td>
+                <span class="incident-code-cell">{{ task.code || 'TASK-' + task.id }}</span>
+              </td>
+              <td>
+                <div class="task-title-cell">{{ task.title }}</div>
+                <div class="task-subtitle">{{ task.description || 'No description' }}</div>
+              </td>
+              <td>
+                <span class="badge" [ngClass]="getTaskStatusClass(task.status)">
+                  {{ getTaskStatusLabel(task.status) }}
+                </span>
+              </td>
+              <td>
+                <span class="badge" [ngClass]="getPriorityClass(task.priority)">
+                  {{ getTaskPriorityLabel(task.priority) }}
+                </span>
+              </td>
+              <td class="text-muted">
+                {{ formatDate(task.dueDate || task.createdDate, 'DD-MMM-YYYY HH:mm') }}
+              </td>
+              <td class="text-end">
+                <div class="relative inline-flex items-center gap-2">
+                  <button
+                    class="inline-flex items-center justify-center w-9 h-9 text-blue-600 bg-blue-50 border border-blue-100 rounded-full hover:bg-blue-100 transition"
+                    (click)="viewTask(task.id)"
+                    title="View details"
+                  >
+                    <svg
+                      class="action-icon"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path
+                        d="M1.5 12s3.5-6.5 10.5-6.5S22.5 12 22.5 12s-3.5 6.5-10.5 6.5S1.5 12 1.5 12Z"
+                      />
+                      <circle cx="12" cy="12" r="2.5" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    class="inline-flex items-center justify-center w-9 h-9 text-gray-700 bg-gray-50 border border-gray-200 rounded-full hover:bg-gray-100 transition"
+                    (click)="toggleTaskMenu(task.id!)"
+                    title="More actions"
+                  >
+                    <svg class="action-icon" viewBox="0 0 24 24" fill="currentColor">
+                      <circle cx="12" cy="5" r="1.6" />
+                      <circle cx="12" cy="12" r="1.6" />
+                      <circle cx="12" cy="19" r="1.6" />
+                    </svg>
+                  </button>
+
+                  <div
+                    *ngIf="openTaskMenuId() === task.id"
+                    class="absolute right-0 top-11 z-20 w-48 bg-white border border-gray-200 rounded-xl shadow-lg overflow-scroll"
+                  >
+                    <button
+                      class="flex w-full items-center gap-3 px-4 py-3 text-sm text-gray-800 hover:bg-gray-50"
+                      (click)="viewTask(task.id); closeTaskMenu()"
+                    >
+                      <i class="bi bi-eye text-green-600"></i>
+                      <span>View Details</span>
+                    </button>
+                    <button
+                      class="flex w-full items-center gap-3 px-4 py-3 text-sm text-blue-700 hover:bg-gray-50"
+                      (click)="router.navigate(['/tasks', task.id, 'edit']); closeTaskMenu()"
+                    >
+                      <i class="bi bi-pencil-square"></i>
+                      <span>Edit</span>
+                    </button>
+                    <button
+                      *ngIf="task.status !== 'COMPLETED' && task.status !== 'CANCELLED'"
+                      class="flex w-full items-center gap-3 px-4 py-3 text-sm text-gray-800 hover:bg-gray-50"
+                      (click)="completeTask(task.id!); closeTaskMenu()"
+                    >
+                      <i class="bi bi-check-circle text-blue-600"></i>
+                      <span>Mark Complete</span>
+                    </button>
+                    <button
+                      type="button"
+                      class="flex w-full items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 border-t border-gray-100"
+                      (click)="deleteTask(task.id!); closeTaskMenu()"
+                    >
+                      <i class="bi bi-trash"></i>
+                      <span>Delete</span>
+                    </button>
+                  </div>
+                </div>
+              </td>
+            </tr>
+            <tr *ngIf="!tasksLoading() && tasks().length === 0">
+              <td colspan="6" class="text-center text-muted py-3">
+                No tasks found for this incident.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div *ngIf="tasksLoading()" class="text-center py-3 text-muted">Loading tasks...</div>
+      </div>
+      <ng-template #noTaskPermission>
+        <div class="text-muted py-4 text-center">
+          You do not have permission to view tasks for this incident.
+        </div>
+      </ng-template>
+    </div>
+
+    <!-- Attachments Tab -->
+    <div *ngIf="activeTab() === 'attachments'" class="tab-content">
+      <div class="card">
+        <h3 class="section-title"><i class="bi bi-paperclip"></i> Evidence & Attachments</h3>
+        <div class="evidence-box" *ngIf="hasEvidence(); else noEvidence">
+          <div class="evidence-item" *ngFor="let photo of incident()!.photoUrls">
+            <img
+              [src]="photo"
+              alt="Evidence photo"
+              class="evidence-photo"
+              (click)="viewPhoto(photo)"
+            />
+          </div>
+        </div>
+        <ng-template #noEvidence>
+          <div class="empty-state">
+            <i class="bi bi-image" style="font-size: 32px; color: #9ca3af"></i>
+            <p>No evidence attached</p>
+          </div>
+        </ng-template>
+      </div>
+    </div>
+
+    <!-- Timeline Tab -->
+    <div *ngIf="activeTab() === 'timeline'" class="tab-content">
+      <div class="card">
+        <h3 class="section-title"><i class="bi bi-clock-history"></i> Activity Timeline</h3>
+        <div class="timeline">
+          <div class="timeline-item-v2">
+            <div class="timeline-dot-v2"></div>
+            <div class="timeline-content-v2">
+              <div class="timeline-header-v2">
+                <span class="timeline-title-v2">Incident Created</span>
+                <span class="timeline-time-v2">{{
+                  formatDate(incident()!.createdAt, 'DD-MMM-YYYY HH:mm')
+                }}</span>
+              </div>
+              <div class="timeline-body-v2">
+                Incident reported by {{ incident()!.reportedByUsername || 'System' }}
+              </div>
+            </div>
+          </div>
+
+          <div
+            class="timeline-item-v2"
+            *ngIf="
+              incident()!.incidentStatus === 'VALIDATED' ||
+              incident()!.incidentStatus === 'RESOLVED'
+            "
+          >
+            <div class="timeline-dot-v2"></div>
+            <div class="timeline-content-v2">
+              <div class="timeline-header-v2">
+                <span class="timeline-title-v2">Incident Validated</span>
+                <span class="timeline-time-v2">{{
+                  formatDate(incident()!.updatedAt, 'DD-MMM-YYYY HH:mm')
+                }}</span>
+              </div>
+              <div class="timeline-body-v2">Incident status changed to validated</div>
+            </div>
+          </div>
+
+          <div class="timeline-item-v2" *ngIf="incident()!.resolvedAt">
+            <div class="timeline-dot-v2 timeline-dot-success"></div>
+            <div class="timeline-content-v2">
+              <div class="timeline-header-v2">
+                <span class="timeline-title-v2">Incident Resolved</span>
+                <span class="timeline-time-v2">{{
+                  formatDate(incident()!.resolvedAt, 'DD-MMM-YYYY HH:mm')
+                }}</span>
+              </div>
+              <div class="timeline-body-v2">
+                Incident marked as resolved by {{ incident()!.reportedByUsername || 'System' }}
+              </div>
+            </div>
+          </div>
+
+          <div class="timeline-item-v2" *ngIf="incident()!.caseId">
+            <div class="timeline-dot-v2 timeline-dot-warning"></div>
+            <div class="timeline-content-v2">
+              <div class="timeline-header-v2">
+                <span class="timeline-title-v2">Escalated to Case</span>
+                <span class="timeline-time-v2">{{
+                  formatDate(incident()!.updatedAt, 'DD-MMM-YYYY HH:mm')
+                }}</span>
+              </div>
+              <div class="timeline-body-v2">
+                <a [routerLink]="['/cases', incident()!.caseId]" class="case-link">{{
+                  incident()!.caseCode
+                }}</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Resolution Tab -->
+    <div *ngIf="activeTab() === 'resolution'" class="tab-content">
+      <div class="card" *ngIf="incident()!.resolutionNotes">
+        <h3 class="section-title"><i class="bi bi-check-square"></i> Resolution Notes</h3>
+        <p class="description-text">{{ incident()!.resolutionNotes }}</p>
+      </div>
+      <div class="card" *ngIf="!incident()!.resolutionNotes">
+        <div class="empty-state">
+          <i class="bi bi-file-earmark-x" style="font-size: 32px; color: #9ca3af"></i>
+          <p>No resolution notes available</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Back Button -->
+    <div style="margin-top: 20px">
+      <button class="btn-light" (click)="goBack()">← Back to Incidents</button>
+    </div>
+  </div>
+
+  <!-- Close Modal -->
+  <div class="modal-overlay" *ngIf="showCloseModal" (click)="showCloseModal = false"></div>
+  <div class="modal" *ngIf="showCloseModal">
+    <div class="modal-header">
+      <h3>Close as Small Issue</h3>
+      <button type="button" class="btn-close" (click)="showCloseModal = false">✕</button>
+    </div>
+    <div class="modal-body">
+      <label class="field-label">Resolution Notes</label>
+      <textarea
+        class="form-textarea"
+        rows="4"
+        [(ngModel)]="resolutionNotes"
+        placeholder="Describe how this issue was resolved..."
+      ></textarea>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn-light" (click)="showCloseModal = false">Cancel</button>
+      <button
+        type="button"
+        class="btn btn-success"
+        (click)="closeIncident()"
+        [disabled]="processing()"
+      >
+        <span *ngIf="processing()" class="spinner-sm"></span>
+        Close Incident
+      </button>
+    </div>
+  </div>
+
+  <!-- Escalate Modal -->
+  <div class="modal-overlay" *ngIf="showEscalateModal" (click)="closeEscalateModal()"></div>
+  <div class="escalate-modal" *ngIf="showEscalateModal">
+    <div class="modal-header">
+      <h3><i class="bi bi-box-arrow-up-right"></i> Escalate to Case</h3>
+      <button type="button" class="btn-close" (click)="closeEscalateModal()">✕</button>
+    </div>
+    <div class="modal-body-scrollable">
+      <!-- Linked Incidents Section -->
+      <div class="linked-incidents-section">
+        <div class="section-header">
+          <h4 class="section-title">Linked Incident(s)</h4>
+        </div>
+        <div class="incident-card">
+          <div class="incident-badge">
+            <span class="badge-code">{{ incident()!.code }}</span>
+            <span class="badge-severity" [class]="'severity-' + incident()!.severity.toLowerCase()">
+              {{ incident()!.severity }}
+            </span>
+          </div>
+          <div class="incident-title">{{ incident()!.title }}</div>
+          <div class="incident-meta">
+            <span
+              ><i class="bi bi-person"></i> {{ incident()!.driverName || 'Unknown Driver' }}</span
+            >
+            <span><i class="bi bi-truck"></i> {{ incident()!.vehiclePlate || 'N/A' }}</span>
+            <span
+              ><i class="bi bi-clock"></i>
+              {{ incident()!.reportedAt | date: 'dd MMM yyyy, hh:mm a' }}</span
+            >
+          </div>
+        </div>
+        <button type="button" class="btn-add-incident" disabled>
+          <i class="bi bi-plus-circle"></i> Add Another Incident
+        </button>
+      </div>
+
+      <!-- Case Form -->
+      <form [formGroup]="escalateForm" (ngSubmit)="submitEscalation()">
+        <!-- Case Title -->
+        <div class="form-group">
+          <label class="form-label required">Case Title</label>
+          <input
+            type="text"
+            class="form-control"
+            formControlName="title"
+            placeholder="Brief description of the case"
+            maxlength="255"
+          />
+          <small class="form-hint">{{ getTitleLength() }}/255 characters</small>
+        </div>
+
+        <!-- Category -->
+        <div class="form-group">
+          <label class="form-label required">Category</label>
+          <select class="form-select" formControlName="category">
+            <option value="">-- Select Category --</option>
+            <option *ngFor="let cat of caseCategories" [value]="cat.value">{{ cat.label }}</option>
+          </select>
+        </div>
+
+        <!-- Severity & Investigator Row -->
+        <div class="form-row-2">
+          <div class="form-group">
+            <label class="form-label required">Severity</label>
+            <select class="form-select" formControlName="severity">
+              <option value="">-- Select --</option>
+              <option *ngFor="let sev of severityLevels" [value]="sev.value">
+                {{ sev.label }}
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Assigned Investigator</label>
+            <select class="form-select" formControlName="assignedToUserId">
+              <option value="">-- Leave Unassigned --</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Case Description -->
+        <div class="form-group">
+          <label class="form-label required">Description</label>
+          <textarea
+            class="form-control"
+            rows="5"
+            formControlName="description"
+            placeholder="Provide detailed context, investigation scope, and key concerns..."
+          ></textarea>
+          <small class="form-hint">{{ getDescriptionLength() }} characters</small>
+        </div>
+
+        <!-- SLA Target Date -->
+        <div class="form-group">
+          <label class="form-label">SLA Target Date</label>
+          <div class="input-with-icon">
+            <i class="bi bi-calendar3"></i>
+            <input type="datetime-local" class="form-control" formControlName="slaTargetDate" />
+          </div>
+          <small class="form-hint">Expected resolution deadline</small>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="closeEscalateModal()">
+            Cancel
+          </button>
+          <button
+            type="submit"
+            class="btn btn-primary"
+            [disabled]="escalateForm.invalid || processing()"
+          >
+            <span *ngIf="processing()" class="spinner-sm"></span>
+            <i *ngIf="!processing()" class="bi bi-box-arrow-up-right"></i>
+            Create Case
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

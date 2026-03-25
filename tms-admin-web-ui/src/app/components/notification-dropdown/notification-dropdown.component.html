@@ -1,0 +1,39 @@
+<div class="relative inline-block text-left">
+  <!-- Bell Icon -->
+  <button (click)="onToggle()" class="relative p-2 bg-gray-100 rounded-full hover:bg-gray-200">
+    <span class="text-gray-700 material-icons">notifications</span>
+    <span
+      *ngIf="unreadCount > 0"
+      class="absolute top-0 right-0 flex items-center justify-center w-5 h-5 text-xs text-white bg-red-600 rounded-full"
+    >
+      {{ unreadCount }}
+    </span>
+  </button>
+
+  <!-- Dropdown -->
+  <div
+    *ngIf="dropdownOpen"
+    class="absolute right-0 z-50 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg w-72"
+  >
+    <div *ngIf="notifications.length === 0" class="px-4 py-3 text-sm text-gray-500">
+      No new notifications
+    </div>
+
+    <div *ngIf="notifications.length > 0" class="overflow-y-auto divide-y divide-gray-100 max-h-64">
+      <div
+        *ngFor="let notif of notifications.slice(0, 5)"
+        class="px-4 py-2 text-sm text-gray-800 hover:bg-gray-50"
+      >
+        <div class="font-medium">{{ notif.title }}</div>
+        <div class="text-gray-600">{{ notif.message }}</div>
+        <div class="text-xs text-gray-400">{{ notif.createdAt | date: 'short' }}</div>
+      </div>
+    </div>
+
+    <div class="px-4 py-2 text-sm text-center border-t">
+      <a href="#" (click)="onViewAll()" class="text-blue-600 hover:underline"
+        >View all notifications</a
+      >
+    </div>
+  </div>
+</div>

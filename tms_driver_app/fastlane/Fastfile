@@ -1,0 +1,21 @@
+default_platform(:ios)
+
+platform :ios do
+  desc "Build and upload IPA with REVIEWER_MODE=true (TestFlight reviewer build)"
+  lane :upload_reviewer do
+    sh "flutter clean"
+    sh "flutter pub get"
+    sh "flutter build ipa --export-options-plist ios/exportOptions.plist --dart-define=REVIEWER_MODE=true"
+
+    ipa_path = Dir["build/ios/ipa/*.ipa"].first
+    if ipa_path.nil?
+      UI.user_error!("IPA not found at build/ios/ipa. Make sure flutter build ipa succeeded")
+    end
+
+    upload_to_app_store(
+      ipa: ipa_path,
+      skip_screenshots: true,
+      skip_metadata: true
+    )
+  end
+end
