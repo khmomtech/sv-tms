@@ -1,0 +1,38 @@
+groups:
+  - name: svtms-platform
+    rules:
+      - alert: SvTmsServiceDown
+        expr: up{job=~"core-api|auth-api|driver-app-api|telematics-api|safety-api|message-api|api-gateway"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "SV-TMS service down"
+          description: "{{ $labels.job }} has been unreachable for more than 2 minutes."
+
+      - alert: SvTmsHostDiskPressure
+        expr: (node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}) < 0.15
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low disk space on host"
+          description: "Host root filesystem free space is below 15%."
+
+      - alert: SvTmsTelematicsSpoolGrowing
+        expr: location_history_spool_bytes > 1073741824
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Telematics spool is growing"
+          description: "Telematics spool is above 1 GiB, indicating backlog or sink pressure."
+
+      - alert: SvTmsGatewayRateLimited
+        expr: increase(http_server_requests_seconds_count{application="api-gateway",status="429"}[5m]) > 50
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Gateway rate limiting spike"
+          description: "api-gateway has returned more than 50 rate-limited responses in 5 minutes."

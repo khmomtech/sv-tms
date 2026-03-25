@@ -1,0 +1,1136 @@
+package com.svtrucking.logistics.safety.service;
+
+import com.svtrucking.logistics.dto.SafetyCheckAttachmentDto;
+import com.svtrucking.logistics.dto.SafetyCheckAuditDto;
+import com.svtrucking.logistics.dto.SafetyCheckDto;
+import com.svtrucking.logistics.dto.SafetyCheckItemDto;
+import com.svtrucking.logistics.dto.SafetyEligibilityDto;
+import com.svtrucking.logistics.dto.requests.PublicSafetyCheckItemRequest;
+import com.svtrucking.logistics.dto.requests.PublicSafetyCheckRequest;
+import com.svtrucking.logistics.enums.DailySafetyCheckStatus;
+import com.svtrucking.logistics.enums.DriverStatus;
+import com.svtrucking.logistics.enums.SafetyItemResult;
+import com.svtrucking.logistics.enums.SafetyRiskLevel;
+import com.svtrucking.logistics.enums.SafetySeverity;
+import com.svtrucking.logistics.exception.ResourceNotFoundException;
+import com.svtrucking.logistics.identity.domain.DriverProfile;
+import com.svtrucking.logistics.identity.domain.User;
+import com.svtrucking.logistics.identity.domain.VehicleRef;
+import com.svtrucking.logistics.identity.repository.DriverProfileRepository;
+import com.svtrucking.logistics.identity.repository.UserRepository;
+import com.svtrucking.logistics.identity.repository.VehicleRefRepository;
+import com.svtrucking.logistics.infrastructure.files.FileStorageService;
+import com.svtrucking.logistics.safety.domain.SafetyCheck;
+import com.svtrucking.logistics.safety.domain.SafetyCheckAttachment;
+import com.svtrucking.logistics.safety.domain.SafetyCheckAudit;
+import com.svtrucking.logistics.safety.domain.SafetyCheckCategory;
+import com.svtrucking.logistics.safety.domain.SafetyCheckItem;
+import com.svtrucking.logistics.safety.domain.SafetyCheckMasterItem;
+import com.svtrucking.logistics.safety.repository.SafetyCheckAttachmentRepository;
+import com.svtrucking.logistics.safety.repository.SafetyCheckAuditRepository;
+import com.svtrucking.logistics.safety.repository.SafetyCheckCategoryRepository;
+import com.svtrucking.logistics.safety.repository.SafetyCheckItemRepository;
+import com.svtrucking.logistics.safety.repository.SafetyCheckMasterItemRepository;
+import com.svtrucking.logistics.safety.repository.SafetyCheckRepository;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.*;
+import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.ss.usermodel.BorderStyle;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.FillPatternType;
+import org.apache.poi.ss.usermodel.Font;
+import org.apache.poi.ss.usermodel.HorizontalAlignment;
+import org.apache.poi.ss.usermodel.IndexedColors;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.VerticalAlignment;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class SafetyCheckService
+        implements SafetyCheckReadPlatformService, SafetyCheckWritePlatformService {
+
+    private static final ZoneId PHNOM_PENH = ZoneId.of("Asia/Phnom_Penh");
+
+    private final SafetyCheckRepository safetyCheckRepository;
+    private final SafetyCheckItemRepository safetyCheckItemRepository;
+    private final SafetyCheckAttachmentRepository safetyCheckAttachmentRepository;
+    private final SafetyCheckAuditRepository safetyCheckAuditRepository;
+    private final SafetyCheckMasterItemRepository safetyCheckMasterItemRepository;
+    private final SafetyCheckCategoryRepository safetyCheckCategoryRepository;
+    private final DriverProfileRepository driverRepository;
+    private final VehicleRefRepository vehicleRepository;
+    private final UserRepository userRepository;
+    private final FileStorageService fileStorageService;
+
+    @Transactional(readOnly = true)
+    public SafetyCheckDto getToday(Long driverId, Long vehicleId) {
+        LocalDate today = LocalDate.now(PHNOM_PENH);
+        Optional<SafetyCheck> existing = safetyCheckRepository.findByCheckDateAndDriverIdAndVehicleId(
+                today, driverId, vehicleId);
+
+        if (existing.isPresent()) {
+            return toDto(existing.get(), true, true);
+        }
+
+        return SafetyCheckDto.builder()
+                .checkDate(today)
+                .driverId(driverId)
+                .vehicleId(vehicleId)
+                .status(DailySafetyCheckStatus.NOT_STARTED)
+                .items(defaultItems())
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public SafetyCheckDto getPublicToday(String plate) {
+        String normalized = plate != null ? plate.trim() : "";
+        if (normalized.isEmpty()) {
+            throw new IllegalArgumentException("vehiclePlate is required");
+        }
+        VehicleRef vehicle = vehicleRepository
+                .findByLicensePlate(normalized)
+                .orElseGet(
+                        () -> vehicleRepository
+                                .findByLicensePlate(normalized.toUpperCase(Locale.ROOT))
+                                .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found")));
+
+        LocalDate today = LocalDate.now(PHNOM_PENH);
+        Optional<SafetyCheck> existing = safetyCheckRepository.findByCheckDateAndVehicleId(today, vehicle.getId());
+        if (existing.isPresent()) {
+            return toDto(existing.get(), true, true);
+        }
+
+        return SafetyCheckDto.builder()
+                .checkDate(today)
+                .vehicleId(vehicle.getId())
+                .status(DailySafetyCheckStatus.NOT_STARTED)
+                .items(defaultItems())
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public List<SafetyCheckItemDto> getPublicMasterItems() {
+        return defaultItems();
+    }
+
+    @Transactional(readOnly = true)
+    public List<SafetyCheckDto> getPublicHistory(String plate, LocalDate from, LocalDate to) {
+        String normalized = plate != null ? plate.trim() : "";
+        if (normalized.isEmpty()) {
+            throw new IllegalArgumentException("vehiclePlate is required");
+        }
+        VehicleRef vehicle = vehicleRepository
+                .findByLicensePlate(normalized)
+                .orElseGet(
+                        () -> vehicleRepository
+                                .findByLicensePlate(normalized.toUpperCase(Locale.ROOT))
+                                .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found")));
+        LocalDate fromDate = from != null ? from : LocalDate.now(PHNOM_PENH);
+        LocalDate toDate = to != null ? to : fromDate;
+
+        List<SafetyCheck> list = safetyCheckRepository.findByVehicleIdAndCheckDateBetween(
+                vehicle.getId(), fromDate, toDate);
+        return list.stream()
+                .sorted(Comparator.comparing(SafetyCheck::getCheckDate).reversed())
+                .map(sc -> toDto(sc, false, false))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public SafetyCheckDto getPublicDetail(Long id, String plate) {
+        String normalized = plate != null ? plate.trim() : "";
+        if (normalized.isEmpty()) {
+            throw new IllegalArgumentException("vehiclePlate is required");
+        }
+
+        SafetyCheck safetyCheck = safetyCheckRepository
+                .findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Safety check not found"));
+
+        String entityPlate = safetyCheck.getVehicleId() != null
+                ? vehicleRepository
+                        .findById(safetyCheck.getVehicleId())
+                        .map(VehicleRef::getLicensePlate)
+                        .orElse("")
+                : "";
+
+        if (!entityPlate.equalsIgnoreCase(normalized)) {
+            throw new ResourceNotFoundException("Safety check not found for this vehicle");
+        }
+
+        return toDto(safetyCheck, true, false);
+    }
+
+    @Transactional
+    public SafetyCheckDto saveDraft(
+            SafetyCheckDto payload, Long driverId, Long actorUserId, String actorRole) {
+        if (payload.getVehicleId() == null) {
+            throw new IllegalArgumentException("vehicleId is required");
+        }
+
+        LocalDate checkDate = payload.getCheckDate() != null ? payload.getCheckDate() : LocalDate.now(PHNOM_PENH);
+
+        SafetyCheck safetyCheck = safetyCheckRepository
+                .findByCheckDateAndDriverIdAndVehicleId(
+                        checkDate, driverId, payload.getVehicleId())
+                .orElseGet(
+                        () -> {
+                            DriverProfile driver = driverRepository
+                                    .findById(driverId)
+                                    .orElseThrow(() -> new ResourceNotFoundException("Driver not found"));
+                            VehicleRef vehicle = vehicleRepository
+                                    .findById(payload.getVehicleId())
+                                    .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found"));
+
+                            return SafetyCheck.builder()
+                                    .checkDate(checkDate)
+                                    .driverId(driver.getId())
+                                    .vehicleId(vehicle.getId())
+                                    .status(DailySafetyCheckStatus.DRAFT)
+                                    .build();
+                        });
+
+        if (safetyCheck.getStatus() == DailySafetyCheckStatus.WAITING_APPROVAL
+                || safetyCheck.getStatus() == DailySafetyCheckStatus.APPROVED) {
+            throw new IllegalStateException("Safety check cannot be edited while waiting or approved");
+        }
+
+        if (safetyCheck.getStatus() == null || safetyCheck.getStatus() == DailySafetyCheckStatus.NOT_STARTED) {
+            safetyCheck.setStatus(DailySafetyCheckStatus.DRAFT);
+        }
+
+        if (safetyCheck.getStatus() == DailySafetyCheckStatus.REJECTED) {
+            safetyCheck.setStatus(DailySafetyCheckStatus.DRAFT);
+            safetyCheck.setRejectReason(null);
+            safetyCheck.setApprovedAt(null);
+            safetyCheck.setApprovedByUserId(null);
+            safetyCheck.setSubmittedAt(null);
+            saveAudit(
+                    safetyCheck,
+                    "RESUBMIT_AFTER_FIX",
+                    actorUserId,
+                    actorRole,
+                    "Driver resubmitted after fix");
+        }
+
+        safetyCheck.setShift(payload.getShift());
+        safetyCheck.setNotes(payload.getNotes());
+        safetyCheck.setGpsLat(payload.getGpsLat());
+        safetyCheck.setGpsLng(payload.getGpsLng());
+
+        SafetyCheck saved = safetyCheckRepository.save(safetyCheck);
+
+        upsertItems(saved, payload.getItems());
+
+        SafetyRiskLevel computed = calculateRiskLevel(saved.getId());
+        saved.setRiskLevel(computed);
+
+        SafetyCheck finalSaved = safetyCheckRepository.save(saved);
+        saveAudit(finalSaved, "DRAFT_SAVE", actorUserId, actorRole, "Draft saved");
+
+        return toDto(finalSaved, true, true);
+    }
+
+    @Transactional
+    public SafetyCheckAttachmentDto addAttachment(
+            Long safetyCheckId,
+            Long itemId,
+            MultipartFile file,
+            Long actorUserId,
+            String actorRole,
+            Long driverId) {
+        SafetyCheck safetyCheck = safetyCheckRepository
+                .findById(safetyCheckId)
+                .orElseThrow(() -> new ResourceNotFoundException("Safety check not found"));
+
+        if (driverId != null && safetyCheck.getDriverId() != null) {
+            if (!safetyCheck.getDriverId().equals(driverId)) {
+                throw new SecurityException("Not allowed to attach to this safety check");
+            }
+        }
+
+        if (safetyCheck.getStatus() != DailySafetyCheckStatus.DRAFT
+                && safetyCheck.getStatus() != DailySafetyCheckStatus.REJECTED) {
+            throw new IllegalStateException("Cannot add attachment after submission");
+        }
+
+        SafetyCheckItem item = null;
+        if (itemId != null) {
+            item = safetyCheckItemRepository
+                    .findById(itemId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Safety check item not found"));
+            if (!item.getSafetyCheck().getId().equals(safetyCheckId)) {
+                throw new IllegalArgumentException("Item does not belong to this safety check");
+            }
+        }
+
+        String fileUrl = fileStorageService.storeFileInSubfolder(file, "safety-checks");
+
+        SafetyCheckAttachment attachment = SafetyCheckAttachment.builder()
+                .safetyCheck(safetyCheck)
+                .itemId(item != null ? item.getId() : null)
+                .fileUrl(fileUrl)
+                .fileName(file.getOriginalFilename())
+                .mimeType(file.getContentType())
+                .uploadedByUserId(actorUserId)
+                .build();
+
+        SafetyCheckAttachment saved = safetyCheckAttachmentRepository.save(attachment);
+
+        saveAudit(safetyCheck, "ATTACHMENT_UPLOADED", actorUserId, actorRole, "Attachment uploaded");
+
+        return toDto(saved);
+    }
+
+    @Transactional
+    public SafetyCheckDto submit(Long safetyCheckId, Long driverId, Long actorUserId, String actorRole) {
+        SafetyCheck safetyCheck = safetyCheckRepository
+                .findById(safetyCheckId)
+                .orElseThrow(() -> new ResourceNotFoundException("Safety check not found"));
+
+        if (!Objects.equals(safetyCheck.getDriverId(), driverId)) {
+            throw new SecurityException("Not allowed to submit this safety check");
+        }
+
+        if (safetyCheck.getStatus() != DailySafetyCheckStatus.DRAFT) {
+            throw new IllegalStateException("Only drafts can be submitted");
+        }
+
+        SafetyRiskLevel risk = calculateRiskLevel(safetyCheckId);
+
+        safetyCheck.setRiskLevel(risk);
+        safetyCheck.setStatus(DailySafetyCheckStatus.WAITING_APPROVAL);
+        safetyCheck.setSubmittedAt(LocalDateTime.now());
+
+        SafetyCheck saved = safetyCheckRepository.save(safetyCheck);
+
+        saveAudit(saved, "SUBMITTED", actorUserId, actorRole, "Submitted for approval");
+
+        return toDto(saved, true, true);
+    }
+
+    @Transactional
+    public SafetyCheckDto submitPublic(PublicSafetyCheckRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("Request is required");
+        }
+        String plate = request.getVehiclePlate() != null ? request.getVehiclePlate().trim() : "";
+        if (plate.isEmpty()) {
+            throw new IllegalArgumentException("vehiclePlate is required");
+        }
+
+        VehicleRef vehicle = vehicleRepository
+                .findByLicensePlate(plate)
+                .orElseGet(
+                        () -> vehicleRepository
+                                .findByLicensePlate(plate.toUpperCase(Locale.ROOT))
+                                .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found")));
+
+        String requestedDriverName = request.getDriverName() != null ? request.getDriverName().trim() : "";
+        String requestedDriverPhone = request.getDriverPhone() != null ? request.getDriverPhone().trim() : "";
+
+        final String driverName = requestedDriverName.isEmpty() ? "Public Driver" : requestedDriverName;
+        final String driverPhone = requestedDriverPhone.isEmpty() ? "N/A" : requestedDriverPhone;
+
+        DriverProfile driver = driverRepository
+                .findTopByPhone(driverPhone)
+                .orElseGet(
+                        () -> {
+                            DriverProfile created = new DriverProfile();
+                            created.setUserId(null);
+                            created.setName(driverName);
+                            created.setPhone(driverPhone);
+                            created.setActive(true);
+                            created.setStatus(DriverStatus.ONLINE);
+                            return driverRepository.save(created);
+                        });
+
+        SafetyCheckDto draftPayload = SafetyCheckDto.builder()
+                .vehicleId(vehicle.getId())
+                .checkDate(LocalDate.now(PHNOM_PENH))
+                .shift(request.getShift())
+                .notes(request.getNotes())
+                .gpsLat(request.getGpsLat())
+                .gpsLng(request.getGpsLng())
+                .items(mapPublicItems(request.getItems()))
+                .build();
+
+        SafetyCheckDto draft = saveDraft(draftPayload, driver.getId(), null, "PUBLIC");
+        return submit(draft.getId(), driver.getId(), null, "PUBLIC");
+    }
+
+    private List<SafetyCheckItemDto> mapPublicItems(List<PublicSafetyCheckItemRequest> items) {
+        if (items == null)
+            return Collections.emptyList();
+        List<SafetyCheckItemDto> mapped = new ArrayList<>();
+        for (PublicSafetyCheckItemRequest item : items) {
+            if (item == null)
+                continue;
+            String category = item.getCategory() != null ? item.getCategory().trim() : null;
+            String label = item.getLabel() != null ? item.getLabel().trim() : null;
+            if (category == null || category.isEmpty() || label == null || label.isEmpty()) {
+                continue;
+            }
+            String key = slugify(category + "-" + label);
+            boolean ok = item.getOk() != null ? item.getOk() : true;
+            SafetyItemResult result = ok ? SafetyItemResult.OK : SafetyItemResult.NOT_OK;
+            SafetySeverity severity = ok ? SafetySeverity.LOW : SafetySeverity.HIGH;
+
+            mapped.add(
+                    SafetyCheckItemDto.builder()
+                            .category(category)
+                            .itemKey(key)
+                            .itemLabelKm(label)
+                            .result(result)
+                            .severity(severity)
+                            .remark(item.getRemark())
+                            .build());
+        }
+        return mapped;
+    }
+
+    private String slugify(String raw) {
+        if (raw == null)
+            return "";
+        String normalized = raw.trim()
+                .toLowerCase(Locale.ROOT)
+                .replace('\u200b', ' ')
+                .replaceAll("[^\\p{L}\\p{M}\\p{Nd}]+", "_")
+                .replaceAll("_+", "_")
+                .replaceAll("^_|_$", "");
+        if (normalized.isBlank()) {
+            return "item_" + Integer.toHexString(raw.hashCode());
+        }
+        return normalized;
+    }
+
+    @Transactional(readOnly = true)
+    public List<SafetyCheckDto> getHistory(Long driverId, LocalDate from, LocalDate to) {
+        LocalDate start = from != null ? from : LocalDate.now(PHNOM_PENH).minusDays(30);
+        LocalDate end = to != null ? to : LocalDate.now(PHNOM_PENH);
+
+        List<SafetyCheck> checks = safetyCheckRepository
+                .findByDriverIdAndCheckDateBetween(
+                        driverId, start, end, org.springframework.data.domain.Pageable.unpaged())
+                .getContent();
+        checks.sort(Comparator.comparing(SafetyCheck::getCheckDate).reversed());
+
+        return checks.stream().map(sc -> toDto(sc, false, false)).collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public Page<SafetyCheckDto> getAdminList(
+            String search,
+            LocalDate from,
+            LocalDate to,
+            DailySafetyCheckStatus status,
+            SafetyRiskLevel risk,
+            Pageable pageable) {
+        Specification<SafetyCheck> spec = Specification.allOf();
+        if (search != null && !search.trim().isEmpty()) {
+            String term = "%" + search.trim().toLowerCase(Locale.ROOT) + "%";
+            List<Long> driverIds = driverRepository.searchIds(term);
+            List<Long> vehicleIds = vehicleRepository.searchIdsByPlate(term);
+            if ((driverIds == null || driverIds.isEmpty()) && (vehicleIds == null || vehicleIds.isEmpty())) {
+                return Page.empty(pageable);
+            }
+            spec = spec.and(
+                    (root, query, cb) -> {
+                        java.util.List<jakarta.persistence.criteria.Predicate> preds = new java.util.ArrayList<>();
+                        if (driverIds != null && !driverIds.isEmpty()) {
+                            preds.add(root.get("driverId").in(driverIds));
+                        }
+                        if (vehicleIds != null && !vehicleIds.isEmpty()) {
+                            preds.add(root.get("vehicleId").in(vehicleIds));
+                        }
+                        return cb.or(preds.toArray(new jakarta.persistence.criteria.Predicate[0]));
+                    });
+        }
+
+        if (from != null) {
+            spec = spec.and((root, query, cb) -> cb.greaterThanOrEqualTo(root.get("checkDate"), from));
+        }
+        if (to != null) {
+            spec = spec.and((root, query, cb) -> cb.lessThanOrEqualTo(root.get("checkDate"), to));
+        }
+        if (status != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("status"), status));
+        }
+        if (risk != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("riskLevel"), risk));
+        }
+
+        return safetyCheckRepository.findAll(spec, pageable).map(sc -> toDto(sc, false, false));
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] exportAdminCsv(
+            String search,
+            LocalDate from,
+            LocalDate to,
+            DailySafetyCheckStatus status,
+            SafetyRiskLevel risk) {
+        Specification<SafetyCheck> spec = Specification.allOf();
+        if (search != null && !search.trim().isEmpty()) {
+            String term = "%" + search.trim().toLowerCase(Locale.ROOT) + "%";
+            List<Long> driverIds = driverRepository.searchIds(term);
+            List<Long> vehicleIds = vehicleRepository.searchIdsByPlate(term);
+            if ((driverIds == null || driverIds.isEmpty()) && (vehicleIds == null || vehicleIds.isEmpty())) {
+                return "CheckDate,DriverName,DriverPhone,VehiclePlate,Status,RiskLevel,RiskOverride,SubmittedAt,ApprovedAt,IssuesCount,IssueRemarks\n"
+                        .getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            }
+            spec = spec.and(
+                    (root, query, cb) -> {
+                        java.util.List<jakarta.persistence.criteria.Predicate> preds = new java.util.ArrayList<>();
+                        if (driverIds != null && !driverIds.isEmpty()) {
+                            preds.add(root.get("driverId").in(driverIds));
+                        }
+                        if (vehicleIds != null && !vehicleIds.isEmpty()) {
+                            preds.add(root.get("vehicleId").in(vehicleIds));
+                        }
+                        return cb.or(preds.toArray(new jakarta.persistence.criteria.Predicate[0]));
+                    });
+        }
+
+        if (from != null) {
+            spec = spec.and((root, query, cb) -> cb.greaterThanOrEqualTo(root.get("checkDate"), from));
+        }
+        if (to != null) {
+            spec = spec.and((root, query, cb) -> cb.lessThanOrEqualTo(root.get("checkDate"), to));
+        }
+        if (status != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("status"), status));
+        }
+        if (risk != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("riskLevel"), risk));
+        }
+
+        List<SafetyCheck> checks = safetyCheckRepository.findAll(spec,
+                org.springframework.data.domain.Sort.by("checkDate").descending());
+
+        StringBuilder csv = new StringBuilder();
+        csv.append(
+                "CheckDate,DriverName,DriverPhone,VehiclePlate,Status,RiskLevel,RiskOverride,SubmittedAt,ApprovedAt,IssuesCount,IssueRemarks\n");
+
+        for (SafetyCheck check : checks) {
+            String driverName = resolveDriverName(check.getDriverId());
+            String driverPhone = resolveDriverPhone(check.getDriverId());
+            String vehiclePlate = resolveVehiclePlate(check.getVehicleId());
+            String statusVal = check.getStatus() != null ? check.getStatus().name() : "";
+            String riskLevel = check.getRiskLevel() != null ? check.getRiskLevel().name() : "";
+            String riskOverride = check.getRiskOverride() != null ? check.getRiskOverride().name() : "";
+            String submittedAt = check.getSubmittedAt() != null ? check.getSubmittedAt().toString() : "";
+            String approvedAt = check.getApprovedAt() != null ? check.getApprovedAt().toString() : "";
+
+            List<SafetyCheckItem> items = safetyCheckItemRepository.findBySafetyCheckId(check.getId());
+            long issues = items.stream()
+                    .filter(
+                            item -> item.getResult() != null
+                                    && item.getResult() != SafetyItemResult.OK)
+                    .count();
+            String remarks = items.stream()
+                    .filter(item -> item.getRemark() != null && !item.getRemark().isBlank())
+                    .map(item -> item.getItemLabelKm() + ": " + item.getRemark())
+                    .collect(Collectors.joining(" | "));
+
+            csv.append(csvEscape(check.getCheckDate() != null ? check.getCheckDate().toString() : ""))
+                    .append(',')
+                    .append(csvEscape(driverName))
+                    .append(',')
+                    .append(csvEscape(driverPhone))
+                    .append(',')
+                    .append(csvEscape(vehiclePlate))
+                    .append(',')
+                    .append(csvEscape(statusVal))
+                    .append(',')
+                    .append(csvEscape(riskLevel))
+                    .append(',')
+                    .append(csvEscape(riskOverride))
+                    .append(',')
+                    .append(csvEscape(submittedAt))
+                    .append(',')
+                    .append(csvEscape(approvedAt))
+                    .append(',')
+                    .append(issues)
+                    .append(',')
+                    .append(csvEscape(remarks))
+                    .append('\n');
+        }
+
+        return csv.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] exportAdminExcel(
+            String search,
+            LocalDate from,
+            LocalDate to,
+            DailySafetyCheckStatus status,
+            SafetyRiskLevel risk) {
+        Specification<SafetyCheck> spec = Specification.allOf();
+        if (search != null && !search.trim().isEmpty()) {
+            String term = "%" + search.trim().toLowerCase(Locale.ROOT) + "%";
+            List<Long> driverIds = driverRepository.searchIds(term);
+            List<Long> vehicleIds = vehicleRepository.searchIdsByPlate(term);
+            if ((driverIds == null || driverIds.isEmpty()) && (vehicleIds == null || vehicleIds.isEmpty())) {
+                driverIds = List.of(-1L);
+            }
+            final List<Long> driverIdsF = driverIds;
+            final List<Long> vehicleIdsF = vehicleIds;
+            spec = spec.and(
+                    (root, query, cb) -> {
+                        java.util.List<jakarta.persistence.criteria.Predicate> preds = new java.util.ArrayList<>();
+                        if (driverIdsF != null && !driverIdsF.isEmpty()) {
+                            preds.add(root.get("driverId").in(driverIdsF));
+                        }
+                        if (vehicleIdsF != null && !vehicleIdsF.isEmpty()) {
+                            preds.add(root.get("vehicleId").in(vehicleIdsF));
+                        }
+                        return cb.or(preds.toArray(new jakarta.persistence.criteria.Predicate[0]));
+                    });
+        }
+
+        if (from != null) {
+            spec = spec.and((root, query, cb) -> cb.greaterThanOrEqualTo(root.get("checkDate"), from));
+        }
+        if (to != null) {
+            spec = spec.and((root, query, cb) -> cb.lessThanOrEqualTo(root.get("checkDate"), to));
+        }
+        if (status != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("status"), status));
+        }
+        if (risk != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("riskLevel"), risk));
+        }
+
+        List<SafetyCheck> checks = safetyCheckRepository.findAll(spec,
+                org.springframework.data.domain.Sort.by("checkDate").descending());
+
+        try (Workbook wb = new XSSFWorkbook();
+                ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            var sheet = wb.createSheet("Safety Checks");
+
+            Font khmerFont = wb.createFont();
+            khmerFont.setFontName("Khmer OS");
+            khmerFont.setFontHeightInPoints((short) 11);
+
+            Font titleFont = wb.createFont();
+            titleFont.setFontName("Khmer OS");
+            titleFont.setFontHeightInPoints((short) 14);
+            titleFont.setBold(true);
+
+            Font headerFont = wb.createFont();
+            headerFont.setFontName("Khmer OS");
+            headerFont.setFontHeightInPoints((short) 11);
+            headerFont.setBold(true);
+
+            CellStyle titleStyle = wb.createCellStyle();
+            titleStyle.setFont(titleFont);
+            titleStyle.setAlignment(HorizontalAlignment.LEFT);
+            titleStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+
+            CellStyle headerStyle = wb.createCellStyle();
+            headerStyle.setFont(headerFont);
+            headerStyle.setFillForegroundColor(IndexedColors.LIGHT_CORNFLOWER_BLUE.getIndex());
+            headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            headerStyle.setAlignment(HorizontalAlignment.CENTER);
+            headerStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+            headerStyle.setBorderBottom(BorderStyle.THIN);
+            headerStyle.setBorderTop(BorderStyle.THIN);
+            headerStyle.setBorderLeft(BorderStyle.THIN);
+            headerStyle.setBorderRight(BorderStyle.THIN);
+
+            CellStyle bodyStyle = wb.createCellStyle();
+            bodyStyle.setFont(khmerFont);
+            bodyStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+            bodyStyle.setBorderBottom(BorderStyle.THIN);
+            bodyStyle.setBorderTop(BorderStyle.THIN);
+            bodyStyle.setBorderLeft(BorderStyle.THIN);
+            bodyStyle.setBorderRight(BorderStyle.THIN);
+
+            int rowIdx = 0;
+            Row titleRow = sheet.createRow(rowIdx++);
+            Cell titleCell = titleRow.createCell(0);
+            titleCell.setCellValue("របាយការណ៍ត្រួតពិនិត្យសុវត្ថិភាព (Safety Check Report)");
+            titleCell.setCellStyle(titleStyle);
+            sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(0, 0, 0, 10));
+
+            Row filterRow = sheet.createRow(rowIdx++);
+            Cell filterCell = filterRow.createCell(0);
+            String filterText = "Filter: "
+                    + (from != null ? "From " + from : "From -")
+                    + " | "
+                    + (to != null ? "To " + to : "To -")
+                    + " | Status: "
+                    + (status != null ? status.name() : "All")
+                    + " | Risk: "
+                    + (risk != null ? risk.name() : "All")
+                    + " | Search: "
+                    + (search != null && !search.isBlank() ? search : "-");
+            filterCell.setCellValue(filterText);
+            filterCell.setCellStyle(bodyStyle);
+            sheet.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(1, 1, 0, 10));
+
+            rowIdx++; // blank row
+
+            Row headerRow = sheet.createRow(rowIdx++);
+            String[] headers = {
+                    "កាលបរិច្ឆេទ",
+                    "ឈ្មោះអ្នកបើកបរ",
+                    "ទូរស័ព្ទ",
+                    "ស្លាកលេខ",
+                    "ស្ថានភាព",
+                    "ហានិភ័យ",
+                    "ហានិភ័យកែសម្រួល",
+                    "បានដាក់ស្នើ",
+                    "បានអនុម័ត",
+                    "ចំនួនបញ្ហា",
+                    "សេចក្តីសម្គាល់"
+            };
+            for (int c = 0; c < headers.length; c++) {
+                Cell cell = headerRow.createCell(c);
+                cell.setCellValue(headers[c]);
+                cell.setCellStyle(headerStyle);
+            }
+
+            for (SafetyCheck check : checks) {
+                Row row = sheet.createRow(rowIdx++);
+                String driverName = resolveDriverName(check.getDriverId());
+                String driverPhone = resolveDriverPhone(check.getDriverId());
+                String vehiclePlate = resolveVehiclePlate(check.getVehicleId());
+                String statusVal = check.getStatus() != null ? check.getStatus().name() : "";
+                String riskLevel = check.getRiskLevel() != null ? check.getRiskLevel().name() : "";
+                String riskOverride = check.getRiskOverride() != null ? check.getRiskOverride().name() : "";
+                String submittedAt = check.getSubmittedAt() != null ? check.getSubmittedAt().toString() : "";
+                String approvedAt = check.getApprovedAt() != null ? check.getApprovedAt().toString() : "";
+
+                List<SafetyCheckItem> items = safetyCheckItemRepository.findBySafetyCheckId(check.getId());
+                long issues = items.stream()
+                        .filter(
+                                item -> item.getResult() != null
+                                        && item.getResult() != SafetyItemResult.OK)
+                        .count();
+                String remarks = items.stream()
+                        .filter(item -> item.getRemark() != null && !item.getRemark().isBlank())
+                        .map(item -> item.getItemLabelKm() + ": " + item.getRemark())
+                        .collect(Collectors.joining(" | "));
+
+                Object[] values = {
+                        check.getCheckDate() != null ? check.getCheckDate().toString() : "",
+                        driverName,
+                        driverPhone,
+                        vehiclePlate,
+                        statusVal,
+                        riskLevel,
+                        riskOverride,
+                        submittedAt,
+                        approvedAt,
+                        issues,
+                        remarks
+                };
+                for (int c = 0; c < values.length; c++) {
+                    Cell cell = row.createCell(c);
+                    Object val = values[c];
+                    if (val instanceof Number) {
+                        cell.setCellValue(((Number) val).doubleValue());
+                    } else {
+                        cell.setCellValue(val != null ? String.valueOf(val) : "");
+                    }
+                    cell.setCellStyle(bodyStyle);
+                }
+            }
+
+            for (int c = 0; c < headers.length; c++) {
+                sheet.autoSizeColumn(c);
+            }
+
+            wb.write(out);
+            return out.toByteArray();
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to export Excel", e);
+        }
+    }
+
+    private String csvEscape(String raw) {
+        if (raw == null)
+            return "";
+        String escaped = raw.replace("\"", "\"\"");
+        if (escaped.contains(",") || escaped.contains("\"") || escaped.contains("\n")) {
+            return "\"" + escaped + "\"";
+        }
+        return escaped;
+    }
+
+    @Transactional(readOnly = true)
+    public SafetyCheckDto getAdminDetail(Long id) {
+        SafetyCheck safetyCheck = safetyCheckRepository
+                .findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Safety check not found"));
+
+        return toDto(safetyCheck, true, true);
+    }
+
+    @Transactional
+    public SafetyCheckDto approve(
+            Long id, Long adminUserId, String actorRole, SafetyRiskLevel riskOverride) {
+        SafetyCheck safetyCheck = safetyCheckRepository
+                .findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Safety check not found"));
+
+        User admin = userRepository
+                .findById(adminUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        safetyCheck.setStatus(DailySafetyCheckStatus.APPROVED);
+        safetyCheck.setApprovedAt(LocalDateTime.now());
+        safetyCheck.setApprovedByUserId(admin.getId());
+
+        if (riskOverride != null) {
+            safetyCheck.setRiskOverride(riskOverride);
+        }
+
+        SafetyCheck saved = safetyCheckRepository.save(safetyCheck);
+        saveAudit(saved, "APPROVED", adminUserId, actorRole, "Approved safety check");
+
+        return toDto(saved, true, true);
+    }
+
+    @Transactional
+    public SafetyCheckDto reject(Long id, Long adminUserId, String actorRole, String reason) {
+        if (reason == null || reason.isBlank()) {
+            throw new IllegalArgumentException("Reject reason is required");
+        }
+
+        SafetyCheck safetyCheck = safetyCheckRepository
+                .findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Safety check not found"));
+
+        User admin = userRepository
+                .findById(adminUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        safetyCheck.setStatus(DailySafetyCheckStatus.REJECTED);
+        safetyCheck.setRejectReason(reason);
+        safetyCheck.setApprovedAt(LocalDateTime.now());
+        safetyCheck.setApprovedByUserId(admin.getId());
+
+        SafetyCheck saved = safetyCheckRepository.save(safetyCheck);
+        saveAudit(saved, "REJECTED", adminUserId, actorRole, "Rejected: " + reason);
+
+        return toDto(saved, true, true);
+    }
+
+    @Transactional(readOnly = true)
+    public SafetyEligibilityDto checkEligibility(Long driverId, Long vehicleId, LocalDate date) {
+        LocalDate checkDate = date != null ? date : LocalDate.now(PHNOM_PENH);
+
+        Optional<SafetyCheck> existing = safetyCheckRepository.findByCheckDateAndDriverIdAndVehicleId(
+                checkDate, driverId, vehicleId);
+
+        if (existing.isEmpty()) {
+            return SafetyEligibilityDto.builder()
+                    .eligible(false)
+                    .status(DailySafetyCheckStatus.NOT_STARTED)
+                    .message("មិនទាន់បានបំពេញការត្រួតពិនិត្យសុវត្ថិភាពសម្រាប់ថ្ងៃនេះ")
+                    .build();
+        }
+
+        SafetyCheck safetyCheck = existing.get();
+        boolean approved = safetyCheck.getStatus() == DailySafetyCheckStatus.APPROVED;
+        String message = approved
+                ? "អាចចេញដំណើរ"
+                : "មិនអាចចេញដំណើរបានទេ ព្រោះការត្រួតពិនិត្យសុវត្ថិភាពមិនទាន់បានអនុម័ត";
+
+        return SafetyEligibilityDto.builder()
+                .eligible(approved)
+                .status(safetyCheck.getStatus())
+                .riskLevel(safetyCheck.getRiskLevel())
+                .safetyCheckId(safetyCheck.getId())
+                .message(message)
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public void assertEligibility(Long driverId, Long vehicleId, LocalDate date) {
+        SafetyEligibilityDto eligibility = checkEligibility(driverId, vehicleId, date);
+        if (!eligibility.isEligible()) {
+            throw new IllegalStateException(
+                    "មិនអាចចាប់ផ្តើម Trip បានទេ ព្រោះការត្រួតពិនិត្យសុវត្ថិភាពមិនទាន់បានអនុម័ត");
+        }
+    }
+
+    private void upsertItems(SafetyCheck safetyCheck, List<SafetyCheckItemDto> items) {
+        if (items == null) {
+            return;
+        }
+
+        List<SafetyCheckItem> existingItems = safetyCheckItemRepository.findBySafetyCheckId(safetyCheck.getId());
+
+        Map<String, SafetyCheckItem> byKey = existingItems.stream()
+                .collect(Collectors.toMap(this::itemMapKey, item -> item, (a, b) -> a));
+
+        Set<String> seenKeys = new HashSet<>();
+
+        for (SafetyCheckItemDto dto : items) {
+            if (dto.getCategory() == null || dto.getItemKey() == null) {
+                continue;
+            }
+            String key = itemMapKey(dto.getCategory(), dto.getItemKey());
+            seenKeys.add(key);
+
+            SafetyCheckItem item = byKey.get(key);
+            if (item == null) {
+                item = SafetyCheckItem.builder().safetyCheck(safetyCheck).build();
+            }
+
+            item.setCategory(dto.getCategory());
+            item.setItemKey(dto.getItemKey());
+            item.setItemLabelKm(dto.getItemLabelKm());
+            item.setResult(dto.getResult());
+            item.setSeverity(dto.getSeverity());
+            item.setRemark(dto.getRemark());
+
+            safetyCheckItemRepository.save(item);
+        }
+
+        for (SafetyCheckItem item : existingItems) {
+            String key = itemMapKey(item);
+            if (!seenKeys.contains(key)) {
+                safetyCheckItemRepository.delete(item);
+            }
+        }
+    }
+
+    private SafetyRiskLevel calculateRiskLevel(Long safetyCheckId) {
+        List<SafetyCheckItem> items = safetyCheckItemRepository.findBySafetyCheckId(safetyCheckId);
+
+        boolean hasHigh = items.stream().anyMatch(item -> item.getSeverity() == SafetySeverity.HIGH);
+
+        long issues = items.stream()
+                .filter(
+                        item -> item.getResult() != null
+                                && item.getResult() != SafetyItemResult.OK)
+                .count();
+
+        if (hasHigh) {
+            return SafetyRiskLevel.HIGH;
+        }
+        if (issues >= 3) {
+            return SafetyRiskLevel.MEDIUM;
+        }
+        return SafetyRiskLevel.LOW;
+    }
+
+    private void saveAudit(
+            SafetyCheck safetyCheck,
+            String action,
+            Long actorId,
+            String actorRole,
+            String message) {
+        SafetyCheckAudit audit = SafetyCheckAudit.builder()
+                .safetyCheck(safetyCheck)
+                .action(action)
+                .actorId(actorId)
+                .actorRole(actorRole)
+                .message(message)
+                .build();
+        safetyCheckAuditRepository.save(audit);
+    }
+
+    private SafetyCheckDto toDto(SafetyCheck safetyCheck, boolean includeItems, boolean includeAudit) {
+        Long driverId = safetyCheck.getDriverId();
+        Long vehicleId = safetyCheck.getVehicleId();
+        Long approvedByUserId = safetyCheck.getApprovedByUserId();
+        SafetyCheckDto dto = SafetyCheckDto.builder()
+                .id(safetyCheck.getId())
+                .checkDate(safetyCheck.getCheckDate())
+                .shift(safetyCheck.getShift())
+                .driverId(driverId)
+                .driverName(resolveDriverName(driverId))
+                .vehicleId(vehicleId)
+                .vehiclePlate(resolveVehiclePlate(vehicleId))
+                .status(safetyCheck.getStatus())
+                .riskLevel(safetyCheck.getRiskLevel())
+                .riskOverride(safetyCheck.getRiskOverride())
+                .submittedAt(safetyCheck.getSubmittedAt())
+                .approvedAt(safetyCheck.getApprovedAt())
+                .approvedBy(approvedByUserId)
+                .approvedByName(resolveUsername(approvedByUserId))
+                .rejectReason(safetyCheck.getRejectReason())
+                .notes(safetyCheck.getNotes())
+                .gpsLat(safetyCheck.getGpsLat())
+                .gpsLng(safetyCheck.getGpsLng())
+                .createdAt(safetyCheck.getCreatedAt())
+                .updatedAt(safetyCheck.getUpdatedAt())
+                .build();
+
+        if (includeItems) {
+            List<SafetyCheckItem> items = safetyCheckItemRepository.findBySafetyCheckId(safetyCheck.getId());
+
+            Map<String, String> categoryLabelMap = loadCategoryLabelMap();
+            Map<String, Integer> orderMap = loadItemOrderMap();
+            items.sort(
+                    Comparator.comparingInt(
+                            item -> orderMap.getOrDefault(
+                                    item.getCategory() + "::" + item.getItemKey(), Integer.MAX_VALUE)));
+            dto.setItems(
+                    items.stream().map(item -> toDto(item, categoryLabelMap)).collect(Collectors.toList()));
+
+            List<SafetyCheckAttachment> attachments = safetyCheckAttachmentRepository
+                    .findBySafetyCheckId(safetyCheck.getId());
+            dto.setAttachments(attachments.stream().map(this::toDto).collect(Collectors.toList()));
+        }
+
+        if (includeAudit) {
+            List<SafetyCheckAudit> audits = safetyCheckAuditRepository
+                    .findBySafetyCheckIdOrderByCreatedAtDesc(safetyCheck.getId());
+            dto.setAudits(audits.stream().map(this::toDto).collect(Collectors.toList()));
+        }
+
+        return dto;
+    }
+
+    private SafetyCheckItemDto toDto(SafetyCheckItem item, Map<String, String> categoryLabelMap) {
+        return SafetyCheckItemDto.builder()
+                .id(item.getId())
+                .category(item.getCategory())
+                .categoryLabelKm(categoryLabelMap.get(item.getCategory()))
+                .itemKey(item.getItemKey())
+                .itemLabelKm(item.getItemLabelKm())
+                .result(item.getResult())
+                .severity(item.getSeverity())
+                .remark(item.getRemark())
+                .createdAt(item.getCreatedAt())
+                .build();
+    }
+
+    private SafetyCheckAttachmentDto toDto(SafetyCheckAttachment attachment) {
+        return SafetyCheckAttachmentDto.builder()
+                .id(attachment.getId())
+                .itemId(attachment.getItemId())
+                .fileUrl(attachment.getFileUrl())
+                .fileName(attachment.getFileName())
+                .mimeType(attachment.getMimeType())
+                .uploadedById(attachment.getUploadedByUserId())
+                .uploadedByName(resolveUsername(attachment.getUploadedByUserId()))
+                .createdAt(attachment.getCreatedAt())
+                .build();
+    }
+
+    private SafetyCheckAuditDto toDto(SafetyCheckAudit audit) {
+        return SafetyCheckAuditDto.builder()
+                .id(audit.getId())
+                .action(audit.getAction())
+                .actorId(audit.getActorId())
+                .actorRole(audit.getActorRole())
+                .message(audit.getMessage())
+                .createdAt(audit.getCreatedAt())
+                .build();
+    }
+
+    private String resolveDriverName(Long driverId) {
+        if (driverId == null)
+            return null;
+        return driverRepository.findById(driverId).map(DriverProfile::getName).orElse(null);
+    }
+
+    private String resolveDriverPhone(Long driverId) {
+        if (driverId == null)
+            return "";
+        return driverRepository.findById(driverId).map(DriverProfile::getPhone).orElse("");
+    }
+
+    private String resolveVehiclePlate(Long vehicleId) {
+        if (vehicleId == null)
+            return "";
+        return vehicleRepository.findById(vehicleId).map(VehicleRef::getLicensePlate).orElse("");
+    }
+
+    private String resolveUsername(Long userId) {
+        if (userId == null)
+            return null;
+        return userRepository.findById(userId).map(User::getUsername).orElse(null);
+    }
+
+    private String itemMapKey(SafetyCheckItem item) {
+        return itemMapKey(item.getCategory(), item.getItemKey());
+    }
+
+    private String itemMapKey(String category, String itemKey) {
+        return category + "::" + itemKey;
+    }
+
+    private List<SafetyCheckItemDto> defaultItems() {
+        List<SafetyCheckMasterItem> masters = safetyCheckMasterItemRepository.findByIsActiveTrueOrderBySortOrderAsc();
+        if (masters.isEmpty()) {
+            return fallbackItems();
+        }
+
+        return masters.stream()
+                .map(
+                        item -> SafetyCheckItemDto.builder()
+                                .category(item.getCategory().getCode())
+                                .categoryLabelKm(item.getCategory().getNameKm())
+                                .itemKey(item.getItemKey())
+                                .itemLabelKm(item.getItemLabelKm())
+                                .build())
+                .collect(Collectors.toList());
+    }
+
+    private List<SafetyCheckItemDto> fallbackItems() {
+        List<SafetyCheckItemDto> items = new ArrayList<>();
+        items.add(template("ENGINE", "engine_oil", "ប្រេងម៉ាស៊ីន", "ផ្នែកម៉ាស៊ីន"));
+        items.add(template("ENGINE", "coolant", "ទឹកស្អំម៉ាស៊ីន", "ផ្នែកម៉ាស៊ីន"));
+        items.add(template("DRIVER_HEALTH", "slept_enough", "គេងគ្រប់គ្រាន់", "សុខភាពអ្នកបើកបរ"));
+        items.add(template("DRIVER_HEALTH", "sick", "មានជំងឺ", "សុខភាពអ្នកបើកបរ"));
+        items.add(template("SAFETY_EQUIPMENT", "fire_extinguisher", "ឧបករណ៍ពន្លត់អគ្គីភ័យ", "ឧបករណ៍សុវត្ថិភាព"));
+        items.add(template("LOAD", "secured", "ទំនិញបានចាក់សោរល្អ", "ទំនិញ"));
+        items.add(template("ENVIRONMENT", "weather", "អាកាសធាតុ", "បរិស្ថាន"));
+        return items;
+    }
+
+    private SafetyCheckItemDto template(
+            String category, String key, String labelKm, String categoryLabelKm) {
+        return SafetyCheckItemDto.builder()
+                .category(category)
+                .categoryLabelKm(categoryLabelKm)
+                .itemKey(key)
+                .itemLabelKm(labelKm)
+                .build();
+    }
+
+    private Map<String, String> loadCategoryLabelMap() {
+        List<SafetyCheckCategory> categories = safetyCheckCategoryRepository.findByIsActiveTrueOrderBySortOrderAsc();
+        Map<String, String> map = new HashMap<>();
+        for (SafetyCheckCategory cat : categories) {
+            map.put(cat.getCode(), cat.getNameKm());
+        }
+        return map;
+    }
+
+    private Map<String, Integer> loadItemOrderMap() {
+        List<SafetyCheckMasterItem> masters = safetyCheckMasterItemRepository.findByIsActiveTrueOrderBySortOrderAsc();
+        Map<String, Integer> map = new HashMap<>();
+        for (SafetyCheckMasterItem item : masters) {
+            String key = item.getCategory().getCode() + "::" + item.getItemKey();
+            map.put(key, item.getSortOrder() != null ? item.getSortOrder() : Integer.MAX_VALUE);
+        }
+        return map;
+    }
+}

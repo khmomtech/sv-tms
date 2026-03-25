@@ -1,0 +1,134 @@
+---
+- name: Deploy SV-TMS stack to Ubuntu 24
+  hosts: svtms
+  become: true
+  vars:
+    repo_src: "{{ repo_src | default(playbook_dir + '/../../') }}"
+    remote_dir: /opt/sv-tms
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install prerequisite packages
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+          - software-properties-common
+        state: present
+
+    - name: Add Docker GPG key
+      ansible.builtin.apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker apt repository
+      apt_repository:
+        repo: "deb [arch={{ ansible_architecture }}] https://download.docker.com/linux/ubuntu {{ ansible_lsb.codename }} stable"
+        state: present
+
+    - name: Install Docker and Compose plugin
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-compose-plugin
+        state: present
+        update_cache: yes
+
+    - name: Ensure docker is running
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Ensure UFW allows SSH, HTTP, HTTPS
+      block:
+        - name: Install ufw
+          apt:
+            name: ufw
+            state: present
+        - name: Allow OpenSSH
+          ufw:
+            rule: allow
+            name: OpenSSH
+        - name: Allow http and https
+          ufw:
+            rule: allow
+            port: "80,443"
+        - name: Enable ufw
+          ufw:
+            state: enabled
+            enabled: yes
+      ignore_errors: true
+
+    - name: Create remote directory
+      file:
+        path: "{{ remote_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Synchronize repository to remote (requires rsync on control machine)
+      synchronize:
+        src: "{{ repo_src }}"
+        dest: "{{ remote_dir }}"
+        rsync_opts:
+          - "--delete"
+        recursive: yes
+
+    - name: Ensure infra .env exists (copied from repo)
+      copy:
+        src: "{{ remote_dir }}/infra/.env"
+        dest: "{{ remote_dir }}/infra/.env"
+        remote_src: yes
+      ignore_errors: yes
+
+    - name: Start Docker Compose stack
+      command: docker compose --env-file {{ remote_dir }}/infra/.env -f {{ remote_dir }}/infra/docker-compose.prod.yml up -d --build --remove-orphans
+      args:
+        chdir: "{{ remote_dir }}"
+
+    - name: Run certbot (webroot) if DOMAIN and EMAIL provided
+      block:
+        - name: Read infra/.env for DOMAIN and EMAIL
+          slurp:
+            src: "{{ remote_dir }}/infra/.env"
+          register: envfile
+        - name: Parse env
+          set_fact:
+            infra_env: "{{ dict(envfile.content | b64decode | splitlines() | map('trim') | reject('match','^#') | map('split','=',1) | list) }}"
+        - name: Set domain and email
+          set_fact:
+            _domain: "{{ infra_env['DOMAIN'] | default('') }}"
+            _email: "{{ infra_env['EMAIL'] | default('') }}"
+        - name: Obtain cert with certbot container
+          command: >-
+            docker compose --env-file {{ remote_dir }}/infra/.env -f {{ remote_dir }}/infra/docker-compose.prod.yml run --rm certbot certonly --webroot -w /var/www/certbot -d {{ _domain }} -m {{ _email }} --agree-tos --no-eff-email
+          args:
+            chdir: "{{ remote_dir }}"
+      when: "lookup('file', remote_dir + '/infra/.env', errors='ignore') is defined"
+      ignore_errors: true
+
+    - name: Restart nginx container to pick up certs
+      command: docker compose --env-file {{ remote_dir }}/infra/.env -f {{ remote_dir }}/infra/docker-compose.prod.yml restart nginx
+      args:
+        chdir: "{{ remote_dir }}"
+      ignore_errors: true
+
+    - name: Show docker compose ps
+      command: docker compose --env-file {{ remote_dir }}/infra/.env -f {{ remote_dir }}/infra/docker-compose.prod.yml ps
+      args:
+        chdir: "{{ remote_dir }}"
+      register: compose_ps
+
+    - name: Print compose ps
+      debug:
+        var: compose_ps.stdout_lines

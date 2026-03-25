@@ -1,0 +1,10 @@
+[Unit]
+Description=Renew SV-TMS TLS certificates
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/sv-tms
+ExecStart=/usr/bin/docker compose --env-file /opt/sv-tms/infra/.env -f /opt/sv-tms/infra/docker-compose.prod.yml run --rm certbot renew
+ExecStartPost=/usr/bin/docker compose --env-file /opt/sv-tms/infra/.env -f /opt/sv-tms/infra/docker-compose.prod.yml restart nginx

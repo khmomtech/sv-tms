@@ -1,0 +1,45 @@
+name: Dev stack smoke tests
+
+on:
+  push:
+    branches: [ main, updateimprove/configures ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Build and start dev stack
+        run: |
+          docker compose -f docker-compose.dev.yml up -d --build
+
+      - name: Wait and run smoke test
+        env:
+          PYTHONUNBUFFERED: 1
+        run: |
+          # wait a little for services to initialize
+          sleep 12
+          # export OpenAPI using the running JAR approach (robust) and commit if changed
+          ./scripts/export-openapi.sh || echo "export-openapi failed"
+          if [ -n "$(git status --porcelain api/driver-app-openapi.json)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add api/driver-app-openapi.json
+            git commit -m "ci: update exported OpenAPI (dev-smoke)" || echo "no changes to commit"
+            git push || echo "push failed — check permissions"
+          fi
+          python3 scripts/smoke_test.py --tries 40 --sleep 3
+
+      - name: Tear down stack
+        if: always()
+        run: |
+          docker compose -f docker-compose.dev.yml down --remove-orphans

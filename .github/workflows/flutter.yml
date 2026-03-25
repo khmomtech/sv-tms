@@ -1,0 +1,39 @@
+name: Mobile CI
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths: [ 'driver_app/**' ]
+  pull_request:
+    paths: [ 'driver_app/**' ]
+  workflow_call:
+    inputs: {}
+    secrets: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.19.0'
+      - name: Install dependencies
+        run: |
+          cd driver_app
+          flutter pub get
+      - name: Analyze and Test
+        run: |
+          cd driver_app
+          flutter analyze
+          flutter test
+      - name: Build APK
+        run: |
+          cd driver_app
+          flutter build apk --release
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-apk
+          path: driver_app/build/app/outputs/flutter-apk/app-release.apk

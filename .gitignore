@@ -1,0 +1,182 @@
+# TMS Workspace .gitignore
+# Comprehensive ignore patterns for the Transport Management System
+
+# Build artifacts and dependencies
+target/
+build/
+dist/
+out/
+.gradle/
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn-integrity
+
+# Flutter/Dart
+.dart_tool/
+.packages
+pubspec.lock
+build/
+.android/
+.ios/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDEs and editors
+.idea/
+.vscode/settings.json
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs and temporary files
+*.log
+*.pid
+*.tmp
+*.temp
+test-output.txt
+test-results.json
+
+# Database files (keep only essential ones)
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment and secrets
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+firebase-*.json
+sv-driver-app-firebase-adminsdk.json
+
+# Test coverage and reports
+coverage/
+test-results/
+playwright-report/
+.coverage
+.pytest_cache/
+.tox/
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# Archives
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# Documentation build artifacts
+docs/_build/
+docs/.doctrees/
+
+# Temporary scripts and outputs
+tmp/
+temp/
+.cache/
+
+# IntelliJ IDEA
+*.iml
+*.ipr
+*.iws
+
+# Eclipse
+.project
+.classpath
+.settings/
+
+# NetBeans
+nbproject/
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# VS Code
+.vscode/*
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Angular
+.angular/
+.nx/
+
+# Docker
+.dockerignore
+
+# Kubernetes
+*.yaml.bak
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+
+# Application specific
+uploads/
+backups/
+*.sql.gz
+knblogdb_*.sql
+svlogistics_tms_db_*.sql
+svtms_*_backup.sql
+
+# Flutter specific
+.dart_tool/
+.packages
+pubspec.lock
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Java specific
+*.class
+*.jar
+!**/src/main/**/target/*.jar
+!**/src/test/**/target/*.jar
+
+# Development artifacts
+PasswordHashTest.java
+test_*.py
+gen_*.py
+*_backup.xlsx
+
+# Session and debug files
+session-*.html
+debug-*.log
+backend-*.log
+
+# SSH deploy keys (NEVER commit these)
+infra/deploy_key
+infra/.env

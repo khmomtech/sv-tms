@@ -1,0 +1,108 @@
+name: Full Stack CI
+
+# NOTE: This workflow is superseded by ci-cd.yml for main/develop branches.
+# Kept for manual workflow_dispatch runs only (e.g. release validation).
+
+on:
+  workflow_dispatch:
+
+jobs:
+  backend:
+    name: Backend (Maven verify)
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ciroot
+          MYSQL_DATABASE: svtms_test
+          MYSQL_USER: svtms
+          MYSQL_PASSWORD: svtms
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -uroot -pciroot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: temurin
+          cache: maven
+      - name: Build and test
+        env:
+          SPRING_DATASOURCE_URL: jdbc:mysql://127.0.0.1:3306/svtms_test?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+          SPRING_DATASOURCE_USERNAME: svtms
+          SPRING_DATASOURCE_PASSWORD: svtms
+          SPRING_DATA_REDIS_HOST: 127.0.0.1
+          SPRING_DATA_REDIS_PORT: 6379
+          SPRING_PROFILES_ACTIVE: test
+        run: mvn -B -ntp -T 1C verify --fail-at-end
+
+  frontend:
+    name: Angular UI (lint + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tms-admin-web-ui
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: tms-admin-web-ui/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Production build
+        run: npm run build -- --configuration production
+
+  mobile:
+    name: Flutter Apps (analyze + test)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [tms_driver_app, tms_customer_app]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Flutter 3.24.5
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.5'
+          channel: stable
+          cache: true
+      - name: Install dependencies
+        working-directory: ${{ matrix.app }}
+        run: flutter pub get
+      - name: Analyze
+        working-directory: ${{ matrix.app }}
+        run: flutter analyze --no-pub
+      - name: Test
+        working-directory: ${{ matrix.app }}
+        run: flutter test --no-pub
+
+  docker-build:
+    name: Docker Build (dev stack)
+    runs-on: ubuntu-latest
+    needs: [backend, frontend, mobile]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build dev Docker images
+        run: docker compose -f docker-compose.dev.yml build --parallel

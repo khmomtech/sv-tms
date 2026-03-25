@@ -1,0 +1,7 @@
+[Unit]
+Description=Prepare SV-TMS restore drill workspace
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/sv-tms
+ExecStart=/opt/sv-tms/infra/scripts/restore_drill.sh

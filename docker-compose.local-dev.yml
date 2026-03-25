@@ -1,0 +1,351 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: svtms-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_ROOT_HOST: '%'
+      MYSQL_DATABASE: svlogistics_tms_db
+      MYSQL_USER: driver
+      MYSQL_PASSWORD: driverpass
+    ports:
+      - '3307:3306'
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./init-db.sql:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      retries: 5
+      start_period: 90s
+
+  redis:
+    image: redis:7-alpine
+    container_name: svtms-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
+  mongo:
+    image: mongo:6.0
+    container_name: svtms-mongo
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      # Use mongosh via a shell so the health command works reliably in the official image
+      test: ["CMD-SHELL", "mongosh --quiet --eval \"db.adminCommand('ping')\" || exit 1"]
+      interval: 30s
+      timeout: 60s
+      # - ./svlogistics_tms_db_2025-04-28.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      retries: 10
+      start_period: 60s
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: svtms-postgres
+    environment:
+      POSTGRES_DB: svlogistics_telematics
+      POSTGRES_USER: tele_user
+      POSTGRES_PASSWORD: telepass
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tele_user -d svlogistics_telematics"]
+      interval: 10s
+      retries: 5
+      start_period: 10s
+
+  kafka:
+    image: apache/kafka:3.8.1
+    container_name: svtms-kafka
+    ports:
+      - '9092:9092'
+    environment:
+      KAFKA_NODE_ID: '1'
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: '1'
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: '1'
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: '1'
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+
+  core-api:
+    build:
+      context: .
+      dockerfile: tms-core-api/Dockerfile
+    image: tms-core-api:dev
+    container_name: svtms-core-api
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      mongo:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/svlogistics_tms_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: driver
+      SPRING_DATASOURCE_PASSWORD: driverpass
+      SPRING_JPA_HIBERNATE_DDL_AUTO: none
+      SPRING_PROFILES_ACTIVE: local
+      # Enable optional seeder that ensures 'all_functions' permission exists
+      # Set to 'true' to run PermissionEnsurer (idempotent). Can be toggled per environment.
+      # Note: Spring relaxed binding maps this to property `app.seedAllFunctions`.
+      APP_SEEDALLFUNCTIONS: "true"
+      SPRING_DATA_REDIS_HOST: redis
+      # Enable Mongo connection for local dev: use the compose service name 'mongo'
+      # Include a database name so Spring's MongoDatabaseFactory can be created
+      LOCATION_MONGO_URI: "mongodb://mongo:27017/svlogistics_tms_db"
+      SPRING_DATA_MONGODB_URI: "mongodb://mongo:27017/svlogistics_tms_db"
+      SPRING_DATA_MONGODB_DATABASE: svlogistics_tms_db
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SERVER_ADDRESS: "0.0.0.0"
+      SPRING_APPLICATION_JSON: '{"server":{"address":"0.0.0.0"}}'
+      DEV_SECURITY_BYPASS: "false"
+      APP_DRIVER_SKIP_DEVICE_CHECK: "true"
+      APP_DRIVER_LOGIN_BYPASS: "true"
+    ports:
+      - '8080:8080'
+    volumes:
+      - ./uploads:/app/uploads:rw
+      - uploads-init:/app/uploads-init:ro
+    restart: on-failure
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 360s
+    networks:
+      default:
+        aliases:
+          - backend
+
+  auth-api:
+    build:
+      context: .
+      dockerfile: tms-auth-api/Dockerfile
+    image: tms-auth-api:dev
+    container_name: svtms-auth-api
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      core-api:
+        condition: service_started
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/svlogistics_tms_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: driver
+      SPRING_DATASOURCE_PASSWORD: driverpass
+      SPRING_JPA_HIBERNATE_DDL_AUTO: none
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SPRING_PROFILES_ACTIVE: local
+      SERVER_PORT: '8083'
+      APP_DRIVER_SKIP_DEVICE_CHECK: "true"
+      APP_DRIVER_LOGIN_BYPASS: "true"
+    ports:
+      - '8083:8083'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8083/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 360s
+
+  driver-app-api:
+    build:
+      context: .
+      dockerfile: tms-driver-app-api/Dockerfile
+    image: tms-driver-app-api:dev
+    container_name: svtms-driver-app-api
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      core-api:
+        condition: service_started
+      telematics-api:
+        condition: service_started
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/svlogistics_tms_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: driver
+      SPRING_DATASOURCE_PASSWORD: driverpass
+      SPRING_JPA_HIBERNATE_DDL_AUTO: none
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SPRING_PROFILES_ACTIVE: local
+      SERVER_PORT: '8084'
+      APP_CORS_ALLOWED_ORIGINS: http://localhost:4200,http://localhost:8081
+      TELEMATICS_PROXY_BASE_URL: http://telematics-api:8082
+      TELEMATICS_PROXY_ENABLED: 'true'
+    ports:
+      - '8084:8084'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8084/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 360s
+
+  telematics-api:
+    build:
+      context: ./tms-telematics-api
+      dockerfile: Dockerfile
+    image: tms-telematics-api:dev
+    container_name: svtms-telematics-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      SERVER_PORT: '8082'
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/svlogistics_telematics
+      SPRING_DATASOURCE_USERNAME: tele_user
+      SPRING_DATASOURCE_PASSWORD: telepass
+      REDIS_HOST: redis
+      REDIS_PORT: '6379'
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-changeme-dev-secret-32-chars-min!!!}
+      MAIN_BACKEND_URL: http://core-api:8080
+      TELEMATICS_INTERNAL_API_KEY: ${TELEMATICS_INTERNAL_KEY:-dev-internal-key}
+      APP_CORS_ALLOWED_ORIGINS: http://localhost:4200,http://localhost:8081
+      WEBSOCKET_ALLOWED_ORIGINS: http://localhost:4200,http://localhost:8081
+    ports:
+      - '8082:8082'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8082/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 360s
+
+  safety-api:
+    build:
+      context: ./tms-safety-api
+      dockerfile: Dockerfile
+    image: tms-safety-api:dev
+    container_name: svtms-safety-api
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SERVER_PORT: '8087'
+      APP_CORS_ALLOWED_ORIGINS: http://localhost:4200,http://localhost:8081
+    ports:
+      - '8087:8087'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8087/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 360s
+
+  message-api:
+    build:
+      context: .
+      dockerfile: tms-message-api/Dockerfile
+    image: tms-message-api:dev
+    container_name: svtms-message-api
+    depends_on:
+      kafka:
+        condition: service_started
+    environment:
+      SERVER_PORT: '8088'
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SPRING_DATASOURCE_URL: jdbc:h2:file:/data/tms-message-api;MODE=PostgreSQL;AUTO_SERVER=TRUE
+    ports:
+      - '8088:8088'
+    volumes:
+      - message-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8088/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 360s
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: api-gateway/Dockerfile
+    image: api-gateway:dev
+    container_name: svtms-api-gateway
+    depends_on:
+      core-api:
+        condition: service_started
+      auth-api:
+        condition: service_started
+      driver-app-api:
+        condition: service_started
+      telematics-api:
+        condition: service_started
+      safety-api:
+        condition: service_started
+    environment:
+      SERVER_PORT: '8086'
+      CORE_API_BASE_URL: http://core-api:8080
+      AUTH_API_BASE_URL: http://auth-api:8083
+      DRIVER_APP_API_BASE_URL: http://driver-app-api:8084
+      TELEMATICS_API_BASE_URL: http://telematics-api:8082
+      SAFETY_API_BASE_URL: http://safety-api:8087
+      GATEWAY_CORS_ALLOWED_ORIGINS: http://localhost:4200,http://localhost:8081
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_MONGODB_URI: mongodb://mongo:27017/svlogistics_tms_db
+      SPRING_DATA_MONGODB_DATABASE: svlogistics_tms_db
+    ports:
+      - '8086:8086'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8086/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 360s
+
+  angular:
+    # use a Debian-based image so native node modules (lightningcss) load correctly
+    image: node:20-bullseye
+    container_name: svtms-angular
+    working_dir: /usr/src/app
+    volumes:
+      - ./tms-admin-web-ui:/usr/src/app:delegated
+      - /usr/src/app/node_modules
+    ports:
+      - '4200:4200'
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+      - API_GATEWAY_PROXY_TARGET=http://api-gateway:8086
+      - NODE_OPTIONS=--max-old-space-size=2048
+    # use legacy-peer-deps to avoid peer dependency resolution failures in CI
+    command: sh -c "if [ ! -x node_modules/.bin/ng ]; then npm ci --legacy-peer-deps; fi && npm run start -- --host 0.0.0.0 --port 4200"
+    depends_on:
+      - api-gateway
+
+volumes:
+  mysql-data:
+  redis-data:
+  mongo-data:
+  postgres-data:
+  kafka-data:
+  message-data:
+  uploads-init:
+
+networks:
+  default:
+    name: svtms-network

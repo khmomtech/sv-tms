@@ -1,0 +1,49 @@
+name: Generate OpenAPI Dart Client
+
+on:
+  workflow_dispatch:
+    inputs:
+      apiDocsUrl:
+        description: 'Optional: URL to fetch /v3/api-docs (if empty the repo file api/driver-app-openapi.json will be used)'
+        required: false
+  schedule:
+    # nightly at 02:00 UTC - regenerate OpenAPI + Dart client and push if changed
+    - cron: '0 2 * * *'
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch OpenAPI (if provided)
+        if: ${{ github.event.inputs.apiDocsUrl != '' }}
+        run: |
+          echo "Fetching OpenAPI from ${{ github.event.inputs.apiDocsUrl }}"
+          curl -fsS "${{ github.event.inputs.apiDocsUrl }}" -o api/driver-app-openapi.json
+
+      - name: Generate Dart client (docker)
+        env:
+          GITHUB_WORKSPACE: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          echo "Generating Dart client into customer_app/lib/api/generated_openapi"
+          docker run --rm -v "${GITHUB_WORKSPACE}:/local" openapitools/openapi-generator-cli generate \
+            -i /local/api/driver-app-openapi.json -g dart -o /local/customer_app/lib/api/generated_openapi
+
+      - name: Commit generated client
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add customer_app/lib/api/generated_openapi || true
+          if git diff --staged --quiet; then
+            echo "No generated changes to commit"
+          else
+            git commit -m "chore: regenerate OpenAPI Dart client"
+            git push
+          fi

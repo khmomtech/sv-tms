@@ -1,0 +1,15 @@
+[Unit]
+Description=TMS Auth API service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/sv-tms/backend
+EnvironmentFile=/etc/default/tms-auth-api
+ExecStart=/usr/bin/java $JAVA_OPTS -jar /opt/tms-auth-api/app.jar --spring.config.location=file:/opt/sv-tms/backend/application.properties
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

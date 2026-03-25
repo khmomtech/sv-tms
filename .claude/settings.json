@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./scripts/local-split-dev.sh start:*)",
+      "Read(//Users/sotheakh/flutter/bin/**)",
+      "Read(//opt/homebrew/share/flutter/bin/**)",
+      "Read(//Users/sotheakh/**)",
+      "Bash(/opt/homebrew/bin/flutter pub:*)",
+      "Bash(/opt/homebrew/bin/flutter analyze:*)",
+      "Bash(/opt/homebrew/bin/flutter test:*)"
+    ]
+  }
+}

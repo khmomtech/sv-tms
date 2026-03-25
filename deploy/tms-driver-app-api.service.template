@@ -1,0 +1,15 @@
+[Unit]
+Description=TMS Driver App API service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/sv-tms/backend
+EnvironmentFile=/etc/default/tms-driver-app-api
+ExecStart=/usr/bin/java $JAVA_OPTS -jar /opt/tms-driver-app-api/app.jar --spring.config.location=file:/opt/sv-tms/backend/application.properties
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

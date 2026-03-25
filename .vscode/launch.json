@@ -1,0 +1,183 @@
+{
+    // 🚀 SV-TMS Complete Development Environment Launch Configuration
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+
+        {
+            "type": "java",
+            "name": "Application",
+            "request": "launch",
+            "mainClass": "com.svtrucking.logistics.Application",
+            "projectName": "tms-backend"
+        },
+        {
+            "type": "java",
+            "name": "🌟 Backend - Spring Boot (Local Dev)",
+            "request": "launch",
+            "mainClass": "com.svtrucking.logistics.Application",
+            "projectName": "tms-backend",
+            "args": [],
+            "env": {
+                "SPRING_PROFILES_ACTIVE": "local",
+                "SERVER_PORT": "8080",
+                "JWT_ACCESS_SECRET": "local-dev-access-secret-please-change-1234567890",
+                "JWT_REFRESH_SECRET": "local-dev-refresh-secret-please-change-1234567890",
+                "JWT_SECRET": "legacy_local_jwt_secret_not_used"
+            },
+            "console": "internalConsole",
+            "stopOnEntry": false,
+            "internalConsoleOptions": "openOnSessionStart"
+        },
+        {
+            "type": "java",
+            "name": "🧪 Backend - Spring Boot (Test Profile)",
+            "request": "launch",
+            "mainClass": "com.svtrucking.logistics.Application",
+            "projectName": "tms-backend",
+            "args": [],
+            "env": {
+                "SPRING_PROFILES_ACTIVE": "test",
+                "SERVER_PORT": "8081"
+            },
+            "console": "internalConsole"
+        },
+        {
+            "name": "📱 Driver App - Development",
+            "cwd": "tms_driver_app",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart",
+            "args": [
+                "--dart-define=ENVIRONMENT=dev",
+                "--dart-define=API_BASE_URL=http://localhost:8080/api"
+            ],
+            "console": "debugConsole"
+        },
+        {
+            "name": "📱 Driver App - Development (Explicit Dev Entry)",
+            "cwd": "tms_driver_app",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main_dev.dart",
+            "console": "debugConsole"
+        },
+        {
+            "name": "📱 Driver App - UAT Testing",
+            "cwd": "tms_driver_app",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main_uat.dart",
+            "console": "debugConsole"
+        },
+        {
+            "name": "📱 Driver App - Production",
+            "cwd": "tms_driver_app",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.art",
+            "console": "debugConsole"
+        },
+        {
+            "name": "📱 Driver App (Profile Mode)",
+            "cwd": "tms_driver_app",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "profile",
+            "program": "lib/main.dart"
+        },
+        {
+            "name": "📱 Driver App (Release Mode)",
+            "cwd": "tms_driver_app",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "release",
+            "program": "lib/main.dart"
+        },
+        {
+            "name": "👥 Customer App - Development",
+            "cwd": "tms_customer_app",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart",
+            "args": [
+                "--dart-define=API_BASE_URL=http://localhost:8080"
+            ],
+            "console": "debugConsole",
+            "deviceId": "chrome"
+        },
+        {
+            "name": "👥 Customer App - Production",
+            "cwd": "tms_customer_app",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart",
+            "args": [
+                "--dart-define=API_BASE_URL=https://svtms.svtrucking.biz"
+            ],
+            "console": "debugConsole"
+        },
+        {
+            "name": "🌐 Angular - Development Server",
+            "type": "node",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/tms-frontend",
+            "runtimeExecutable": "npm",
+            "runtimeArgs": [
+                "start"
+            ],
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "neverOpen",
+            "env": {
+                "NODE_ENV": "development",
+                "FRONTEND_PORT": "4200"
+            }
+        },
+        {
+            "name": "🌐 Angular - Production Build",
+            "type": "node",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/tms-frontend",
+            "runtimeExecutable": "npm",
+            "runtimeArgs": [
+                "run",
+                "build",
+                "--",
+                "--configuration=production"
+            ],
+            "console": "integratedTerminal"
+        }
+    ],
+    // ====================================================================
+    // 🔗 Compound Configurations for Full Stack Development
+    // ====================================================================
+    "compounds": [
+        {
+            "name": "🚀 Full Development Stack",
+            "configurations": [
+                "🌟 Backend - Spring Boot (Local Dev)",
+                "🌐 Angular - Development Server"
+            ],
+            "stopAll": true
+        },
+        {
+            "name": "📱 Mobile Apps Development",
+            "configurations": [
+                "📱 Driver App - Development",
+                "👥 Customer App - Development"
+            ],
+            "stopAll": true
+        },
+        {
+            "name": "🎯 Complete SV-TMS Stack",
+            "configurations": [
+                "🌟 Backend - Spring Boot (Local Dev)",
+                "🌐 Angular - Development Server",
+                "📱 Driver App - Development"
+            ],
+            "stopAll": true
+        }
+    ]
+}

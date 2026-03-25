@@ -1,0 +1,14 @@
+[Unit]
+Description=TMS Telematics service
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+EnvironmentFile=/etc/default/tms-telematics
+ExecStart=/usr/bin/java $JAVA_OPTS -jar /opt/tms-telematics/app.jar
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

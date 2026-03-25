@@ -1,0 +1,35 @@
+spring:
+  application:
+    name: device-gateway
+  datasource:
+    url: ${MYSQL_URL:jdbc:mysql://localhost:3306/device_gateway}
+    username: ${MYSQL_USER:root}
+    password: ${MYSQL_PASSWORD:}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+server:
+  port: 8085
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,env,configprops,prometheus
+  endpoint:
+    health:
+      show-details: always
+    prometheus:
+      access: unrestricted
+
+logging:
+  level:
+    root: INFO
+    org.springframework: INFO

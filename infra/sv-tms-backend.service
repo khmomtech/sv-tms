@@ -1,0 +1,16 @@
+[Unit]
+Description=sv-tms backend (JAR)
+After=network.target
+
+[Service]
+User=svtms
+WorkingDirectory=/opt/sv-tms/releases
+ExecStart=/usr/bin/java -jar /opt/sv-tms/releases/app.jar --spring.config.location=file:/opt/sv-tms/infra/backend.env
+Restart=on-failure
+RestartSec=5
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=sv-tms-backend
+
+[Install]
+WantedBy=multi-user.target

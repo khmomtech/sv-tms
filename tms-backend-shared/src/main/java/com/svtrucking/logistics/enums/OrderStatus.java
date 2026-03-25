@@ -1,0 +1,20 @@
+package com.svtrucking.logistics.enums;
+
+public enum OrderStatus {
+  PENDING,
+  ASSIGNED,
+  DRIVER_CONFIRMED,
+  APPROVED,
+  REJECTED,
+  SCHEDULED,
+  ARRIVED_LOADING,
+  LOADING,
+  LOADED,
+  IN_TRANSIT,
+  ARRIVED_UNLOADING,
+  UNLOADING,
+  UNLOADED,
+  DELIVERED,
+  COMPLETED,
+  CANCELLED
+}
