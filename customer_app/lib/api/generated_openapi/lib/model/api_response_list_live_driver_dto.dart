@@ -1,0 +1,200 @@
+//
+// AUTO-GENERATED FILE, DO NOT MODIFY!
+//
+// @dart=2.18
+
+// ignore_for_file: unused_element, unused_import
+// ignore_for_file: always_put_required_named_parameters_first
+// ignore_for_file: constant_identifier_names
+// ignore_for_file: lines_longer_than_80_chars
+
+part of openapi.api;
+
+class ApiResponseListLiveDriverDto {
+  /// Returns a new [ApiResponseListLiveDriverDto] instance.
+  ApiResponseListLiveDriverDto({
+    this.success,
+    this.message,
+    this.code,
+    this.data = const [],
+    this.errors,
+    this.timestamp,
+    this.requestId,
+  });
+
+  ///
+  /// Please note: This property should have been non-nullable! Since the specification file
+  /// does not include a default value (using the "default:" property), however, the generated
+  /// source code must fall back to having a nullable type.
+  /// Consider adding a "default:" property in the specification file to hide this note.
+  ///
+  bool? success;
+
+  ///
+  /// Please note: This property should have been non-nullable! Since the specification file
+  /// does not include a default value (using the "default:" property), however, the generated
+  /// source code must fall back to having a nullable type.
+  /// Consider adding a "default:" property in the specification file to hide this note.
+  ///
+  String? message;
+
+  ///
+  /// Please note: This property should have been non-nullable! Since the specification file
+  /// does not include a default value (using the "default:" property), however, the generated
+  /// source code must fall back to having a nullable type.
+  /// Consider adding a "default:" property in the specification file to hide this note.
+  ///
+  String? code;
+
+  List<LiveDriverDto> data;
+
+  Object? errors;
+
+  ///
+  /// Please note: This property should have been non-nullable! Since the specification file
+  /// does not include a default value (using the "default:" property), however, the generated
+  /// source code must fall back to having a nullable type.
+  /// Consider adding a "default:" property in the specification file to hide this note.
+  ///
+  DateTime? timestamp;
+
+  ///
+  /// Please note: This property should have been non-nullable! Since the specification file
+  /// does not include a default value (using the "default:" property), however, the generated
+  /// source code must fall back to having a nullable type.
+  /// Consider adding a "default:" property in the specification file to hide this note.
+  ///
+  String? requestId;
+
+  @override
+  bool operator ==(Object other) => identical(this, other) || other is ApiResponseListLiveDriverDto &&
+    other.success == success &&
+    other.message == message &&
+    other.code == code &&
+    _deepEquality.equals(other.data, data) &&
+    other.errors == errors &&
+    other.timestamp == timestamp &&
+    other.requestId == requestId;
+
+  @override
+  int get hashCode =>
+    // ignore: unnecessary_parenthesis
+    (success == null ? 0 : success!.hashCode) +
+    (message == null ? 0 : message!.hashCode) +
+    (code == null ? 0 : code!.hashCode) +
+    (data.hashCode) +
+    (errors == null ? 0 : errors!.hashCode) +
+    (timestamp == null ? 0 : timestamp!.hashCode) +
+    (requestId == null ? 0 : requestId!.hashCode);
+
+  @override
+  String toString() => 'ApiResponseListLiveDriverDto[success=$success, message=$message, code=$code, data=$data, errors=$errors, timestamp=$timestamp, requestId=$requestId]';
+
+  Map<String, dynamic> toJson() {
+    final json = <String, dynamic>{};
+    if (this.success != null) {
+      json[r'success'] = this.success;
+    } else {
+      json[r'success'] = null;
+    }
+    if (this.message != null) {
+      json[r'message'] = this.message;
+    } else {
+      json[r'message'] = null;
+    }
+    if (this.code != null) {
+      json[r'code'] = this.code;
+    } else {
+      json[r'code'] = null;
+    }
+      json[r'data'] = this.data;
+    if (this.errors != null) {
+      json[r'errors'] = this.errors;
+    } else {
+      json[r'errors'] = null;
+    }
+    if (this.timestamp != null) {
+      json[r'timestamp'] = this.timestamp!.toUtc().toIso8601String();
+    } else {
+      json[r'timestamp'] = null;
+    }
+    if (this.requestId != null) {
+      json[r'requestId'] = this.requestId;
+    } else {
+      json[r'requestId'] = null;
+    }
+    return json;
+  }
+
+  /// Returns a new [ApiResponseListLiveDriverDto] instance and imports its values from
+  /// [value] if it's a [Map], null otherwise.
+  // ignore: prefer_constructors_over_static_methods
+  static ApiResponseListLiveDriverDto? fromJson(dynamic value) {
+    if (value is Map) {
+      final json = value.cast<String, dynamic>();
+
+      // Ensure that the map contains the required keys.
+      // Note 1: the values aren't checked for validity beyond being non-null.
+      // Note 2: this code is stripped in release mode!
+      assert(() {
+        return true;
+      }());
+
+      return ApiResponseListLiveDriverDto(
+        success: mapValueOfType<bool>(json, r'success'),
+        message: mapValueOfType<String>(json, r'message'),
+        code: mapValueOfType<String>(json, r'code'),
+        data: LiveDriverDto.listFromJson(json[r'data']),
+        errors: mapValueOfType<Object>(json, r'errors'),
+        timestamp: mapDateTime(json, r'timestamp', r''),
+        requestId: mapValueOfType<String>(json, r'requestId'),
+      );
+    }
+    return null;
+  }
+
+  static List<ApiResponseListLiveDriverDto> listFromJson(dynamic json, {bool growable = false,}) {
+    final result = <ApiResponseListLiveDriverDto>[];
+    if (json is List && json.isNotEmpty) {
+      for (final row in json) {
+        final value = ApiResponseListLiveDriverDto.fromJson(row);
+        if (value != null) {
+          result.add(value);
+        }
+      }
+    }
+    return result.toList(growable: growable);
+  }
+
+  static Map<String, ApiResponseListLiveDriverDto> mapFromJson(dynamic json) {
+    final map = <String, ApiResponseListLiveDriverDto>{};
+    if (json is Map && json.isNotEmpty) {
+      json = json.cast<String, dynamic>(); // ignore: parameter_assignments
+      for (final entry in json.entries) {
+        final value = ApiResponseListLiveDriverDto.fromJson(entry.value);
+        if (value != null) {
+          map[entry.key] = value;
+        }
+      }
+    }
+    return map;
+  }
+
+  // maps a json object with a list of ApiResponseListLiveDriverDto-objects as value to a dart map
+  static Map<String, List<ApiResponseListLiveDriverDto>> mapListFromJson(dynamic json, {bool growable = false,}) {
+    final map = <String, List<ApiResponseListLiveDriverDto>>{};
+    if (json is Map && json.isNotEmpty) {
+      // ignore: parameter_assignments
+      json = json.cast<String, dynamic>();
+      for (final entry in json.entries) {
+        map[entry.key] = ApiResponseListLiveDriverDto.listFromJson(entry.value, growable: growable,);
+      }
+    }
+    return map;
+  }
+
+  /// The list of required keys that must be present in a JSON.
+  static const requiredKeys = <String>{
+  };
+}
+
