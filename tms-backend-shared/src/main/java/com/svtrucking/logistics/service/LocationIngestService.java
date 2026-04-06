@@ -431,6 +431,7 @@ public class LocationIngestService {
     }
   }
 
+  @Transactional(transactionManager = "jpaTransactionManager")
   public Map<String, Object> markPresence(
       Long driverId,
       Integer battery,
