@@ -7,7 +7,7 @@
   <parent>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-parent</artifactId>
-    <version>3.5.7</version>
+    <version>3.5.12</version>
     <relativePath/>
   </parent>
 
@@ -229,6 +229,8 @@
         <configuration>
           <compilerId>javac</compilerId>
           <fork>true</fork>
+          <meminitial>256m</meminitial>
+          <maxmem>768m</maxmem>
           <failOnError>true</failOnError>
           <release>${maven.compiler.release}</release>
           <proc>full</proc>
