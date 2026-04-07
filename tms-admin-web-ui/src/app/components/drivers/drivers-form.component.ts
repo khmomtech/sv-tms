@@ -47,6 +47,7 @@ import { DriverFormValidators } from '../../services/driver-form-validators';
   ],
 })
 export class DriversFormComponent implements OnInit, OnChanges, OnDestroy {
+  readonly allowedProfileImageExtensions = ['.jpeg', '.jpg', '.png', '.webp'];
   @Input() driver: Driver | null = null;
   @Input() isOpen = false;
   /** When true, render the form as a full page instead of a modal overlay */
@@ -216,8 +217,12 @@ export class DriversFormComponent implements OnInit, OnChanges, OnDestroy {
     this.fileError = '';
     if (!files || files.length === 0) return;
     const file = files[0];
-    if (!file.type.startsWith('image/')) {
-      this.fileError = 'Invalid file type. Please choose an image.';
+    const lowerName = (file.name || '').toLowerCase();
+    const hasAllowedExtension = this.allowedProfileImageExtensions.some((ext) =>
+      lowerName.endsWith(ext),
+    );
+    if (!file.type.startsWith('image/') || !hasAllowedExtension) {
+      this.fileError = 'Invalid file type. Allowed: JPEG, JPG, PNG, WEBP.';
       return;
     }
     if (file.size > this.maxFileSize) {

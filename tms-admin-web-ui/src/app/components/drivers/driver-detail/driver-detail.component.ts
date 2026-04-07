@@ -40,6 +40,11 @@ import { ConfirmService } from '../../../services/confirm.service';
 import { VehicleService } from '../../../services/vehicle.service';
 import { VehicleDriverService } from '../../../services/vehicle-driver.service';
 import { VendorService } from '../../../services/vendor.service';
+import { DriverDetailHeaderComponent } from './driver-detail-header.component';
+import { DriverPerformanceTabComponent } from './driver-performance-tab.component';
+import { DriverComplianceTabComponent } from './driver-compliance-tab.component';
+import { DriverAccessTabComponent } from './driver-access-tab.component';
+import { DriverIdCardTabComponent } from './driver-id-card-tab.component';
 
 import QRCode from 'qrcode';
 import html2canvas from 'html2canvas';
@@ -57,9 +62,16 @@ import jsPDF from 'jspdf';
     MatProgressSpinnerModule,
     MatIconModule,
     FormsModule,
+    DriverDetailHeaderComponent,
+    DriverPerformanceTabComponent,
+    DriverComplianceTabComponent,
+    DriverAccessTabComponent,
+    DriverIdCardTabComponent,
   ],
 })
 export class DriverDetailComponent implements OnInit, OnDestroy {
+  private readonly allowedProfileImageExtensions = ['.jpeg', '.jpg', '.png', '.webp'];
+  private readonly internalAssetHosts = ['core-api', 'localhost', '127.0.0.1', '0.0.0.0'];
   driverForm!: FormGroup;
   accountForm!: FormGroup;
 
@@ -90,12 +102,6 @@ export class DriverDetailComponent implements OnInit, OnDestroy {
   overviewVendor = '—';
   overviewRating = 0;
   overviewLastSeen = 'Not available';
-  overviewMetrics = [
-    { label: 'Trips MTD', value: '124' },
-    { label: 'On-Time %', value: '94%' },
-    { label: 'Cancel %', value: '3%' },
-    { label: 'Incidents', value: '1 (Low)' },
-  ];
   get overviewEmploymentStatus(): string {
     const control = this.driverForm?.get('isActive');
     if (control && control.value !== undefined && control.value !== null) {
@@ -103,12 +109,51 @@ export class DriverDetailComponent implements OnInit, OnDestroy {
     }
     return 'Unknown';
   }
+  get pageTitle(): string {
+    if (!this.isEditMode) return 'New Driver';
+    return this.buildDriverDisplayName() || `Driver #${this.driverId}`;
+  }
+  get pageSubtitle(): string {
+    if (!this.isEditMode) return 'Create a new driver profile';
+    return `Driver profile and operational details · #DR-${this.driverId}`;
+  }
+  get overviewMetrics(): Array<{ label: string; value: string }> {
+    return [
+      {
+        label: 'Trips',
+        value:
+          this.performanceSummary?.totalDeliveries !== undefined &&
+          this.performanceSummary?.totalDeliveries !== null
+            ? String(this.performanceSummary.totalDeliveries)
+            : '—',
+      },
+      {
+        label: 'On-Time',
+        value: this.performanceSummary ? `${this.performanceOnTimePercent.toFixed(1)}%` : '—',
+      },
+      {
+        label: 'Cancel Rate',
+        value: this.performanceSummary ? `${this.performanceCancelRate.toFixed(1)}%` : '—',
+      },
+      {
+        label: 'Incidents',
+        value:
+          this.performanceSummary?.incidentsCount !== undefined &&
+          this.performanceSummary?.incidentsCount !== null
+            ? String(this.performanceSummary.incidentsCount)
+            : '—',
+      },
+    ];
+  }
   currentVehicleLabel = '—';
   currentVehicleSince = '';
   lifecycleStages = ['REGISTERED', 'ONBOARDING', 'ACTIVE'];
   lifecycleMasterStatus = 'ACTIVE';
   lifecycleActionMessage = '';
   lifecycleActionInProgress = false;
+  lifecycleModalOpen = false;
+  lifecyclePendingAction: 'Suspend' | 'Exit' | null = null;
+  lifecycleReason = '';
   complianceSummary = {
     license: 'Not set',
     documents: '0/0 Approved',
@@ -117,8 +162,8 @@ export class DriverDetailComponent implements OnInit, OnDestroy {
   };
   operationalStatus = {
     presence: 'OFFLINE',
-    shift: 'Morning',
-    attendance: { present: 22, absent: 1, late: 2 },
+    shift: '—',
+    attendance: { present: 0, absent: 0, late: 0 },
   };
   alerts: string[] = [];
   documentSummary = { total: 0, approved: 0 };
@@ -142,6 +187,7 @@ export class DriverDetailComponent implements OnInit, OnDestroy {
   driverGroups: DriverGroup[] = [];
   currentAssignment?: DriverCurrentAssignment | null;
   profilePreviewUrl: string | null = null;
+  private profilePreviewVersion = 0;
   profileUploadInProgress = false;
   profileUploadError = '';
   idCardQrDataUrl: string | null = null;
@@ -162,7 +208,7 @@ export class DriverDetailComponent implements OnInit, OnDestroy {
   isAssignmentLoading = false;
   assignmentReason = '';
   assignmentActionInProgress = false;
-  attendanceSummary = { present: 22, absent: 1, late: 2 };
+  attendanceSummary = { present: 0, absent: 0, late: 0 };
   vehicleSearchQuery = '';
   assignmentType: 'permanent' | 'temporary' = 'permanent';
   selectedVehicleForAssignment: number | null = null;
@@ -277,6 +323,10 @@ export class DriverDetailComponent implements OnInit, OnDestroy {
       this.configurePasswordValidator();
     }
 
+    if (!this.isEditMode) {
+      this.watchPhoneFieldForDuplicates();
+    }
+
     this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe((params) => {
       const tab = params['tab'] || 'overview';
       this.activeTab = tab;
@@ -291,6 +341,9 @@ export class DriverDetailComponent implements OnInit, OnDestroy {
         this.loadCurrentAssignment();
         this.refreshIdCardData();
         this.loadDriverIdCard(this.driverId);
+      }
+      if (tab === 'performance' && this.driverId) {
+        this.loadPerformanceData(this.driverId);
       }
     });
 
@@ -337,7 +390,6 @@ export class DriverDetailComponent implements OnInit, OnDestroy {
       driverType: ['Employee'],
     });
     this.initDocumentEditForm();
-    this.watchPhoneFieldForDuplicates();
   }
 
   initAccountForm(): void {
@@ -386,7 +438,7 @@ export class DriverDetailComponent implements OnInit, OnDestroy {
             (data as any)['licenseNumber'] ??
             (data as any)?.['driverLicenseNumber'] ??
             '';
-          this.profilePreviewUrl = res.data?.profilePicture || null;
+          this.profilePreviewUrl = this.normalizeProfileUrl(res.data?.profilePicture);
           this.refreshIdCardData();
           this.pendingPartnerCompanyName = data?.partnerCompany ?? null;
           this.syncPartnerSelection();
@@ -396,7 +448,6 @@ export class DriverDetailComponent implements OnInit, OnDestroy {
           // this.loadDriverIdCard(id);
           this.loadDocumentSummary(id);
           this.loadDriverAssignments(id);
-          // this.loadPerformanceData(id);
           this.updateLifecycleFromDriver(data);
         },
         error: () => this.driverService.showToast(' Failed to load driver'),
@@ -607,18 +658,24 @@ export class DriverDetailComponent implements OnInit, OnDestroy {
   }
 
   private watchPhoneFieldForDuplicates(): void {
-    if (this.isEditMode) {
-      return;
-    }
     const control = this.driverForm.get('phone');
     if (!control) return;
     this.phoneCheckSub = control.valueChanges
       .pipe(
         debounceTime(400),
         distinctUntilChanged(),
-        switchMap((value: string) =>
-          this.driverService.checkDriverExists(value).pipe(catchError(() => of(false))),
-        ),
+        switchMap((value: string) => {
+          if (this.isEditMode) {
+            return of(false);
+          }
+          const normalized = String(value ?? '')
+            .replace(/[^\d+]/g, '')
+            .trim();
+          if (!normalized) {
+            return of(false);
+          }
+          return this.driverService.checkDriverExists(normalized).pipe(catchError(() => of(false)));
+        }),
         takeUntil(this.destroy$),
       )
       .subscribe((exists) => (this.phoneExists = exists));
@@ -970,6 +1027,13 @@ export class DriverDetailComponent implements OnInit, OnDestroy {
     return efficiency !== undefined && efficiency !== null ? efficiency.toFixed(1) : '—';
   }
 
+  get performanceTrendWithWidth(): Array<{ label: string; value: number; width: number }> {
+    return this.performanceTrend.map((point) => ({
+      ...point,
+      width: this.getTrendBarWidth(point.value),
+    }));
+  }
+
   getTrendBarWidth(value: number): number {
     if (!this.performanceTrendMax || this.performanceTrendMax <= 0) return 0;
     const ratio = (value / this.performanceTrendMax) * 100;
@@ -988,14 +1052,21 @@ export class DriverDetailComponent implements OnInit, OnDestroy {
     const licenseField = data.licenseExpiryDate ?? data.idCardExpiry ?? data.licenseExpiry;
     const licenseInfo = this.computeLicenseExpiryLabel(licenseField);
     this.complianceSummary.license = licenseInfo.status;
-    this.operationalStatus.presence = (data.status ?? 'OFFLINE').toString().toUpperCase();
+    this.operationalStatus.presence = (
+      data.presenceStatus ??
+      data.lastKnownPresence ??
+      data.status ??
+      'OFFLINE'
+    )
+      .toString()
+      .toUpperCase();
     this.updateAlerts(this.overviewRating, licenseInfo.daysRemaining);
   }
 
   private updateAlerts(rating: number, licenseDays?: number): void {
     const alerts: string[] = [];
     if (licenseDays !== undefined && licenseDays >= 0 && licenseDays <= 10) {
-      alerts.push(`⚠ Insurance expires in ${licenseDays} day${licenseDays === 1 ? '' : 's'}`);
+      alerts.push(`⚠ License expires in ${licenseDays} day${licenseDays === 1 ? '' : 's'}`);
     }
     if (rating < 4.5) {
       alerts.push('⚠ Rating dropped below 4.5');
@@ -1480,6 +1551,16 @@ export class DriverDetailComponent implements OnInit, OnDestroy {
       return;
     }
 
+    const lowerName = (file.name || '').toLowerCase();
+    const hasAllowedExtension = this.allowedProfileImageExtensions.some((ext) =>
+      lowerName.endsWith(ext),
+    );
+    if (!hasAllowedExtension) {
+      this.profileUploadError = 'Unsupported file type. Allowed: JPEG, JPG, PNG, WEBP.';
+      input.value = '';
+      return;
+    }
+
     this.profileUploadError = '';
     this.profileUploadInProgress = true;
 
@@ -1488,7 +1569,7 @@ export class DriverDetailComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (res) => {
-          const url = res.data || '';
+          const url = this.normalizeProfileUrl(res.data || '', true);
           this.profilePreviewUrl = url || this.profilePreviewUrl;
           this.driverForm.patchValue({ profilePicture: url });
           this.profileUploadInProgress = false;
@@ -1498,6 +1579,34 @@ export class DriverDetailComponent implements OnInit, OnDestroy {
           this.profileUploadInProgress = false;
         },
       });
+  }
+
+  onProfileImageError(): void {
+    this.profilePreviewUrl = null;
+  }
+
+  private normalizeProfileUrl(
+    url: string | null | undefined,
+    bustCache = false,
+  ): string | null {
+    if (!url) {
+      return null;
+    }
+
+    try {
+      const parsed = new URL(url, window.location.origin);
+      const normalizedHost = parsed.hostname.toLowerCase();
+      if (bustCache) {
+        this.profilePreviewVersion = Date.now();
+        parsed.searchParams.set('v', String(this.profilePreviewVersion));
+      }
+      if (this.internalAssetHosts.includes(normalizedHost) || !normalizedHost.includes('.')) {
+        return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+      }
+      return parsed.toString();
+    } catch {
+      return url.startsWith('/') ? url : `/${url.replace(/^\/+/, '')}`;
+    }
   }
 
   // Vehicle actions
@@ -1951,30 +2060,44 @@ export class DriverDetailComponent implements OnInit, OnDestroy {
     return stageIndex <= currentIndex;
   }
 
-  async onLifecycleAction(action: 'Suspend' | 'Exit'): Promise<void> {
+  onLifecycleAction(action: 'Suspend' | 'Exit'): void {
     if (this.lifecycleActionInProgress) return;
-    const reason = window?.prompt
-      ? window.prompt(`Optional: add a note when ${action.toLowerCase()}ing this driver:`, '')
-      : '';
-    const reasonLabel = reason?.trim() ? `\nReason: ${reason.trim()}` : '';
+    this.lifecyclePendingAction = action;
+    this.lifecycleReason = '';
+    this.lifecycleModalOpen = true;
+  }
+
+  closeLifecycleModal(): void {
+    if (this.lifecycleActionInProgress) return;
+    this.lifecycleModalOpen = false;
+    this.lifecyclePendingAction = null;
+    this.lifecycleReason = '';
+  }
+
+  async confirmLifecycleAction(): Promise<void> {
+    if (this.lifecycleActionInProgress || !this.driverId || !this.lifecyclePendingAction) return;
+    const action = this.lifecyclePendingAction;
+    const reason = this.lifecycleReason.trim();
+    const reasonLabel = reason ? `\nReason: ${reason}` : '';
     const confirmed = await this.confirm.confirm(
       `Are you sure you want to ${action.toLowerCase()} this driver?${reasonLabel}`,
     );
-    if (!confirmed || !this.driverId) return;
+    if (!confirmed) return;
     this.lifecycleActionInProgress = true;
     this.driverService
       .updateDriverLifecycleStatus(this.driverId, {
         action,
-        reason: reason?.trim() || '',
+        reason,
       })
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: () => {
-          const note = reason?.trim() ? ` (${reason.trim()})` : '';
+          const note = reason ? ` (${reason})` : '';
           this.lifecycleActionMessage = `Driver ${action.toLowerCase()}ed${note}`;
           this.driverService.showToast(this.lifecycleActionMessage);
           this.reloadDriverAndVehicles();
           this.loadDriverById(this.driverId);
+          this.closeLifecycleModal();
           this.lifecycleActionInProgress = false;
         },
         error: () => {

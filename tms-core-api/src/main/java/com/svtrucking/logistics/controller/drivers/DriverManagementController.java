@@ -5,8 +5,12 @@ import com.svtrucking.logistics.dto.*;
 import com.svtrucking.logistics.dto.requests.*;
 import com.svtrucking.logistics.service.DriverService;
 import com.svtrucking.logistics.application.driver.DriverAppService;
+import com.svtrucking.logistics.repository.DriverMonthlyPerformanceRepository;
+import com.svtrucking.logistics.repository.DriverRepository;
+import com.svtrucking.logistics.service.DriverLicenseService;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -40,6 +44,9 @@ public class DriverManagementController {
 
   private final DriverAppService driverAppService;
   private final DriverService driverService;
+  private final DriverRepository driverRepository;
+  private final DriverMonthlyPerformanceRepository driverMonthlyPerformanceRepository;
+  private final DriverLicenseService driverLicenseService;
 
   /**
    * Create a new driver with associated user account.
@@ -147,6 +154,122 @@ public class DriverManagementController {
       log.error("Error retrieving driver with id {}: {}", id, e.getMessage());
       return ResponseEntity.status(HttpStatus.NOT_FOUND)
           .body(ApiResponse.fail("Driver not found"));
+    }
+  }
+
+  @GetMapping("/exists")
+  @PreAuthorize("@authorizationService.hasPermission(T(com.svtrucking.logistics.security.PermissionNames).DRIVER_VIEW_ALL) " +
+                "or @authorizationService.hasPermission(T(com.svtrucking.logistics.security.PermissionNames).DRIVER_MANAGE)")
+  public ResponseEntity<ApiResponse<Boolean>> checkDriverExists(@RequestParam String phone) {
+    String normalized = phone == null ? "" : phone.replaceAll("[^\\d+]", "").trim();
+    if (normalized.isBlank()) {
+      return ResponseEntity.badRequest().body(ApiResponse.fail("Phone is required"));
+    }
+    boolean exists = driverRepository.findTopByPhone(normalized).isPresent()
+        || driverRepository.findTopByPhone(phone.trim()).isPresent();
+    return ResponseEntity.ok(ApiResponse.success("Driver existence checked", exists));
+  }
+
+  @GetMapping("/{id}/id-card")
+  @PreAuthorize("@authorizationService.hasPermission(T(com.svtrucking.logistics.security.PermissionNames).DRIVER_VIEW_ALL) " +
+                "or @authorizationService.hasPermission(T(com.svtrucking.logistics.security.PermissionNames).DRIVER_MANAGE)")
+  public ResponseEntity<ApiResponse<DriverIdCardAdminDto>> getDriverIdCard(@PathVariable Long id) {
+    var dto = driverLicenseService.getLicenseByDriverId(id);
+    DriverIdCardAdminDto response = dto == null ? null : DriverIdCardAdminDto.fromLicense(dto);
+    return ResponseEntity.ok(ApiResponse.success("Driver ID card fetched", response));
+  }
+
+  @PostMapping("/{id}/id-card")
+  @PreAuthorize("@authorizationService.hasPermission(T(com.svtrucking.logistics.security.PermissionNames).DRIVER_MANAGE)")
+  public ResponseEntity<ApiResponse<DriverIdCardAdminDto>> createDriverIdCard(
+      @PathVariable Long id, @RequestBody DriverIdCardAdminDto payload) {
+    DriverLicenseDto saved = driverLicenseService.createOrUpdateLicense(id, payload.toLicenseDto(id));
+    return ResponseEntity.ok(ApiResponse.success("Driver ID card saved", DriverIdCardAdminDto.fromLicense(saved)));
+  }
+
+  @PutMapping("/{id}/id-card")
+  @PreAuthorize("@authorizationService.hasPermission(T(com.svtrucking.logistics.security.PermissionNames).DRIVER_MANAGE)")
+  public ResponseEntity<ApiResponse<DriverIdCardAdminDto>> updateDriverIdCard(
+      @PathVariable Long id, @RequestBody DriverIdCardAdminDto payload) {
+    DriverLicenseDto saved = driverLicenseService.createOrUpdateLicense(id, payload.toLicenseDto(id));
+    return ResponseEntity.ok(ApiResponse.success("Driver ID card updated", DriverIdCardAdminDto.fromLicense(saved)));
+  }
+
+  @DeleteMapping("/{id}/id-card")
+  @PreAuthorize("@authorizationService.hasPermission(T(com.svtrucking.logistics.security.PermissionNames).DRIVER_MANAGE)")
+  public ResponseEntity<ApiResponse<String>> deleteDriverIdCard(@PathVariable Long id) {
+    var existing = driverLicenseService.getLicenseByDriverId(id);
+    if (existing != null && existing.getId() != null) {
+      driverLicenseService.deleteLicenseById(existing.getId());
+    }
+    return ResponseEntity.ok(ApiResponse.success("Driver ID card deleted"));
+  }
+
+  @GetMapping("/{id}/performance/current")
+  @PreAuthorize("@authorizationService.hasPermission(T(com.svtrucking.logistics.security.PermissionNames).DRIVER_VIEW_ALL) " +
+                "or @authorizationService.hasPermission(T(com.svtrucking.logistics.security.PermissionNames).DRIVER_MANAGE)")
+  public ResponseEntity<ApiResponse<DriverMonthlyPerformanceDto>> getCurrentDriverPerformance(@PathVariable Long id) {
+    DriverMonthlyPerformanceDto dto = driverMonthlyPerformanceRepository.findByDriverIdOrderByYearDescMonthDesc(id)
+        .stream()
+        .findFirst()
+        .map(DriverMonthlyPerformanceDto::fromEntity)
+        .orElse(null);
+    return ResponseEntity.ok(ApiResponse.success("Driver current performance fetched", dto));
+  }
+
+  @GetMapping("/{id}/performance/history")
+  @PreAuthorize("@authorizationService.hasPermission(T(com.svtrucking.logistics.security.PermissionNames).DRIVER_VIEW_ALL) " +
+                "or @authorizationService.hasPermission(T(com.svtrucking.logistics.security.PermissionNames).DRIVER_MANAGE)")
+  public ResponseEntity<ApiResponse<List<DriverMonthlyPerformanceDto>>> getDriverPerformanceHistory(
+      @PathVariable Long id, @RequestParam(defaultValue = "6") Integer months) {
+    List<DriverMonthlyPerformanceDto> dtos = driverMonthlyPerformanceRepository
+        .findRecentMonthsPerformance(id, months)
+        .stream()
+        .map(DriverMonthlyPerformanceDto::fromEntity)
+        .toList();
+    return ResponseEntity.ok(ApiResponse.success("Driver performance history fetched", dtos));
+  }
+
+  @lombok.Getter
+  @lombok.Setter
+  @lombok.NoArgsConstructor
+  @lombok.AllArgsConstructor
+  private static class DriverIdCardAdminDto {
+    private Long driverId;
+    private String idCardNumber;
+    private java.time.LocalDate issuedDate;
+    private java.time.LocalDate expiryDate;
+    private String status;
+
+    static DriverIdCardAdminDto fromLicense(DriverLicenseDto dto) {
+      String status = "NOT_SET";
+      if (dto != null) {
+        if (dto.getExpiryDate() == null) {
+          status = "NOT_SET";
+        } else if (Boolean.TRUE.equals(dto.getExpired())) {
+          status = "EXPIRED";
+        } else {
+          status = "ACTIVE";
+        }
+      }
+      return new DriverIdCardAdminDto(
+          dto != null ? dto.getDriverId() : null,
+          dto != null ? dto.getLicenseNumber() : null,
+          dto != null ? dto.getIssuedDate() : null,
+          dto != null ? dto.getExpiryDate() : null,
+          status);
+    }
+
+    DriverLicenseDto toLicenseDto(Long driverId) {
+      DriverLicenseDto dto = new DriverLicenseDto();
+      dto.setDriverId(driverId);
+      dto.setLicenseNumber(idCardNumber);
+      dto.setIssuedDate(issuedDate);
+      dto.setExpiryDate(expiryDate);
+      dto.setLicenseClass("ID");
+      dto.setIssuingAuthority("SVTMS");
+      dto.setNotes("Mapped from admin ID card flow");
+      return dto;
     }
   }
 

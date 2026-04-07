@@ -93,13 +93,13 @@
 
           <div class="flex-1">
             <p class="text-xs text-gray-500 mb-2">
-              JPG/PNG up to 5MB. Uploaded photos are stored on the server.
+              JPG, JPEG, PNG, or WEBP up to 5MB. Uploaded photos are stored on the server.
             </p>
             <div class="flex gap-2">
               <input
                 #fileInput
                 type="file"
-                accept="image/*"
+                accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
                 (change)="onFileSelected($event)"
                 class="hidden"
               />

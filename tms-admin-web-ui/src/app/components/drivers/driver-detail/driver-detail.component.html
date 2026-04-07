@@ -1,171 +1,15 @@
-<div class="flex min-h-screen bg-gray-50">
-  <!-- Left Navigation Sidebar -->
-  <aside class="w-64 bg-white border-r border-gray-200 p-6">
-    <nav class="space-y-3">
-      <div class="flex flex-wrap gap-2">
-        <button
-          *ngFor="let tab of firstRowTabs"
-          type="button"
-          class="px-3 py-2 text-sm font-semibold rounded-full transition"
-          [ngClass]="{
-            'bg-blue-50 text-blue-600 shadow': activeTab === tab.key,
-            'text-gray-700 border border-gray-200 hover:border-blue-300': activeTab !== tab.key,
-          }"
-          (click)="onTabChange(tab.key)"
-        >
-          {{ tab.label }}
-        </button>
-      </div>
-      <div class="flex flex-wrap gap-2">
-        <button
-          *ngFor="let tab of secondRowTabs"
-          type="button"
-          class="px-3 py-2 text-sm font-semibold rounded-full transition"
-          [ngClass]="{
-            'bg-blue-50 text-blue-600 shadow': activeTab === tab.key,
-            'text-gray-700 border border-gray-200 hover:border-blue-300': activeTab !== tab.key,
-          }"
-          (click)="onTabChange(tab.key)"
-        >
-          {{ tab.label }}
-        </button>
-      </div>
-    </nav>
-  </aside>
-
-  <!-- Main Content Area -->
-  <div class="flex-1 px-8 py-6">
-    <!-- Header -->
-    <div class="flex items-center justify-between mb-6">
-      <div class="flex items-center gap-4">
-        <div class="flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full">
-          <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-            ></path>
-          </svg>
-        </div>
-        <div>
-          <h2 class="text-3xl font-bold text-blue-600">
-            {{ isEditMode ? 'Edit Driver' : 'Add New Driver' }}
-          </h2>
-          <div
-            class="flex items-center gap-2 px-3 py-1 mt-1 text-xs bg-gray-100 rounded"
-            *ngIf="isEditMode"
-          >
-            <kbd class="px-2 py-0.5 bg-white border rounded shadow-sm">Ctrl</kbd>
-            <span>+</span>
-            <kbd class="px-2 py-0.5 bg-white border rounded shadow-sm">S</kbd>
-            <span class="text-gray-600">Save</span>
-          </div>
-        </div>
-      </div>
-      <button
-        (click)="goBack()"
-        class="flex items-center gap-2 px-6 py-3 text-white bg-blue-600 rounded-lg shadow-md hover:bg-blue-700 transition"
-      >
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M10 19l-7-7m0 0l7-7m-7 7h18"
-          ></path>
-        </svg>
-        Back to List
-      </button>
-    </div>
-
-    <!-- Always-visible overview panel -->
-    <section class="mb-6">
-      <div
-        class="bg-gradient-to-b from-white to-blue-50 rounded-2xl shadow-lg border border-blue-100 p-6 space-y-6"
-      >
-        <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div class="flex items-center gap-4">
-            <div
-              class="w-20 h-20 rounded-full bg-blue-50 border border-blue-200 overflow-hidden flex items-center justify-center"
-            >
-              <ng-container *ngIf="profilePreviewUrl; else avatarFallbackSmall">
-                <img
-                  [src]="profilePreviewUrl"
-                  alt="Driver photo"
-                  class="w-full h-full object-cover"
-                />
-              </ng-container>
-              <ng-template #avatarFallbackSmall>
-                <svg
-                  class="w-12 h-12 text-blue-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="1.5"
-                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                  ></path>
-                </svg>
-              </ng-template>
-            </div>
-            <div>
-              <p class="text-lg font-semibold text-gray-900">
-                {{ buildDriverDisplayName() || '—' }}
-                <span class="text-sm font-normal text-gray-500">#DR-{{ driverId }}</span>
-              </p>
-              <p class="text-sm text-gray-600">⭐ {{ overviewRating.toFixed(1) }} Rating</p>
-            </div>
-          </div>
-          <div class="text-sm text-gray-600">
-            <p class="font-semibold text-gray-700">📞 {{ overviewPhone }}</p>
-            <p>Last Seen: {{ overviewLastSeen }}</p>
-          </div>
-        </div>
-        <div class="grid grid-cols-2 gap-4 md:grid-cols-4 text-sm text-gray-700">
-          <div>
-            <p class="text-xs uppercase text-gray-400">Zone</p>
-            <p class="font-semibold">{{ overviewZone }}</p>
-          </div>
-          <div>
-            <p class="text-xs uppercase text-gray-400">Group</p>
-            <p class="font-semibold">{{ overviewGroup }}</p>
-          </div>
-          <div>
-            <p class="text-xs uppercase text-gray-400">Vendor</p>
-            <p class="font-semibold">{{ overviewVendor }}</p>
-          </div>
-          <div>
-            <p class="text-xs uppercase text-gray-400">Presence</p>
-            <p class="font-semibold">{{ operationalStatus.presence }}</p>
-          </div>
-          <div>
-            <p class="text-xs uppercase text-gray-400">Employment Status</p>
-            <p class="font-semibold">{{ overviewEmploymentStatus }}</p>
-          </div>
-        </div>
-        <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <div
-            *ngFor="let stat of overviewMetrics"
-            class="bg-white rounded-xl border border-blue-100 p-3 text-sm text-gray-600 shadow-sm"
-          >
-            <p class="text-xs uppercase tracking-wide text-blue-500">{{ stat.label }}</p>
-            <p class="text-lg font-semibold text-gray-900">{{ stat.value }}</p>
-          </div>
-        </div>
-        <div
-          class="border-t border-blue-100 pt-3 text-sm text-gray-700 flex flex-col gap-2 md:flex-row md:items-center md:justify-between"
-        >
-          <p class="font-semibold">🚛 Current Vehicle: {{ currentVehicleLabel }}</p>
-          <p class="text-gray-500" *ngIf="currentVehicleSince">
-            Assigned Since: {{ currentVehicleSince }}
-          </p>
-        </div>
-      </div>
-    </section>
+<div class="min-h-screen bg-gray-50">
+  <div class="mx-auto max-w-7xl px-6 py-6 lg:px-8">
+    <app-driver-detail-header
+      [title]="pageTitle"
+      [subtitle]="pageSubtitle"
+      [showSaveHint]="isEditMode"
+      [activeTab]="activeTab"
+      [firstRowTabs]="firstRowTabs"
+      [secondRowTabs]="secondRowTabs"
+      (back)="goBack()"
+      (tabChange)="onTabChange($event)"
+    ></app-driver-detail-header>
 
     <!-- Overview tab summary -->
     <div *ngIf="activeTab === 'overview'" class="space-y-6 mb-6">
@@ -204,7 +48,7 @@
             </div>
             <div class="flex justify-between">
               <span>Shift</span>
-              <span class="font-semibold text-gray-900">{{ operationalStatus.shift }}</span>
+              <span class="font-semibold text-gray-900">{{ operationalStatus.shift || '—' }}</span>
             </div>
             <div>
               <p class="text-xs uppercase text-gray-400 mb-1">Attendance (This Month)</p>
@@ -431,7 +275,12 @@
           class="relative w-24 h-24 rounded-full bg-blue-50 border border-blue-100 overflow-hidden flex items-center justify-center"
         >
           <ng-container *ngIf="profilePreviewUrl; else avatarFallback">
-            <img [src]="profilePreviewUrl" alt="Driver photo" class="w-full h-full object-cover" />
+            <img
+              [src]="profilePreviewUrl"
+              alt="Driver photo"
+              class="w-full h-full object-cover"
+              (error)="onProfileImageError()"
+            />
           </ng-container>
           <ng-template #avatarFallback>
             <svg
@@ -458,7 +307,7 @@
           </div>
           <input
             type="file"
-            accept="image/*"
+            accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
             (change)="onProfileFileSelected($event)"
             [disabled]="!isEditMode || profileUploadInProgress"
             class="block text-sm text-gray-700 file:mr-3 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-50"
@@ -478,7 +327,7 @@
             {{ profileUploadError }}
           </div>
           <p class="text-xs text-gray-500">
-            JPG/PNG up to 5MB. Uploaded photos are stored on the server.
+            JPG, JPEG, PNG, or WEBP up to 5MB. Uploaded photos are stored on the server.
           </p>
         </div>
       </div>
@@ -711,270 +560,31 @@
       </form>
     </div>
 
-    <!--  Issue ID Card Tab -->
-    <div *ngIf="activeTab === 'issue-id-card'" class="bg-white rounded-lg shadow-sm p-8 space-y-6">
-      <div class="flex items-center justify-between">
-        <h3 class="text-2xl font-semibold text-gray-900">Issue ID Card</h3>
-        <div class="flex items-center gap-2">
-          <button
-            type="button"
-            (click)="openIdCardPreview()"
-            [disabled]="idCardPreviewLoading"
-            class="px-3 py-1.5 text-xs font-semibold rounded-full bg-white border border-blue-200 text-blue-700 hover:bg-blue-50 shadow-sm"
-          >
-            {{ idCardPreviewLoading ? 'Preparing...' : 'Preview' }}
-          </button>
-          <button
-            type="button"
-            (click)="printIdCard()"
-            class="px-3 py-1.5 text-xs font-semibold rounded-full bg-white border border-blue-200 text-blue-700 hover:bg-blue-50 shadow-sm no-print"
-          >
-            Print
-          </button>
-          <button
-            type="button"
-            (click)="saveIdCardLayout()"
-            [disabled]="idCardSavingLayout"
-            class="px-3 py-1.5 text-xs font-semibold rounded-full bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
-          >
-            {{ idCardSavingLayout ? 'Saving...' : 'Save Layout' }}
-          </button>
-        </div>
-      </div>
-
-      <div class="border border-gray-200 rounded-xl overflow-x-auto">
-        <table class="min-w-full text-sm">
-          <thead class="bg-gray-50 text-gray-600">
-            <tr>
-              <th class="px-4 py-3 text-left font-semibold">ID Card</th>
-              <th class="px-4 py-3 text-left font-semibold">Issued Date</th>
-              <th class="px-4 py-3 text-left font-semibold">Expired Date</th>
-              <th class="px-4 py-3 text-left font-semibold">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr class="border-t border-gray-100">
-              <td class="px-4 py-3 font-semibold text-gray-900">{{ idCardInfo.code || '—' }}</td>
-              <td class="px-4 py-3 text-gray-700">{{ idCardIssuedDisplayLabel }}</td>
-              <td class="px-4 py-3 text-gray-700">{{ idCardExpiryLabel }}</td>
-              <td class="px-4 py-3">
-                <span
-                  class="px-2.5 py-1 rounded-full text-xs font-semibold"
-                  [ngClass]="idCardStatusClass"
-                >
-                  {{ idCardStatusLabel }}
-                </span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div
-        class="grid grid-cols-1 md:grid-cols-4 gap-4 bg-blue-50 border border-blue-100 rounded-xl p-4"
-      >
-        <div>
-          <label class="block text-xs font-semibold text-gray-600 uppercase mb-1"
-            >ID Card Number</label
-          >
-          <input
-            type="text"
-            [value]="driverForm.get('idCardNumber')?.value || ''"
-            (change)="driverForm.patchValue({ idCardNumber: $any($event.target).value || null })"
-            class="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-sm"
-            placeholder="CARD-30211"
-          />
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-gray-600 uppercase mb-1"
-            >Issued Date</label
-          >
-          <input
-            type="date"
-            [value]="driverForm.get('idCardIssuedDate')?.value || ''"
-            (change)="
-              driverForm.patchValue({ idCardIssuedDate: $any($event.target).value || null })
-            "
-            class="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-sm"
-          />
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-gray-600 uppercase mb-1"
-            >Expired Date</label
-          >
-          <input
-            type="date"
-            [value]="driverForm.get('idCardExpiry')?.value || ''"
-            (change)="driverForm.patchValue({ idCardExpiry: $any($event.target).value || null })"
-            class="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-sm"
-          />
-        </div>
-        <div class="flex items-end">
-          <button
-            type="button"
-            (click)="saveIdCardExpiry()"
-            [disabled]="isSubmitting"
-            class="w-full px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
-          >
-            {{
-              isSubmitting ? 'Saving...' : idCardRecordExists ? 'Update ID Card' : 'Create ID Card'
-            }}
-          </button>
-        </div>
-        <div class="flex items-end">
-          <button
-            type="button"
-            (click)="deleteIdCard()"
-            [disabled]="isSubmitting || !idCardRecordExists"
-            class="w-full px-4 py-2 text-sm font-semibold text-red-700 bg-white border border-red-300 rounded-md hover:bg-red-50 disabled:opacity-50"
-          >
-            Delete ID Card
-          </button>
-        </div>
-      </div>
-
-      <div class="id-card-print-area print-area">
-        <div class="max-w-3xl mx-auto">
-          <div
-            #idCardLayout
-            class="bg-gradient-to-b from-blue-50 via-white to-white border border-blue-100 rounded-2xl shadow-sm p-6 id-card-surface"
-          >
-            <div class="flex items-center justify-between mb-4">
-              <div class="flex items-center gap-3">
-                <div
-                  class="h-10 w-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm shadow-sm"
-                >
-                  SV
-                </div>
-                <div>
-                  <p class="text-xs font-semibold text-blue-700 tracking-widest uppercase">
-                    SV Trucking Co., Ltd
-                  </p>
-                  <p class="text-[11px] text-gray-500 uppercase">Driver Identification Card</p>
-                </div>
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="px-3 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-700"
-                  >ID Card</span
-                >
-              </div>
-            </div>
-
-            <div class="mb-2 text-center">
-              <h3 class="text-2xl font-bold text-gray-900">
-                {{ buildDriverDisplayName() || 'Driver' }}
-              </h3>
-              <p class="text-sm text-gray-500">Share this card to verify driver identity</p>
-            </div>
-
-            <div class="flex flex-col items-center text-center gap-4 py-4">
-              <div
-                class="w-28 h-28 rounded-2xl border-4 border-blue-200 bg-gray-100 flex items-center justify-center overflow-hidden shadow-sm"
-              >
-                <ng-container *ngIf="profilePreviewUrl; else initialsBadge">
-                  <img
-                    [src]="profilePreviewUrl"
-                    alt="Driver photo"
-                    class="w-full h-full object-cover"
-                  />
-                </ng-container>
-                <ng-template #initialsBadge>
-                  <span class="text-2xl font-bold text-gray-700">{{ driverInitials }}</span>
-                </ng-template>
-              </div>
-              <div
-                class="mt-2 inline-flex items-center px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold"
-              >
-                Driver
-              </div>
-            </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
-              <div class="flex items-center justify-between px-3 py-2 rounded-lg bg-gray-50">
-                <span class="text-sm text-gray-600">ID</span>
-                <span class="text-sm font-semibold text-gray-900">{{
-                  idCardInfo.code || '—'
-                }}</span>
-              </div>
-
-              <div class="flex items-center justify-between px-3 py-2 rounded-lg bg-gray-50">
-                <span class="text-sm text-gray-600">Phone</span>
-                <span class="text-sm font-semibold text-gray-900">{{
-                  idCardInfo.phone || '—'
-                }}</span>
-              </div>
-
-              <div class="flex items-center justify-between px-3 py-2 rounded-lg bg-gray-50">
-                <span class="text-sm text-gray-600">Group</span>
-                <span class="text-sm font-semibold text-gray-900">{{ driverGroupName }}</span>
-              </div>
-
-              <div class="flex items-center justify-between px-3 py-2 rounded-lg bg-gray-50">
-                <span class="text-sm text-gray-600">Vehicle</span>
-                <span class="text-sm font-semibold text-gray-900">{{
-                  idCardInfo.vehicle || '—'
-                }}</span>
-              </div>
-            </div>
-            <div class="mt-6 flex flex-col items-center gap-3">
-              <div class="p-4 bg-white border border-gray-200 rounded-2xl shadow-sm">
-                <ng-container *ngIf="idCardQrDataUrl; else qrPlaceholder">
-                  <img
-                    [src]="idCardQrDataUrl"
-                    alt="Driver QR"
-                    class="w-48 qr-code h-48 object-contain rounded-2xl border border-gray-200 shadow-sm"
-                  />
-                </ng-container>
-                <ng-template #qrPlaceholder>
-                  <div
-                    class="w-48 h-48 flex items-center justify-center text-gray-400 bg-gray-50 rounded-xl border border-dashed border-gray-300"
-                  >
-                    Generating QR...
-                  </div>
-                </ng-template>
-              </div>
-              <div class="text-center">
-                <p class="text-xs text-gray-500">Scan to verify driver information</p>
-                <p class="text-sm font-semibold text-gray-900 mt-2">
-                  ID Card Expiry: {{ idCardInfo.licenseValid || 'Not set' }}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div
-        *ngIf="showIdCardPreview"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-        (click)="closeIdCardPreview()"
-      >
-        <div
-          class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full p-4"
-          (click)="$event.stopPropagation()"
-        >
-          <div class="flex items-center justify-between mb-3">
-            <p class="text-lg font-semibold text-gray-900">ID Card Preview</p>
-            <button
-              type="button"
-              (click)="closeIdCardPreview()"
-              class="px-3 py-1 text-xs font-semibold rounded-full border border-gray-300 text-gray-600 hover:bg-gray-100"
-            >
-              Close
-            </button>
-          </div>
-          <div
-            class="flex justify-center overflow-auto bg-gray-50 rounded-lg border border-gray-200 p-4"
-          >
-            <img
-              *ngIf="idCardPreviewImageUrl"
-              [src]="idCardPreviewImageUrl"
-              alt="ID card preview"
-              class="max-w-full h-auto border border-gray-200 rounded-lg shadow"
-            />
-          </div>
-        </div>
-      </div>
-    </div>
+    <app-driver-id-card-tab
+      *ngIf="activeTab === 'issue-id-card'"
+      [driverId]="driverId"
+      [driverName]="buildDriverDisplayName() || 'Driver'"
+      [profilePreviewUrl]="profilePreviewUrl"
+      [driverInitials]="driverInitials"
+      [driverGroupName]="driverGroupName"
+      [idCardInfo]="idCardInfo"
+      [idCardQrDataUrl]="idCardQrDataUrl"
+      [idCardNumber]="driverForm.get('idCardNumber')?.value || null"
+      [idCardIssuedDate]="driverForm.get('idCardIssuedDate')?.value || null"
+      [idCardExpiry]="driverForm.get('idCardExpiry')?.value || null"
+      [idCardRecordExists]="idCardRecordExists"
+      [isSubmitting]="isSubmitting"
+      [issuedDisplayLabel]="idCardIssuedDisplayLabel"
+      [expiryLabel]="idCardExpiryLabel"
+      [statusLabel]="idCardStatusLabel"
+      [statusClass]="idCardStatusClass"
+      (idCardNumberChange)="driverForm.patchValue({ idCardNumber: $event })"
+      (idCardIssuedDateChange)="driverForm.patchValue({ idCardIssuedDate: $event })"
+      (idCardExpiryChange)="driverForm.patchValue({ idCardExpiry: $event })"
+      (save)="saveIdCardExpiry()"
+      (delete)="deleteIdCard()"
+      (print)="printIdCard()"
+    ></app-driver-id-card-tab>
 
     <!--  Assign Vehicle Tab -->
     <div *ngIf="activeTab === 'operations'" class="bg-white rounded-lg shadow-sm p-8">
@@ -1530,335 +1140,46 @@
     </div>
 
     <!-- 🪪 Licenses Tab -->
-    <div *ngIf="activeTab === 'compliance' && driverId" class="space-y-6">
-      <div class="grid gap-6 md:grid-cols-2">
-        <div class="bg-white rounded-2xl border border-blue-100 shadow-sm p-6 space-y-4">
-          <div class="flex items-center justify-between">
-            <h3 class="text-lg font-semibold text-gray-900">License</h3>
-            <button
-              type="button"
-              class="px-3 py-1 text-sm font-semibold text-blue-600 border border-blue-200 rounded-full hover:bg-blue-50"
-              (click)="openLicenseUploader()"
-            >
-              Upload New
-            </button>
-          </div>
-          <div class="text-sm text-gray-600 space-y-2">
-            <p>
-              <span class="font-semibold text-gray-900">License No:</span>
-              {{ licenseSummary.number }}
-            </p>
-            <p>
-              <span class="font-semibold text-gray-900">Class:</span>
-              {{ licenseSummary.clazz }}
-            </p>
-            <p>
-              <span class="font-semibold text-gray-900">Expires:</span>
-              {{ licenseSummary.expires }}
-            </p>
-            <p>
-              <span class="font-semibold text-gray-900">Status:</span>
-              <span
-                [ngClass]="{
-                  'text-green-700 bg-green-100 px-2 py-0.5 rounded-full':
-                    licenseSummary.tone === 'success',
-                  'text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded-full':
-                    licenseSummary.tone === 'warning',
-                  'text-red-700 bg-red-100 px-2 py-0.5 rounded-full':
-                    licenseSummary.tone === 'danger',
-                  'text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full':
-                    licenseSummary.tone === 'neutral',
-                }"
-              >
-                {{ licenseSummary.status }}
-              </span>
-            </p>
-          </div>
-        </div>
-        <div class="bg-white rounded-2xl border border-blue-100 shadow-sm p-6 space-y-4">
-          <h3 class="text-lg font-semibold text-gray-900">Document Compliance</h3>
-          <div class="grid grid-cols-2 gap-4 text-sm text-gray-600">
-            <div>
-              <p class="text-xs uppercase text-gray-400">Submitted</p>
-              <p class="font-semibold text-gray-900">
-                {{ documentSummary.approved }}/{{ documentSummary.total }}
-              </p>
-            </div>
-            <div>
-              <p class="text-xs uppercase text-gray-400">Dispatch Eligible</p>
-              <p class="font-semibold text-gray-900">{{ complianceSummary.dispatchEligible }}</p>
-            </div>
-            <div>
-              <p class="text-xs uppercase text-gray-400">Background</p>
-              <p class="font-semibold text-gray-900">{{ complianceSummary.backgroundCheck }}</p>
-            </div>
-            <div>
-              <p class="text-xs uppercase text-gray-400">Documents</p>
-              <p class="font-semibold text-gray-900">{{ complianceSummary.documents }}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="bg-white rounded-2xl border border-blue-100 shadow-sm p-6">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-semibold text-gray-900">Documents</h3>
-          <span class="text-sm text-gray-500">Auto marked non-compliant if expired</span>
-        </div>
-        <div
-          *ngIf="isDocumentUploadInProgress"
-          class="mb-3 flex items-center gap-2 text-sm text-green-700"
-        >
-          <mat-progress-spinner diameter="20" mode="indeterminate"></mat-progress-spinner>
-          <span>Replacing {{ documentUploadTarget?.name || 'document' }}...</span>
-        </div>
-        <div class="overflow-x-auto">
-          <table class="min-w-full text-sm text-left border-collapse">
-            <thead>
-              <tr class="text-xs uppercase text-gray-400 border-b border-gray-200">
-                <th class="px-3 py-2">Document</th>
-                <th class="px-3 py-2">Status</th>
-                <th class="px-3 py-2">Expiry</th>
-                <th class="px-3 py-2">Verified By</th>
-                <th class="px-3 py-2 text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                *ngFor="let doc of documentsList"
-                class="border-b border-gray-100 hover:bg-blue-50/40 cursor-pointer"
-                (click)="openDocumentPreview(doc)"
-                tabindex="0"
-                role="button"
-                [attr.aria-label]="'Open preview for ' + (doc.name || 'document')"
-                (keydown.enter)="openDocumentPreview(doc, $event)"
-                (keydown.space)="openDocumentPreview(doc, $event)"
-                [attr.title]="'Open document preview for ' + (doc.name || 'document')"
-              >
-                <td class="px-3 py-3 font-medium text-gray-900">{{ doc.name }}</td>
-                <td class="px-3 py-3">
-                  <span
-                    [ngClass]="documentStatusClass(doc)"
-                    class="px-2 py-0.5 rounded-full text-xs"
-                  >
-                    {{ documentStatusLabel(doc) }}
-                  </span>
-                </td>
-                <td class="px-3 py-3 text-gray-700">{{ formatDocumentExpiry(doc) }}</td>
-                <td class="px-3 py-3 text-gray-700">
-                  {{ doc.uploadedBy || doc.updatedBy || '—' }}
-                </td>
-                <td class="px-3 py-3 text-right">
-                  <div class="flex justify-end gap-2">
-                    <button
-                      type="button"
-                      class="px-3 py-1 text-xs font-semibold rounded-full border border-gray-300 text-gray-600 hover:border-blue-500 hover:text-blue-600"
-                      (click)="openDocumentEdit(doc, $event)"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      class="px-3 py-1 text-xs font-semibold rounded-full border border-gray-300 hover:border-blue-500 text-blue-600"
-                      (click)="handleDocumentAction(doc, $event)"
-                    >
-                      {{ documentActionLabel(doc) }}
-                    </button>
-                  </div>
-                </td>
-              </tr>
-              <tr *ngIf="documentsList.length === 0">
-                <td colspan="5" class="px-3 py-6 text-center text-gray-500">
-                  No documents uploaded yet.
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-    <div *ngIf="activeTab === 'performance'" class="bg-white rounded-lg shadow-sm p-8 space-y-6">
-      <div *ngIf="performanceLoading" class="flex items-center justify-center py-12">
-        <mat-progress-spinner diameter="40" mode="indeterminate"></mat-progress-spinner>
-      </div>
-      <div *ngIf="!performanceLoading" class="space-y-6">
-        <div class="grid gap-4 md:grid-cols-4">
-          <div class="rounded-xl border border-gray-100 p-4 text-center">
-            <p class="text-xs uppercase text-gray-400">Total Trips</p>
-            <p class="text-3xl font-semibold text-gray-900">
-              {{ performanceSummary?.totalDeliveries ?? '—' }}
-            </p>
-          </div>
-          <div class="rounded-xl border border-gray-100 p-4 text-center">
-            <p class="text-xs uppercase text-gray-400">On-Time</p>
-            <p class="text-3xl font-semibold text-blue-600">
-              {{ performanceOnTimePercent | number: '1.0-1' }}%
-            </p>
-          </div>
-          <div class="rounded-xl border border-gray-100 p-4 text-center">
-            <p class="text-xs uppercase text-gray-400">Cancel Rate</p>
-            <p class="text-3xl font-semibold text-red-600">
-              {{ performanceCancelRate | number: '1.0-1' }}%
-            </p>
-          </div>
-          <div class="rounded-xl border border-gray-100 p-4 text-center">
-            <p class="text-xs uppercase text-gray-400">Incidents</p>
-            <p class="text-3xl font-semibold text-orange-600">
-              {{ performanceIncidentCount }}
-            </p>
-          </div>
-        </div>
-        <div class="grid gap-4 md:grid-cols-2">
-          <div class="rounded-xl border border-gray-100 p-4 space-y-1">
-            <p class="text-xs text-gray-500">Performance Score</p>
-            <p class="text-xl font-semibold text-blue-600">
-              {{ performanceSummary?.performanceScore ?? '—' }}
-            </p>
-            <p class="text-xs text-gray-500">
-              Rank: {{ performanceSummary?.leaderboardRank ?? '—' }} ·
-              {{ performanceSummary?.rankTier || 'Tier TBD' }}
-            </p>
-          </div>
-          <div class="rounded-xl border border-gray-100 p-4 space-y-1">
-            <p class="text-xs text-gray-500">Fuel Efficiency</p>
-            <p class="text-xl font-semibold text-green-600">
-              {{ fuelEfficiencyDisplay !== '—' ? fuelEfficiencyDisplay + ' km/l' : '—' }}
-            </p>
-            <p class="text-xs text-gray-500">Avg. Rating: {{ averageRatingDisplay }}</p>
-          </div>
-        </div>
-        <div class="space-y-3">
-          <div class="flex items-center justify-between">
-            <div>
-              <h3 class="text-lg font-semibold text-gray-900">Monthly Trip Trend Chart</h3>
-              <p class="text-xs text-gray-500">
-                Last {{ performanceTrend.length || 0 }} month{{
-                  performanceTrend.length === 1 ? '' : 's'
-                }}
-              </p>
-            </div>
-            <p class="text-xs text-gray-500">
-              {{ performanceSummary?.monthName || '—' }} ·
-              {{ performanceSummary?.year || '—' }}
-            </p>
-          </div>
-          <div *ngIf="performanceTrend.length; else noTrend">
-            <div
-              *ngFor="let point of performanceTrend"
-              class="flex items-center gap-3 text-xs text-gray-600"
-            >
-              <span class="w-14 text-left font-semibold text-gray-700">{{ point.label }}</span>
-              <div class="flex-1 h-2 bg-gray-200 rounded overflow-hidden">
-                <div
-                  class="h-2 bg-blue-500 rounded"
-                  [style.width.%]="getTrendBarWidth(point.value)"
-                ></div>
-              </div>
-              <span class="w-12 text-right">{{ point.value }}</span>
-            </div>
-          </div>
-          <ng-template #noTrend>
-            <p class="text-xs text-gray-500">No trend data available yet.</p>
-          </ng-template>
-        </div>
-      </div>
-    </div>
+    <app-driver-compliance-tab
+      *ngIf="activeTab === 'compliance' && driverId"
+      [driverId]="driverId"
+      [license]="licenseSummary"
+      [documentSummary]="documentSummary"
+      [complianceSummary]="complianceSummary"
+      [documentsList]="documentsList"
+      [isDocumentUploadInProgress]="isDocumentUploadInProgress"
+      [documentUploadTarget]="documentUploadTarget"
+      [documentStatusClass]="documentStatusClass.bind(this)"
+      [documentStatusLabel]="documentStatusLabel.bind(this)"
+      [formatDocumentExpiry]="formatDocumentExpiry.bind(this)"
+      [documentActionLabel]="documentActionLabel.bind(this)"
+      (uploadLicense)="openLicenseUploader()"
+      (previewDocument)="openDocumentPreview($event)"
+      (editDocument)="openDocumentEdit($event)"
+      (documentAction)="handleDocumentAction($event)"
+    ></app-driver-compliance-tab>
+    <app-driver-performance-tab
+      *ngIf="activeTab === 'performance'"
+      [loading]="performanceLoading"
+      [summary]="performanceSummary"
+      [onTimePercent]="performanceOnTimePercent"
+      [cancelRate]="performanceCancelRate"
+      [incidentCount]="performanceIncidentCount"
+      [fuelEfficiencyDisplay]="fuelEfficiencyDisplay"
+      [averageRatingDisplay]="averageRatingDisplay"
+      [trend]="performanceTrendWithWidth"
+    ></app-driver-performance-tab>
 
     <!-- 🔐 Login Account Tab -->
-    <div *ngIf="activeTab === 'access'" class="bg-white rounded-lg shadow-sm p-8">
-      <form
-        [formGroup]="accountForm"
-        (ngSubmit)="onAccountSubmit()"
-        class="grid grid-cols-1 gap-6 md:grid-cols-2"
-      >
-        <div *ngIf="accountLoading" class="flex items-center justify-center md:col-span-2">
-          <mat-progress-spinner diameter="32" mode="indeterminate"></mat-progress-spinner>
-        </div>
-
-        <div
-          *ngIf="!accountLoading && accountLoadMessage"
-          class="md:col-span-2 px-4 py-2 text-sm text-blue-800 bg-blue-50 border border-blue-200 rounded"
-        >
-          {{ accountLoadMessage }}
-        </div>
-
-        <!-- Username -->
-        <div>
-          <label for="username" class="block text-sm font-medium text-gray-700">Username</label>
-          <input
-            id="username"
-            formControlName="username"
-            type="text"
-            class="w-full mt-1 border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-            placeholder="driver01"
-            [readonly]="isEditMode"
-            autocomplete="off"
-          />
-          <div
-            *ngIf="accountForm.get('username')?.touched && accountForm.get('username')?.invalid"
-            class="mt-1 text-sm text-red-500"
-          >
-            Username is required.
-          </div>
-        </div>
-
-        <!-- Email -->
-        <div>
-          <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
-          <input
-            id="email"
-            formControlName="email"
-            type="email"
-            class="w-full mt-1 border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-            placeholder="driver@example.com"
-            autocomplete="off"
-          />
-          <div
-            *ngIf="accountForm.get('email')?.touched && accountForm.get('email')?.invalid"
-            class="mt-1 text-sm text-red-500"
-          >
-            <span *ngIf="accountForm.get('email')?.errors?.['required']">Email is required.</span>
-            <span *ngIf="accountForm.get('email')?.errors?.['email']">Invalid email format.</span>
-          </div>
-        </div>
-
-        <!-- Password -->
-        <div>
-          <label for="password" class="block text-sm font-medium text-gray-700">
-            Password
-            <span *ngIf="isEditMode" class="text-xs text-gray-500"
-              >(leave blank to keep current password)</span
-            >
-          </label>
-          <input
-            id="password"
-            formControlName="password"
-            type="password"
-            class="w-full mt-1 border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-            placeholder="********"
-            autocomplete="new-password"
-          />
-        </div>
-
-        <!-- Actions -->
-        <div class="flex justify-between mt-6 md:col-span-2">
-          <button
-            type="button"
-            (click)="cancelAccountEdit()"
-            class="px-5 py-2 text-gray-700 bg-gray-200 rounded shadow hover:bg-gray-300"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            [disabled]="accountForm.invalid || accountForm.disabled || accountLoading"
-            class="px-6 py-2 text-white bg-blue-600 rounded shadow hover:bg-blue-700 disabled:opacity-50"
-          >
-            Save Account
-          </button>
-        </div>
-      </form>
-    </div>
+    <app-driver-access-tab
+      *ngIf="activeTab === 'access'"
+      [accountForm]="accountForm"
+      [accountLoading]="accountLoading"
+      [accountLoadMessage]="accountLoadMessage"
+      [isEditMode]="isEditMode"
+      (submitAccount)="onAccountSubmit()"
+      (cancel)="cancelAccountEdit()"
+    ></app-driver-access-tab>
 
     <!-- 🔄 Lifecycle Tab -->
     <div
@@ -1915,6 +1236,66 @@
         <p *ngIf="lifecycleActionMessage" class="text-sm text-green-600">
           {{ lifecycleActionMessage }}
         </p>
+      </div>
+    </div>
+
+    <div
+      *ngIf="lifecycleModalOpen && lifecyclePendingAction"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+    >
+      <div class="w-full max-w-md rounded-2xl bg-white shadow-2xl border border-gray-200">
+        <div class="border-b border-gray-100 px-6 py-4">
+          <h3 class="text-lg font-semibold text-gray-900">
+            {{ lifecyclePendingAction }} Driver
+          </h3>
+          <p class="mt-1 text-sm text-gray-500">
+            Add an optional reason before confirming this lifecycle action.
+          </p>
+        </div>
+
+        <div class="space-y-4 px-6 py-5">
+          <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            This action will update the driver lifecycle state to
+            <span class="font-semibold">{{ lifecyclePendingAction }}</span>.
+          </div>
+
+          <div>
+            <label class="mb-2 block text-sm font-medium text-gray-700" for="lifecycleReason">
+              Reason
+            </label>
+            <textarea
+              id="lifecycleReason"
+              [(ngModel)]="lifecycleReason"
+              rows="4"
+              class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Optional note for audit history"
+            ></textarea>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-3 border-t border-gray-100 px-6 py-4">
+          <button
+            type="button"
+            class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+            (click)="closeLifecycleModal()"
+            [disabled]="lifecycleActionInProgress"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="rounded-lg px-4 py-2 text-sm font-semibold text-white"
+            [ngClass]="{
+              'bg-gray-400': lifecycleActionInProgress,
+              'bg-gray-700 hover:bg-gray-800': lifecyclePendingAction === 'Suspend' && !lifecycleActionInProgress,
+              'bg-red-600 hover:bg-red-700': lifecyclePendingAction === 'Exit' && !lifecycleActionInProgress
+            }"
+            (click)="confirmLifecycleAction()"
+            [disabled]="lifecycleActionInProgress"
+          >
+            {{ lifecycleActionInProgress ? 'Saving...' : lifecyclePendingAction }}
+          </button>
+        </div>
       </div>
     </div>
   </div>
