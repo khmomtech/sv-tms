@@ -75,10 +75,13 @@ module.exports = function (config) {
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
           '--disable-gpu',
-          '--remote-debugging-port=9222'
+          '--remote-debugging-port=0'
         ]
       }
     },
+    browserDisconnectTimeout: 10000,
+    browserNoActivityTimeout: 120000,
+    processKillTimeout: 10000,
     singleRun: true,
     restartOnFileChange: false
   });
