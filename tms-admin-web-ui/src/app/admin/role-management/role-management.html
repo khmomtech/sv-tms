@@ -1,0 +1,299 @@
+<div class="container p-6 mx-auto">
+  <div class="flex items-center justify-between mb-6">
+    <h2 class="text-3xl font-bold">Role Management</h2>
+    <div class="text-sm text-gray-600">
+      <span
+        *ngIf="hasActiveFilters()"
+        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+      >
+        Filters active
+      </span>
+    </div>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="grid grid-cols-1 gap-4 mb-6 md:grid-cols-4">
+    <div class="p-4 bg-white border rounded shadow">
+      <p class="text-sm text-gray-500">Total Roles</p>
+      <p class="mt-1 text-2xl font-semibold text-gray-800">{{ totalRoles }}</p>
+    </div>
+    <div class="p-4 bg-white border rounded shadow">
+      <p class="text-sm text-gray-500">Active Roles</p>
+      <p class="mt-1 text-2xl font-semibold text-emerald-600">{{ roles.length }}</p>
+    </div>
+    <div class="p-4 bg-white border rounded shadow">
+      <p class="text-sm text-gray-500">Total Permissions</p>
+      <p class="mt-1 text-2xl font-semibold text-blue-600">{{ totalPermissions }}</p>
+    </div>
+    <div class="p-4 bg-white border rounded shadow">
+      <p class="text-sm text-gray-500">System Roles</p>
+      <p class="mt-1 text-2xl font-semibold text-orange-500">{{ systemRolesCount }}</p>
+    </div>
+  </div>
+
+  <!-- Search & Filters -->
+  <div class="bg-white border rounded-lg shadow-sm p-6 mb-6">
+    <div class="flex flex-col lg:flex-row gap-4 items-start lg:items-end">
+      <div class="flex flex-col sm:flex-row gap-4 flex-1">
+        <mat-form-field appearance="outline" class="flex-1 min-w-[200px]">
+          <mat-label>Search Roles</mat-label>
+          <input
+            matInput
+            [formControl]="$any(searchForm.get('search'))"
+            placeholder="Type to search roles..."
+            autocomplete="off"
+          />
+          <mat-icon matPrefix class="text-gray-400">search</mat-icon>
+          <mat-hint>Search by role name or description</mat-hint>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="min-w-[180px]">
+          <mat-label>Sort By</mat-label>
+          <mat-select [formControl]="$any(searchForm.get('sortBy'))">
+            <mat-option value="name">
+              <mat-icon class="text-sm mr-2">sort_by_alpha</mat-icon>
+              Name (A-Z)
+            </mat-option>
+            <mat-option value="description">
+              <mat-icon class="text-sm mr-2">description</mat-icon>
+              Description
+            </mat-option>
+            <mat-option value="permissions">
+              <mat-icon class="text-sm mr-2">security</mat-icon>
+              Permissions Count
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <div class="flex gap-2">
+          <button
+            *ngIf="hasActiveFilters()"
+            mat-stroked-button
+            color="warn"
+            (click)="clearFilters()"
+            class="px-4 py-2"
+          >
+            <mat-icon class="text-sm mr-1">clear_all</mat-icon>
+            Clear Filters
+          </button>
+        </div>
+      </div>
+
+      <button
+        mat-raised-button
+        color="primary"
+        (click)="openCreateDialog()"
+        class="px-6 py-2 min-w-[140px] whitespace-nowrap"
+      >
+        <mat-icon class="text-sm mr-1">add</mat-icon>
+        Create Role
+      </button>
+    </div>
+
+    <!-- Active Filters Display -->
+    <div *ngIf="hasActiveFilters()" class="mt-4 pt-4 border-t border-gray-200">
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="text-sm font-medium text-gray-700">Active filters:</span>
+        <mat-chip-set>
+          <mat-chip
+            *ngIf="searchForm.get('search')?.value"
+            [removable]="true"
+            (removed)="clearSearchFilter()"
+            class="bg-blue-100 text-blue-800"
+          >
+            <mat-icon class="text-sm mr-1">search</mat-icon>
+            "{{ searchForm.get('search')?.value }}"
+          </mat-chip>
+          <mat-chip
+            *ngIf="searchForm.get('sortBy')?.value !== 'name'"
+            [removable]="true"
+            (removed)="resetSort()"
+            class="bg-gray-100 text-gray-800"
+          >
+            <mat-icon class="text-sm mr-1">sort</mat-icon>
+            Sorted by {{ getSortLabel(searchForm.get('sortBy')?.value) }}
+          </mat-chip>
+        </mat-chip-set>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="isLoading" class="text-center py-20">
+    <div
+      class="inline-block w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"
+    ></div>
+    <h3 class="text-lg font-semibold text-gray-900 mb-2">Loading Roles...</h3>
+    <p class="text-gray-600">Please wait while we fetch your role data</p>
+  </div>
+
+  <!-- Empty State -->
+  <div
+    *ngIf="!isLoading && filteredRoles.length === 0 && !hasActiveFilters()"
+    class="text-center py-20"
+  >
+    <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+      <mat-icon class="text-gray-400 text-3xl">group_off</mat-icon>
+    </div>
+    <h3 class="text-xl font-semibold text-gray-900 mb-2">No Roles Found</h3>
+    <p class="text-gray-600 mb-6">Get started by creating your first role</p>
+    <button
+      (click)="openCreateDialog()"
+      class="px-6 py-3 text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+    >
+      ➕ Create First Role
+    </button>
+  </div>
+
+  <!-- No Results State -->
+  <div
+    *ngIf="!isLoading && filteredRoles.length === 0 && hasActiveFilters()"
+    class="text-center py-20"
+  >
+    <div class="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-6">
+      <mat-icon class="text-amber-400 text-3xl">search_off</mat-icon>
+    </div>
+    <h3 class="text-xl font-semibold text-gray-900 mb-2">No Matching Roles</h3>
+    <p class="text-gray-600 mb-6">Try adjusting your search criteria or filters</p>
+    <button
+      (click)="clearFilters()"
+      class="px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200"
+    >
+      Clear Filters
+    </button>
+  </div>
+
+  <!-- Roles List -->
+  <div *ngIf="!isLoading && filteredRoles.length > 0" class="space-y-4">
+    <!-- Bulk Actions -->
+    <div *ngIf="selectedRoles.size > 0" class="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+      <div class="flex items-center justify-between">
+        <span class="text-sm font-medium text-blue-800">
+          {{ selectedRoles.size }} role{{ selectedRoles.size !== 1 ? 's' : '' }} selected
+        </span>
+        <div class="flex gap-2">
+          <button
+            (click)="selectAllRoles()"
+            class="px-3 py-1 text-sm text-blue-600 bg-white border border-blue-300 rounded hover:bg-blue-50"
+          >
+            {{ selectedRoles.size === filteredRoles.length ? 'Deselect All' : 'Select All' }}
+          </button>
+          <button
+            (click)="bulkDelete()"
+            class="px-3 py-1 text-sm text-white bg-red-600 rounded hover:bg-red-700"
+          >
+            Delete Selected
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Role Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div
+        *ngFor="let role of filteredRoles; trackBy: trackByRoleId"
+        class="bg-white border rounded-lg shadow hover:shadow-md transition-shadow"
+      >
+        <!-- Header -->
+        <div class="p-4 border-b">
+          <div class="flex items-start justify-between">
+            <div class="flex items-center gap-3">
+              <mat-checkbox
+                [checked]="isRoleSelected(role.id)"
+                (change)="toggleRoleSelection(role.id, $event.checked)"
+              >
+              </mat-checkbox>
+              <div>
+                <h3 class="text-lg font-semibold text-gray-900">{{ role.name }}</h3>
+                <span
+                  *ngIf="role.name === 'Admin'"
+                  class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800"
+                >
+                  System Role
+                </span>
+              </div>
+            </div>
+            <button [matMenuTriggerFor]="menu" class="p-1 text-gray-400 hover:text-gray-600">
+              <mat-icon class="text-sm">more_vert</mat-icon>
+            </button>
+          </div>
+        </div>
+
+        <!-- Content -->
+        <div class="p-4">
+          <p class="text-sm text-gray-600 mb-3">
+            {{ role.description || 'No description provided.' }}
+          </p>
+
+          <!-- Permissions -->
+          <div class="mb-4">
+            <div class="flex items-center gap-2 mb-2">
+              <mat-icon class="text-gray-400 text-sm">security</mat-icon>
+              <span class="text-sm font-medium text-gray-700">
+                Permissions ({{ getPermissionObjects(role).length }})
+              </span>
+            </div>
+            <div class="flex flex-wrap gap-1">
+              <span
+                *ngFor="let perm of getPermissionObjects(role).slice(0, 3)"
+                class="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded"
+              >
+                {{ perm.name }}
+              </span>
+              <span
+                *ngIf="getPermissionObjects(role).length > 3"
+                class="px-2 py-1 text-xs bg-gray-100 text-gray-500 rounded cursor-pointer hover:bg-gray-200"
+                (click)="viewAllPermissions(role)"
+              >
+                +{{ getPermissionObjects(role).length - 3 }} more
+              </span>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="flex gap-2">
+            <button
+              (click)="openEditDialog(role)"
+              class="flex-1 px-3 py-2 text-sm text-blue-600 bg-blue-50 rounded hover:bg-blue-100"
+            >
+              <mat-icon class="text-sm mr-1">edit</mat-icon>
+              Edit
+            </button>
+            <button
+              (click)="viewRoleDetails(role)"
+              class="px-3 py-2 text-sm text-gray-600 bg-gray-50 rounded hover:bg-gray-100"
+            >
+              <mat-icon class="text-sm">visibility</mat-icon>
+            </button>
+          </div>
+        </div>
+
+        <!-- Menu -->
+        <mat-menu #menu="matMenu">
+          <button mat-menu-item (click)="openEditDialog(role)">
+            <mat-icon>edit</mat-icon>
+            <span>Edit Role</span>
+          </button>
+          <button mat-menu-item (click)="duplicateRole(role)">
+            <mat-icon>content_copy</mat-icon>
+            <span>Duplicate</span>
+          </button>
+          <button mat-menu-item (click)="viewRoleDetails(role)">
+            <mat-icon>visibility</mat-icon>
+            <span>View Details</span>
+          </button>
+          <mat-divider></mat-divider>
+          <button
+            mat-menu-item
+            (click)="deleteRole(role)"
+            [disabled]="role.name === 'Admin'"
+            class="text-red-600"
+          >
+            <mat-icon>delete</mat-icon>
+            <span>Delete</span>
+          </button>
+        </mat-menu>
+      </div>
+    </div>
+  </div>
+</div>

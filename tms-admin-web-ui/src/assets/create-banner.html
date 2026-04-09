@@ -1,0 +1,72 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Create Placeholder Banner</title>
+  </head>
+  <body>
+    <canvas id="bannerCanvas" width="800" height="200" style="border: 1px solid #ccc"></canvas>
+    <br /><br />
+    <button onclick="downloadPNG()">Download PNG</button>
+
+    <script>
+      const canvas = document.getElementById('bannerCanvas');
+      const ctx = canvas.getContext('2d');
+
+      // Fill background
+      ctx.fillStyle = '#f0f0f0';
+      ctx.fillRect(0, 0, 800, 200);
+
+      // Draw border
+      ctx.strokeStyle = '#cccccc';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(1, 1, 798, 198);
+
+      // Main text
+      ctx.fillStyle = '#666666';
+      ctx.font = 'bold 28px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('Banner Placeholder', 400, 110);
+
+      // Subtitle
+      ctx.fillStyle = '#999999';
+      ctx.font = '16px Arial';
+      ctx.fillText('800 x 200px', 400, 140);
+
+      // Corner circles
+      ctx.fillStyle = '#e0e0e0';
+      ctx.strokeStyle = '#cccccc';
+      ctx.lineWidth = 1;
+
+      // Top-left
+      ctx.beginPath();
+      ctx.arc(50, 50, 20, 0, 2 * Math.PI);
+      ctx.fill();
+      ctx.stroke();
+
+      // Top-right
+      ctx.beginPath();
+      ctx.arc(750, 50, 20, 0, 2 * Math.PI);
+      ctx.fill();
+      ctx.stroke();
+
+      // Bottom-left
+      ctx.beginPath();
+      ctx.arc(50, 150, 20, 0, 2 * Math.PI);
+      ctx.fill();
+      ctx.stroke();
+
+      // Bottom-right
+      ctx.beginPath();
+      ctx.arc(750, 150, 20, 0, 2 * Math.PI);
+      ctx.fill();
+      ctx.stroke();
+
+      function downloadPNG() {
+        const link = document.createElement('a');
+        link.download = 'placeholder-banner.png';
+        link.href = canvas.toDataURL();
+        link.click();
+      }
+    </script>
+  </body>
+</html>

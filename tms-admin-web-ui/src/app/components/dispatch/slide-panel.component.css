@@ -1,0 +1,13 @@
+/* Slide-in animation base (Tailwind-based) */
+.translate-x-full {
+  transform: translateX(100%);
+}
+
+.translate-x-0 {
+  transform: translateX(0%);
+}
+
+.slide-panel {
+  background: white;
+  transition: transform 0.3s ease-in-out;
+}

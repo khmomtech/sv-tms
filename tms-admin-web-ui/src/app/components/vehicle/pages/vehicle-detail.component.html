@@ -1,0 +1,1908 @@
+<div class="min-h-screen p-4 bg-gray-50 lg:p-6">
+  <div class="max-w-6xl mx-auto space-y-6">
+    <div class="flex flex-col gap-6 lg:flex-row">
+      <aside class="w-full space-y-4 lg:w-64">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 space-y-4">
+          <div class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Sections</div>
+          <nav class="hidden space-y-1 lg:block">
+            <button
+              type="button"
+              class="block w-full text-left rounded-lg px-3 py-2 text-sm transition"
+              [ngClass]="
+                activeGroup === 'profile'
+                  ? 'text-blue-700 bg-blue-50 hover:bg-blue-100'
+                  : 'text-gray-700 hover:bg-gray-50'
+              "
+              (click)="
+                router.navigate([], {
+                  queryParams: { group: 'profile' },
+                  queryParamsHandling: 'merge',
+                })
+              "
+            >
+              Profile
+            </button>
+            <button
+              type="button"
+              class="block w-full text-left rounded-lg px-3 py-2 text-sm transition"
+              [ngClass]="
+                activeGroup === 'documents'
+                  ? 'text-blue-700 bg-blue-50 hover:bg-blue-100'
+                  : 'text-gray-700 hover:bg-gray-50'
+              "
+              (click)="
+                router.navigate([], {
+                  queryParams: { group: 'documents' },
+                  queryParamsHandling: 'merge',
+                })
+              "
+            >
+              Documents
+            </button>
+            <button
+              type="button"
+              class="block w-full text-left rounded-lg px-3 py-2 text-sm transition"
+              [ngClass]="
+                activeGroup === 'maintenance'
+                  ? 'text-blue-700 bg-blue-50 hover:bg-blue-100'
+                  : 'text-gray-700 hover:bg-gray-50'
+              "
+              (click)="
+                router.navigate([], {
+                  queryParams: { group: 'maintenance' },
+                  queryParamsHandling: 'merge',
+                })
+              "
+            >
+              Maintenance
+            </button>
+            <button
+              type="button"
+              class="block w-full text-left rounded-lg px-3 py-2 text-sm transition"
+              [ngClass]="
+                activeGroup === 'driver-history'
+                  ? 'text-blue-700 bg-blue-50 hover:bg-blue-100'
+                  : 'text-gray-700 hover:bg-gray-50'
+              "
+              (click)="
+                router.navigate([], {
+                  queryParams: { group: 'driver-history' },
+                  queryParamsHandling: 'merge',
+                })
+              "
+            >
+              Driver History
+            </button>
+            <button
+              type="button"
+              class="block w-full text-left rounded-lg px-3 py-2 text-sm transition"
+              [ngClass]="
+                activeGroup === 'fuel'
+                  ? 'text-blue-700 bg-blue-50 hover:bg-blue-100'
+                  : 'text-gray-700 hover:bg-gray-50'
+              "
+              (click)="
+                router.navigate([], {
+                  queryParams: { group: 'fuel' },
+                  queryParamsHandling: 'merge',
+                })
+              "
+            >
+              Fuel
+            </button>
+            <button
+              type="button"
+              class="block w-full text-left rounded-lg px-3 py-2 text-sm transition"
+              [ngClass]="
+                activeGroup === 'cost-summary'
+                  ? 'text-blue-700 bg-blue-50 hover:bg-blue-100'
+                  : 'text-gray-700 hover:bg-gray-50'
+              "
+              (click)="
+                router.navigate([], {
+                  queryParams: { group: 'cost-summary' },
+                  queryParamsHandling: 'merge',
+                })
+              "
+            >
+              Cost Summary
+            </button>
+          </nav>
+
+          <div class="flex flex-wrap gap-2 lg:hidden">
+            <button
+              type="button"
+              class="shrink-0 rounded-lg px-3 py-2 text-sm font-semibold transition"
+              [ngClass]="
+                activeGroup === 'profile' ? 'text-blue-700 bg-blue-50' : 'text-gray-700 bg-gray-100'
+              "
+              (click)="
+                router.navigate([], {
+                  queryParams: { group: 'profile' },
+                  queryParamsHandling: 'merge',
+                })
+              "
+            >
+              Profile
+            </button>
+            <button
+              type="button"
+              class="shrink-0 rounded-lg px-3 py-2 text-sm font-semibold transition"
+              [ngClass]="
+                activeGroup === 'documents'
+                  ? 'text-blue-700 bg-blue-50'
+                  : 'text-gray-700 bg-gray-100'
+              "
+              (click)="
+                router.navigate([], {
+                  queryParams: { group: 'documents' },
+                  queryParamsHandling: 'merge',
+                })
+              "
+            >
+              Documents
+            </button>
+            <button
+              type="button"
+              class="shrink-0 rounded-lg px-3 py-2 text-sm font-semibold transition"
+              [ngClass]="
+                activeGroup === 'maintenance'
+                  ? 'text-blue-700 bg-blue-50'
+                  : 'text-gray-700 bg-gray-100'
+              "
+              (click)="
+                router.navigate([], {
+                  queryParams: { group: 'maintenance' },
+                  queryParamsHandling: 'merge',
+                })
+              "
+            >
+              Maintenance
+            </button>
+            <button
+              type="button"
+              class="shrink-0 rounded-lg px-3 py-2 text-sm font-semibold transition"
+              [ngClass]="
+                activeGroup === 'driver-history'
+                  ? 'text-blue-700 bg-blue-50'
+                  : 'text-gray-700 bg-gray-100'
+              "
+              (click)="
+                router.navigate([], {
+                  queryParams: { group: 'driver-history' },
+                  queryParamsHandling: 'merge',
+                })
+              "
+            >
+              Driver History
+            </button>
+            <button
+              type="button"
+              class="shrink-0 rounded-lg px-3 py-2 text-sm font-semibold transition"
+              [ngClass]="
+                activeGroup === 'fuel' ? 'text-blue-700 bg-blue-50' : 'text-gray-700 bg-gray-100'
+              "
+              (click)="
+                router.navigate([], {
+                  queryParams: { group: 'fuel' },
+                  queryParamsHandling: 'merge',
+                })
+              "
+            >
+              Fuel
+            </button>
+            <button
+              type="button"
+              class="shrink-0 rounded-lg px-3 py-2 text-sm font-semibold transition"
+              [ngClass]="
+                activeGroup === 'cost-summary'
+                  ? 'text-blue-700 bg-blue-50'
+                  : 'text-gray-700 bg-gray-100'
+              "
+              (click)="
+                router.navigate([], {
+                  queryParams: { group: 'cost-summary' },
+                  queryParamsHandling: 'merge',
+                })
+              "
+            >
+              Cost Summary
+            </button>
+          </div>
+
+          <div class="space-y-2">
+            <label class="text-xs font-semibold uppercase text-gray-500">Search</label>
+            <input
+              type="text"
+              placeholder="Search history"
+              [(ngModel)]="searchQuery"
+              (ngModelChange)="onSearchChange()"
+              class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+
+          <div class="space-y-1">
+            <label class="text-xs font-semibold uppercase text-gray-500">Page size</label>
+            <select
+              [(ngModel)]="pageSize"
+              (change)="onPageSizeChange($any($event.target).value)"
+              class="w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option [value]="5">5</option>
+              <option [value]="10">10</option>
+              <option [value]="25">25</option>
+              <option [value]="50">50</option>
+            </select>
+          </div>
+        </div>
+      </aside>
+
+      <main class="flex-1 space-y-4">
+        <header
+          class="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-6 shadow-sm lg:flex-row lg:items-center lg:justify-between"
+        >
+          <div>
+            <h2 class="text-2xl font-bold text-gray-900">Vehicle Details</h2>
+            <p class="mt-1 text-sm text-gray-600">
+              <ng-container *ngIf="vehicle">
+                {{ vehicle.manufacturer }} {{ vehicle.model }} - {{ vehicle.licensePlate }}
+              </ng-container>
+              <ng-container *ngIf="!vehicle && !errorMessage"
+                >Loading vehicle information…</ng-container
+              >
+            </p>
+            <span
+              *ngIf="vehicle"
+              class="mt-1 inline-flex items-center rounded border px-2 py-0.5 text-xs font-semibold"
+              [ngClass]="getVehicleStatusBadgeClasses(vehicle.status)"
+            >
+              {{ getVehicleStatusLabel(vehicle.status) || '—' }}
+            </span>
+          </div>
+          <div class="flex gap-2">
+            <button
+              type="button"
+              (click)="goBack()"
+              class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            >
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                />
+              </svg>
+              Back
+            </button>
+            <button
+              type="button"
+              (click)="navigateToSetupVehicle()"
+              class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            >
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+              Setup Vehicle
+            </button>
+          </div>
+        </header>
+
+        <section class="rounded-lg border border-gray-200 bg-white shadow-sm">
+          <ng-container *ngIf="vehicleForm; else loadingBlock">
+            <ng-container [ngSwitch]="activeGroup">
+              <section *ngSwitchCase="'profile'">
+                <form [formGroup]="vehicleForm" (ngSubmit)="onSubmit()" class="space-y-6 p-6">
+                  <section
+                    class="rounded-xl border border-gray-200 bg-gradient-to-r from-blue-50 via-white to-blue-50 p-4"
+                  >
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <h3 class="text-base font-semibold text-gray-900">Quick Insights</h3>
+                        <p class="text-xs text-gray-500">Key details at a glance</p>
+                      </div>
+                      <span
+                        *ngIf="vehicle"
+                        class="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold"
+                        [ngClass]="getVehicleStatusBadgeClasses(vehicle.status)"
+                      >
+                        <span class="h-1.5 w-1.5 rounded-full bg-current"></span>
+                        {{ getVehicleStatusLabel(vehicle.status) || '—' }}
+                      </span>
+                    </div>
+                    <div class="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+                      <div class="rounded-lg border border-blue-100 bg-white p-3">
+                        <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          Driver
+                        </div>
+                        <div class="mt-1 text-sm font-semibold text-gray-900">
+                          {{ vehicle?.assignedDriver?.fullName || 'Unassigned' }}
+                        </div>
+                        <div class="text-xs text-gray-500">
+                          {{ vehicle?.assignedDriver?.phone || 'No driver contact' }}
+                        </div>
+                      </div>
+                      <div class="rounded-lg border border-blue-100 bg-white p-3">
+                        <div class="flex items-center justify-between">
+                          <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                            Next Service
+                          </div>
+                          <span
+                            class="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold"
+                            [ngClass]="getServiceStatusClasses(vehicle?.nextServiceDue)"
+                          >
+                            {{ getServiceStatusLabel(vehicle?.nextServiceDue) }}
+                          </span>
+                        </div>
+                        <div class="mt-1 text-sm font-semibold text-gray-900">
+                          {{
+                            vehicle?.nextServiceDue
+                              ? (vehicle?.nextServiceDue | date: 'MMM d, yyyy')
+                              : '—'
+                          }}
+                        </div>
+                        <div class="text-xs text-gray-500">
+                          Last:
+                          {{
+                            vehicle?.lastServiceDate
+                              ? (vehicle?.lastServiceDate | date: 'MMM d, yyyy')
+                              : '—'
+                          }}
+                        </div>
+                      </div>
+                      <div class="rounded-lg border border-blue-100 bg-white p-3">
+                        <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          Mileage
+                        </div>
+                        <div class="mt-1 text-sm font-semibold text-gray-900">
+                          {{
+                            vehicle?.mileage !== null && vehicle?.mileage !== undefined
+                              ? (vehicle?.mileage | number: '1.0-0')
+                              : '—'
+                          }}
+                          km
+                        </div>
+                        <div class="text-xs text-gray-500">
+                          Fuel:
+                          {{
+                            vehicle?.fuelConsumption !== null &&
+                            vehicle?.fuelConsumption !== undefined
+                              ? vehicle?.fuelConsumption
+                              : '—'
+                          }}
+                          L/100km
+                        </div>
+                      </div>
+                      <div class="rounded-lg border border-blue-100 bg-white p-3">
+                        <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          Zone
+                        </div>
+                        <div class="mt-1 text-sm font-semibold text-gray-900">
+                          {{
+                            vehicle?.assignedZoneName ||
+                              vehicle?.assignedZone ||
+                              (vehicle?.assignedZoneId ? 'Zone #' + vehicle?.assignedZoneId : '—')
+                          }}
+                        </div>
+                        <div class="text-xs text-gray-500">
+                          Inspection:
+                          {{
+                            vehicle?.lastInspectionDate
+                              ? (vehicle?.lastInspectionDate | date: 'MMM d, yyyy')
+                              : '—'
+                          }}
+                        </div>
+                      </div>
+                    </div>
+                    <div class="mt-3 grid gap-3 md:grid-cols-3">
+                      <div class="rounded-lg border border-gray-100 bg-white p-3">
+                        <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          Capacity
+                        </div>
+                        <div class="mt-1 text-sm text-gray-900">
+                          {{
+                            vehicle?.qtyPalletsCapacity !== null &&
+                            vehicle?.qtyPalletsCapacity !== undefined
+                              ? vehicle?.qtyPalletsCapacity
+                              : '—'
+                          }}
+                          pallets
+                        </div>
+                        <div class="text-xs text-gray-500">
+                          {{
+                            vehicle?.maxWeight !== null && vehicle?.maxWeight !== undefined
+                              ? vehicle?.maxWeight
+                              : '—'
+                          }}
+                          kg •
+                          {{
+                            vehicle?.maxVolume !== null && vehicle?.maxVolume !== undefined
+                              ? vehicle?.maxVolume
+                              : '—'
+                          }}
+                          m³
+                        </div>
+                      </div>
+                      <div class="rounded-lg border border-gray-100 bg-white p-3">
+                        <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          Vehicle ID
+                        </div>
+                        <div class="mt-1 text-sm text-gray-900">
+                          {{ vehicle?.licensePlate || '—' }}
+                        </div>
+                        <div class="text-xs text-gray-500">
+                          {{ vehicle?.manufacturer }} {{ vehicle?.model }}
+                        </div>
+                      </div>
+                      <div class="rounded-lg border border-gray-100 bg-white p-3">
+                        <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          GPS Device
+                        </div>
+                        <div class="mt-1 text-sm text-gray-900">
+                          {{ vehicle?.gpsDeviceId || '—' }}
+                        </div>
+                        <div class="text-xs text-gray-500">Type: {{ vehicle?.type || '—' }}</div>
+                      </div>
+                    </div>
+                  </section>
+
+                  <div>
+                    <div class="flex items-center justify-between">
+                      <h3 class="text-lg font-semibold text-gray-900">Vehicle Information</h3>
+                      <div class="flex items-center gap-2">
+                        <button
+                          type="button"
+                          (click)="vehicle?.assignedDriver ? viewDriverDetails() : null"
+                          class="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100"
+                        >
+                          Driver Info
+                        </button>
+                        <button
+                          type="button"
+                          *ngIf="!editMode"
+                          (click)="enableEditMode()"
+                          class="rounded-lg border border-gray-300 bg-white px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          *ngIf="editMode"
+                          (click)="cancelEditMode()"
+                          class="rounded-lg border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 hover:bg-red-100"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                    <div class="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      <label class="space-y-1 text-sm text-gray-600">
+                        License Plate
+                        <input
+                          formControlName="licensePlate"
+                          class="input-field"
+                          placeholder="Enter license plate"
+                        />
+                      </label>
+                      <label class="space-y-1 text-sm text-gray-600">
+                        Manufacturer
+                        <input
+                          formControlName="manufacturer"
+                          class="input-field"
+                          placeholder="e.g., Mercedes-Benz"
+                        />
+                      </label>
+                      <label class="space-y-1 text-sm text-gray-600">
+                        Model
+                        <input
+                          formControlName="model"
+                          class="input-field"
+                          placeholder="e.g., Actros"
+                        />
+                      </label>
+                      <label class="space-y-1 text-sm text-gray-600">
+                        Type
+                        <select formControlName="type" class="input-field">
+                          <option value="">Select type</option>
+                          <option *ngFor="let type of VehicleType | keyvalue" [value]="type.value">
+                            {{ type.value }}
+                          </option>
+                        </select>
+                      </label>
+                      <label class="space-y-1 text-sm text-gray-600">
+                        Status
+                        <select formControlName="status" class="input-field">
+                          <option value="">Select status</option>
+                          <option
+                            *ngFor="let status of VehicleStatus | keyvalue"
+                            [value]="status.value"
+                          >
+                            {{ status.value }}
+                          </option>
+                        </select>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 class="text-sm font-semibold text-gray-700">Capacity</h4>
+                    <div class="mt-3 grid gap-4 md:grid-cols-3">
+                      <label class="space-y-1 text-sm text-gray-600">
+                        Pallet Capacity
+                        <input
+                          formControlName="qtyPalletsCapacity"
+                          type="number"
+                          class="input-field"
+                          placeholder="Number of pallets"
+                        />
+                      </label>
+                      <label class="space-y-1 text-sm text-gray-600">
+                        Max Weight (kg)
+                        <input
+                          formControlName="maxWeight"
+                          type="number"
+                          class="input-field"
+                          placeholder="Maximum weight"
+                        />
+                      </label>
+                      <label class="space-y-1 text-sm text-gray-600">
+                        Max Volume (m³)
+                        <input
+                          formControlName="maxVolume"
+                          type="number"
+                          class="input-field"
+                          placeholder="Maximum volume"
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  <details class="rounded-lg border border-gray-100 bg-white p-4">
+                    <summary class="cursor-pointer text-sm font-semibold text-gray-700">
+                      Advanced details
+                    </summary>
+                    <div class="mt-4 grid gap-4 md:grid-cols-2">
+                      <label class="space-y-1 text-sm text-gray-600">
+                        Remarks
+                        <textarea formControlName="remarks" rows="3" class="input-field"></textarea>
+                      </label>
+                      <label class="space-y-1 text-sm text-gray-600">
+                        GPS Device
+                        <input formControlName="gpsDeviceId" class="input-field" />
+                      </label>
+                    </div>
+                  </details>
+
+                  <div class="flex justify-end">
+                    <button
+                      type="submit"
+                      [disabled]="!editMode || vehicleForm.invalid"
+                      class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                    >
+                      Save Changes
+                    </button>
+                  </div>
+                </form>
+              </section>
+
+              <section *ngSwitchCase="'driver-history'">
+                <div class="space-y-4 p-6">
+                  <div class="flex items-center justify-between gap-2">
+                    <div>
+                      <h3 class="text-lg font-semibold text-gray-900">Driver History</h3>
+                      <p class="text-sm text-gray-500">
+                        Latest driver assignments for this vehicle
+                      </p>
+                    </div>
+                    <div class="flex gap-2">
+                      <button
+                        type="button"
+                        (click)="openAssignmentModal()"
+                        class="rounded-lg bg-blue-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2"
+                      >
+                        Assign Driver
+                      </button>
+                    </div>
+                  </div>
+                  <div class="grid gap-3 md:grid-cols-3">
+                    <label class="space-y-1 text-xs font-semibold uppercase text-gray-500">
+                      Search assignments
+                      <input
+                        type="search"
+                        [(ngModel)]="driverHistorySearchTerm"
+                        (ngModelChange)="onDriverHistorySearchChange($event)"
+                        placeholder="Driver, plate, license #"
+                        class="input-field"
+                      />
+                    </label>
+                    <label class="space-y-1 text-xs font-semibold uppercase text-gray-500">
+                      Status
+                      <select
+                        class="input-field"
+                        [(ngModel)]="driverHistoryFilter"
+                        (ngModelChange)="onDriverHistoryFilterChange($event)"
+                      >
+                        <option value="all">All</option>
+                        <option value="active">Active</option>
+                        <option value="revoked">Revoked</option>
+                      </select>
+                    </label>
+                    <label class="space-y-1 text-xs font-semibold uppercase text-gray-500">
+                      Page size
+                      <select
+                        class="input-field"
+                        [value]="driverHistoryPageSize"
+                        (change)="setDriverHistoryPageSize($any($event.target).value)"
+                      >
+                        <option [value]="10">10</option>
+                        <option [value]="25">25</option>
+                        <option [value]="50">50</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div *ngIf="driverHistoryLoading" class="text-sm text-gray-500">
+                    Loading driver history…
+                  </div>
+                  <div
+                    *ngIf="!driverHistoryLoading && driverHistory.length === 0"
+                    class="text-sm text-gray-500"
+                  >
+                    No driver history found yet.
+                  </div>
+                  <div
+                    *ngIf="driverHistory.length > 0"
+                    class="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm"
+                  >
+                    <div class="w-full overflow-auto">
+                      <table
+                        class="min-w-full divide-y divide-gray-100 text-left text-sm text-gray-600"
+                      >
+                        <thead
+                          class="bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500"
+                        >
+                          <tr>
+                            <th class="px-4 py-3">Driver</th>
+                            <th class="px-4 py-3">License / Plate</th>
+                            <th class="px-4 py-3">Assigned At</th>
+                            <th class="px-4 py-3">Reason</th>
+                            <th class="px-4 py-3">Status</th>
+                            <th class="px-4 py-3 text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                          <tr *ngFor="let entry of driverHistory">
+                            <td class="px-4 py-3 align-top">
+                              <p class="font-semibold text-gray-900">
+                                {{ getDriverFullName(entry) }}
+                              </p>
+                              <p class="text-xs text-gray-500">
+                                Assigned by {{ entry?.assignedBy || '—' }}
+                              </p>
+                              <p
+                                *ngIf="entry?.driverId"
+                                class="text-xxs uppercase tracking-wider text-gray-400"
+                              >
+                                Driver ID #{{ entry.driverId }}
+                              </p>
+                            </td>
+                            <td class="px-4 py-3 align-top">
+                              <p class="text-xs font-semibold text-gray-700">
+                                {{
+                                  entry?.driverLicenseNumber
+                                    ? entry.driverLicenseNumber
+                                    : 'License unknown'
+                                }}
+                              </p>
+                              <p class="text-xs text-gray-500">
+                                {{ entry?.truckPlate || 'Plate unknown' }}
+                              </p>
+                            </td>
+                            <td class="px-4 py-3 align-top">
+                              <p class="text-sm text-gray-900">
+                                {{ formatAssignmentDate(entry?.assignedAt) }}
+                              </p>
+                              <p class="text-xs text-gray-500">
+                                {{
+                                  entry?.assignedAt
+                                    ? (entry.assignedAt | date: 'EEEE, MMM d, y h:mm a')
+                                    : '—'
+                                }}
+                              </p>
+                            </td>
+                            <td class="px-4 py-3 align-top text-xs text-gray-600">
+                              {{ entry?.reason || 'No reason provided' }}
+                            </td>
+                            <td class="px-4 py-3 align-top">
+                              <span
+                                class="inline-flex rounded-full border px-2 py-1 text-xs font-semibold"
+                                [ngClass]="
+                                  entry.active
+                                    ? 'border-green-200 bg-green-50 text-green-700'
+                                    : 'border-gray-200 bg-gray-50 text-gray-600'
+                                "
+                              >
+                                {{ entry.active ? 'Active' : 'Revoked' }}
+                              </span>
+                              <p
+                                *ngIf="!entry.active && entry?.revokedAt"
+                                class="mt-1 text-xxs text-gray-400"
+                              >
+                                Revoked {{ formatAssignmentDate(entry?.revokedAt) }} by
+                                {{ entry?.revokedBy || '—' }}
+                              </p>
+                            </td>
+                            <td class="px-4 py-3 align-top text-right">
+                              <button
+                                *ngIf="entry.active"
+                                type="button"
+                                (click)="revokeDriverHistoryAssignment(entry)"
+                                class="rounded-full border border-red-200 bg-white px-3 py-1 text-xs font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                [disabled]="driverHistoryRevokeInProgress === entry.driverId"
+                              >
+                                {{
+                                  driverHistoryRevokeInProgress === entry.driverId
+                                    ? 'Revoking…'
+                                    : 'Revoke'
+                                }}
+                              </button>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                  <div
+                    *ngIf="driverHistoryTotalElements > 0"
+                    class="mt-4 border-t border-gray-100 pt-4 text-xs text-gray-600"
+                  >
+                    <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                      <span>
+                        Showing
+                        {{ driverHistoryStartIndex + 1 }}
+                        –
+                        {{ driverHistoryEndIndex }}
+                        of {{ driverHistoryTotalElements }} assignment{{
+                          driverHistoryTotalElements !== 1 ? 's' : ''
+                        }}
+                      </span>
+                      <div class="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          (click)="goToDriverHistoryPage(0)"
+                          class="rounded-full border border-gray-300 px-3 py-1 text-xs font-semibold text-gray-600 transition hover:bg-gray-100 disabled:opacity-50"
+                          [disabled]="driverHistoryPage <= 0"
+                        >
+                          First
+                        </button>
+                        <button
+                          type="button"
+                          (click)="goToDriverHistoryPage(driverHistoryPage - 1)"
+                          class="rounded-full border border-gray-300 px-3 py-1 text-xs font-semibold text-gray-600 transition hover:bg-gray-100 disabled:opacity-50"
+                          [disabled]="driverHistoryPage <= 0"
+                        >
+                          Prev
+                        </button>
+                        <ng-container *ngFor="let page of driverHistoryPages">
+                          <button
+                            type="button"
+                            (click)="goToDriverHistoryPage(page)"
+                            [class.bg-blue-600]="page === driverHistoryPage"
+                            [class.text-white]="page === driverHistoryPage"
+                            class="rounded-full border border-gray-300 px-3 py-1 text-xs font-semibold text-gray-600 transition hover:bg-blue-100"
+                          >
+                            {{ page + 1 }}
+                          </button>
+                        </ng-container>
+                        <button
+                          type="button"
+                          (click)="goToDriverHistoryPage(driverHistoryPage + 1)"
+                          class="rounded-full border border-gray-300 px-3 py-1 text-xs font-semibold text-gray-600 transition hover:bg-gray-100 disabled:opacity-50"
+                          [disabled]="driverHistoryPage + 1 >= driverHistoryTotalPages"
+                        >
+                          Next
+                        </button>
+                        <button
+                          type="button"
+                          (click)="goToDriverHistoryPage(driverHistoryTotalPages - 1)"
+                          class="rounded-full border border-gray-300 px-3 py-1 text-xs font-semibold text-gray-600 transition hover:bg-gray-100 disabled:opacity-50"
+                          [disabled]="driverHistoryPage + 1 >= driverHistoryTotalPages"
+                        >
+                          Last
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    *ngIf="assignmentModalOpen"
+                    class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4"
+                  >
+                    <div
+                      class="relative w-full max-w-2xl rounded-2xl border border-gray-100 bg-white p-6 shadow-2xl"
+                    >
+                      <div class="mb-4 flex items-center justify-between">
+                        <div>
+                          <h3 class="text-lg font-semibold text-gray-900">Assign Driver</h3>
+                          <p class="text-xs text-gray-500">
+                            Select a driver and optional reason for this vehicle assignment.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          aria-label="Close assignment modal"
+                          (click)="closeAssignmentModal()"
+                          class="rounded-full border border-gray-200 bg-white p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
+                        >
+                          &times;
+                        </button>
+                      </div>
+                      <form
+                        [formGroup]="assignmentForm"
+                        (ngSubmit)="submitAssignmentForm()"
+                        class="space-y-4"
+                      >
+                        <div>
+                          <ng-select
+                            [items]="driverCandidates"
+                            bindLabel="displayName"
+                            bindValue="id"
+                            formControlName="driverId"
+                            [searchable]="true"
+                            [loading]="loadingDrivers"
+                            [searchFn]="assignmentSearchFn"
+                            [trackByFn]="trackDriverById"
+                            placeholder="Search drivers by name, phone or license"
+                            class="ng-select"
+                          >
+                            <ng-template ng-option-tmp let-item="item">
+                              <div class="flex items-center justify-between">
+                                <div>
+                                  <div class="font-semibold">{{ item.fullName || item.name }}</div>
+                                  <div class="text-xs text-gray-500">
+                                    {{ item.phone || 'No phone' }}
+                                  </div>
+                                </div>
+                                <span class="text-xs font-semibold text-gray-500">
+                                  {{ item.licenseClass || 'Class N/A' }}
+                                </span>
+                              </div>
+                            </ng-template>
+                          </ng-select>
+                        </div>
+                        <div class="space-y-4 text-sm text-gray-600">
+                          <label class="space-y-1">
+                            Reason
+                            <input
+                              formControlName="reason"
+                              class="input-field"
+                              placeholder="Optional rationale"
+                            />
+                          </label>
+                          <label class="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              formControlName="forceReassignment"
+                              class="h-4 w-4"
+                            />
+                            <span class="text-xs font-semibold"
+                              >Force reassignment (revokes existing)</span
+                            >
+                          </label>
+                        </div>
+                        <p *ngIf="assignmentError" class="text-xs font-semibold text-red-600">
+                          {{ assignmentError }}
+                        </p>
+                        <div class="flex flex-wrap justify-end gap-2">
+                          <button
+                            type="button"
+                            (click)="closeAssignmentModal()"
+                            class="rounded-lg border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-700 transition hover:bg-gray-50"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="submit"
+                            [disabled]="assignmentSubmitting"
+                            class="rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-blue-500 disabled:opacity-70"
+                          >
+                            {{ assignmentSubmitting ? 'Assigning…' : 'Assign driver' }}
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section *ngSwitchCase="'maintenance'">
+                <div class="space-y-4 p-6">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <h3 class="text-lg font-semibold text-gray-900">Maintenance</h3>
+                      <p class="text-sm text-gray-500">Upcoming and completed work orders</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <button
+                        type="button"
+                        (click)="createMaintenanceTask()"
+                        class="rounded-lg bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-500"
+                      >
+                        + Create Work Order
+                      </button>
+                      <button
+                        type="button"
+                        (click)="
+                          router.navigate(['/tasks/maintenance/list'], {
+                            queryParams: { vehicleId: vehicleId },
+                          })
+                        "
+                        class="rounded-lg border border-gray-200 bg-white px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                      >
+                        Open Full List
+                      </button>
+                      <button
+                        type="button"
+                        (click)="viewMaintenanceHistory()"
+                        class="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100"
+                      >
+                        View History
+                      </button>
+                    </div>
+                  </div>
+                  <div class="rounded-lg border border-gray-100 bg-white p-4">
+                    <div class="flex items-center justify-between">
+                      <div>
+                        <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                          Maintenance Snapshot
+                        </p>
+                        <h5 class="text-lg font-semibold text-gray-900">
+                          Upcoming & overdue tasks
+                        </h5>
+                      </div>
+                    </div>
+                    <div class="mt-4 grid gap-4 md:grid-cols-4">
+                      <div>
+                        <div class="text-xs text-gray-500">Next due</div>
+                        <div class="text-sm font-semibold text-gray-900">
+                          {{ pmNextDueLabel || maintenanceSummary.nextDueLabel || 'Not scheduled' }}
+                        </div>
+                      </div>
+                      <div>
+                        <div class="text-xs text-gray-500">Overdue tasks</div>
+                        <div class="text-sm font-semibold text-red-600">
+                          {{ maintenanceSummary.overdueCount }}
+                        </div>
+                      </div>
+                      <div>
+                        <div class="text-xs text-gray-500">Upcoming</div>
+                        <div class="text-sm font-semibold text-amber-600">
+                          {{ maintenanceSummary.upcomingCount }}
+                        </div>
+                      </div>
+                      <div>
+                        <div class="text-xs text-gray-500">Completed</div>
+                        <div class="text-sm font-semibold text-emerald-600">
+                          {{ maintenanceSummary.completedCount }}
+                        </div>
+                      </div>
+                    </div>
+                    <div class="mt-4 space-y-2">
+                      <h6 class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        Next reminders
+                      </h6>
+                      <ul
+                        *ngIf="maintenanceTasks.length; else noTasks"
+                        class="space-y-2 text-sm text-gray-700"
+                      >
+                        <li
+                          *ngFor="let task of maintenanceTasks"
+                          class="flex items-center justify-between rounded-lg border px-3 py-2"
+                          [ngClass]="
+                            isOverdue(task.dueDate)
+                              ? 'border-red-200 bg-red-50 text-red-700'
+                              : 'border-dashed border-gray-200 bg-gray-50 text-gray-700'
+                          "
+                        >
+                          <span>{{ task.title }}</span>
+                          <span class="text-xs font-semibold text-gray-500">{{
+                            formatDueDate(task.dueDate)
+                          }}</span>
+                        </li>
+                      </ul>
+                      <ng-template #noTasks>
+                        <p class="text-xs text-gray-500">No upcoming maintenance tasks.</p>
+                      </ng-template>
+                    </div>
+                    <div class="mt-4 space-y-2">
+                      <h6 class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        PM History
+                      </h6>
+                      <div *ngIf="pmHistory.length === 0" class="text-xs text-gray-500">
+                        No PM history available.
+                      </div>
+                      <ul *ngIf="pmHistory.length" class="space-y-2 text-sm text-gray-700">
+                        <li
+                          *ngFor="let log of pmHistory"
+                          class="flex items-center justify-between rounded-lg border border-dashed border-gray-200 px-3 py-2 bg-gray-50"
+                        >
+                          <span>{{ log.planName || 'PM Plan' }}</span>
+                          <span class="text-xs text-gray-500">{{
+                            formatDueDate(log.executedAt)
+                          }}</span>
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                  <div class="rounded-lg border border-gray-100 bg-white p-4">
+                    <div class="grid gap-4 md:grid-cols-4">
+                      <label class="space-y-1 text-sm text-gray-600">
+                        Search tasks
+                        <input
+                          type="text"
+                          [(ngModel)]="maintenanceFilters.search"
+                          placeholder="Search title or notes"
+                          class="input-field"
+                        />
+                      </label>
+                      <label class="space-y-1 text-sm text-gray-600">
+                        Status
+                        <select [(ngModel)]="maintenanceFilters.status" class="input-field">
+                          <option value="all">All</option>
+                          <option value="overdue">Overdue</option>
+                          <option value="pending">Pending</option>
+                          <option value="scheduled">Scheduled</option>
+                          <option value="in_progress">In Progress</option>
+                          <option value="completed">Completed</option>
+                          <option value="cancelled">Cancelled</option>
+                        </select>
+                      </label>
+                      <label class="space-y-1 text-sm text-gray-600">
+                        Sort by
+                        <select [(ngModel)]="maintenanceFilters.sort" class="input-field">
+                          <option value="due-asc">Due soon</option>
+                          <option value="due-desc">Due latest</option>
+                          <option value="created-desc">Newest created</option>
+                        </select>
+                      </label>
+                      <div class="flex items-end">
+                        <button
+                          type="button"
+                          (click)="resetMaintenanceFilters()"
+                          class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                        >
+                          Clear filters
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <div *ngIf="maintenanceLoading" class="text-sm text-gray-500">
+                    Loading maintenance records…
+                  </div>
+                  <div
+                    *ngIf="!maintenanceLoading && maintenanceRecords.length === 0"
+                    class="rounded-lg border border-dashed border-gray-200 bg-gray-50 p-6 text-center text-sm text-gray-600"
+                  >
+                    <div
+                      class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-blue-600"
+                    >
+                      <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                        />
+                      </svg>
+                    </div>
+                    <p class="mt-3 font-semibold text-gray-900">No maintenance records</p>
+                    <p class="mt-1 text-xs text-gray-500">
+                      Create a work order to track upcoming service.
+                    </p>
+                  </div>
+                  <ul *ngIf="maintenanceRecords.length > 0" class="space-y-3">
+                    <li
+                      *ngFor="let record of filteredMaintenanceRecords"
+                      class="rounded-lg border border-gray-100 p-4 text-sm text-gray-700"
+                    >
+                      <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <div class="text-sm font-semibold text-gray-900">
+                            {{ record.title || 'Maintenance task' }}
+                          </div>
+                          <div class="mt-1 text-xs text-gray-500">
+                            {{ record.description || 'No description provided.' }}
+                          </div>
+                        </div>
+                        <span
+                          class="inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold"
+                          [ngClass]="getMaintenanceStatusClasses(record.status, record.dueDate)"
+                        >
+                          <span class="mr-2 h-2 w-2 rounded-full bg-current"></span>
+                          {{ getMaintenanceStatusLabel(record.status) }}
+                        </span>
+                      </div>
+                      <div class="mt-3 flex flex-wrap gap-4 text-xs text-gray-500">
+                        <div>
+                          Due:
+                          <span class="font-semibold text-gray-700">{{
+                            formatDueDate(record.dueDate)
+                          }}</span>
+                        </div>
+                        <div *ngIf="record.completedAt">
+                          Completed:
+                          <span class="font-semibold text-gray-700">{{
+                            formatAssignmentDate(record.completedAt)
+                          }}</span>
+                        </div>
+                        <div>
+                          Task ID:
+                          <span class="font-semibold text-gray-700">{{ record.id || '—' }}</span>
+                        </div>
+                      </div>
+                      <div class="mt-4 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          (click)="viewMaintenanceTask(record)"
+                          class="rounded-lg border border-gray-200 bg-white px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                        >
+                          View
+                        </button>
+                        <button
+                          type="button"
+                          (click)="editMaintenanceTask(record)"
+                          class="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          (click)="markMaintenanceCompleted(record)"
+                          [disabled]="record.status && record.status.toUpperCase() === 'COMPLETED'"
+                          class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
+                        >
+                          Mark Completed
+                        </button>
+                      </div>
+                    </li>
+                  </ul>
+                  <div
+                    *ngIf="maintenanceRecords.length > 0 && filteredMaintenanceRecords.length === 0"
+                    class="rounded-lg border border-dashed border-gray-200 bg-gray-50 p-6 text-center text-sm text-gray-500"
+                  >
+                    No tasks match the current filters.
+                  </div>
+                  <div class="rounded-lg border border-gray-100 bg-white p-4">
+                    <div class="flex items-center justify-between">
+                      <div>
+                        <h4 class="text-sm font-semibold text-gray-900">Completed timeline</h4>
+                        <p class="text-xs text-gray-500">Most recent completed tasks</p>
+                      </div>
+                    </div>
+                    <div
+                      *ngIf="completedMaintenanceRecords.length === 0"
+                      class="mt-4 text-xs text-gray-500"
+                    >
+                      No completed maintenance yet.
+                    </div>
+                    <ol
+                      *ngIf="completedMaintenanceRecords.length"
+                      class="mt-4 space-y-3 border-l border-gray-200 pl-4"
+                    >
+                      <li
+                        *ngFor="let record of completedMaintenanceRecords.slice(0, 8)"
+                        class="relative"
+                      >
+                        <span
+                          class="absolute -left-2.5 top-1.5 h-2.5 w-2.5 rounded-full bg-emerald-500"
+                        ></span>
+                        <div class="text-sm font-semibold text-gray-900">
+                          {{ record.title || 'Maintenance task' }}
+                        </div>
+                        <div class="text-xs text-gray-500">
+                          {{
+                            formatAssignmentDate(
+                              record.completedAt || record.updatedDate || record.dueDate
+                            )
+                          }}
+                        </div>
+                      </li>
+                    </ol>
+                  </div>
+                </div>
+                <div
+                  *ngIf="maintenanceFormVisible"
+                  class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/40 p-4"
+                >
+                  <div
+                    class="relative w-full max-w-2xl rounded-2xl border border-gray-100 bg-white p-6 shadow-2xl"
+                  >
+                    <div class="mb-4 flex items-center justify-between">
+                      <div>
+                        <h3 class="text-lg font-semibold text-gray-900">
+                          {{
+                            maintenanceFormMode === 'create'
+                              ? 'Create maintenance task'
+                              : 'Edit maintenance task'
+                          }}
+                        </h3>
+                        <p class="text-xs text-gray-500">
+                          {{
+                            maintenanceFormMode === 'create'
+                              ? 'Log upcoming service for this vehicle.'
+                              : 'Update task details and status.'
+                          }}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        aria-label="Close maintenance modal"
+                        (click)="closeMaintenanceForm()"
+                        class="rounded-full border border-gray-200 bg-white p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
+                      >
+                        &times;
+                      </button>
+                    </div>
+                    <form [formGroup]="maintenanceForm" (ngSubmit)="submitMaintenanceForm()">
+                      <div class="grid gap-4 md:grid-cols-2">
+                        <label class="space-y-1 text-sm text-gray-600 md:col-span-2">
+                          Title
+                          <input
+                            formControlName="title"
+                            class="input-field"
+                            placeholder="e.g., Oil change"
+                          />
+                        </label>
+                        <label class="space-y-1 text-sm text-gray-600 md:col-span-2">
+                          Description
+                          <textarea
+                            formControlName="description"
+                            rows="3"
+                            class="input-field"
+                            placeholder="Optional notes"
+                          ></textarea>
+                        </label>
+                        <label class="space-y-1 text-sm text-gray-600">
+                          Due date
+                          <input type="date" formControlName="dueDate" class="input-field" />
+                        </label>
+                        <label class="space-y-1 text-sm text-gray-600">
+                          Status
+                          <select formControlName="status" class="input-field">
+                            <option value="PENDING">Pending</option>
+                            <option value="SCHEDULED">Scheduled</option>
+                            <option value="IN_PROGRESS">In Progress</option>
+                            <option value="COMPLETED">Completed</option>
+                            <option value="CANCELLED">Cancelled</option>
+                          </select>
+                        </label>
+                        <label class="space-y-1 text-sm text-gray-600">
+                          Task type ID
+                          <input
+                            type="number"
+                            formControlName="taskTypeId"
+                            class="input-field"
+                            placeholder="1"
+                          />
+                        </label>
+                      </div>
+                      <p
+                        *ngIf="maintenanceFormError"
+                        class="mt-3 text-xs font-semibold text-red-600"
+                      >
+                        {{ maintenanceFormError }}
+                      </p>
+                      <div class="mt-4 flex flex-wrap justify-end gap-2">
+                        <button
+                          type="button"
+                          (click)="closeMaintenanceForm()"
+                          class="rounded-lg border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-700 transition hover:bg-gray-50"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          [disabled]="maintenanceFormSubmitting || maintenanceForm.invalid"
+                          class="rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-blue-500 disabled:opacity-70"
+                        >
+                          {{
+                            maintenanceFormSubmitting
+                              ? 'Saving…'
+                              : maintenanceFormMode === 'create'
+                                ? 'Create task'
+                                : 'Save changes'
+                          }}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </section>
+
+              <section *ngSwitchCase="'fuel'">
+                <div class="space-y-4 p-6">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <h3 class="text-lg font-semibold text-gray-900">Fuel Logs</h3>
+                      <p class="text-sm text-gray-500">Recent fill-ups and consumption</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <button
+                        type="button"
+                        class="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100"
+                        (click)="applySearch()"
+                      >
+                        Refresh
+                      </button>
+                      <button
+                        type="button"
+                        class="rounded-lg bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-500"
+                        (click)="openFuelForm('create')"
+                      >
+                        + Add Log
+                      </button>
+                    </div>
+                  </div>
+                  <div *ngIf="fuelLoading" class="text-sm text-gray-500">Loading fuel logs…</div>
+                  <div
+                    *ngIf="!fuelLoading && fuelLogRows.length === 0"
+                    class="text-sm text-gray-500"
+                  >
+                    No fuel activity recorded yet.
+                  </div>
+                  <div
+                    *ngIf="fuelLogRows.length > 0"
+                    class="overflow-x-auto rounded-lg border border-gray-100"
+                  >
+                    <table class="min-w-full text-sm">
+                      <thead class="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
+                        <tr>
+                          <th class="px-4 py-3 text-left">Date</th>
+                          <th class="px-4 py-3 text-left">Odometer (km)</th>
+                          <th class="px-4 py-3 text-left">Distance Since Last</th>
+                          <th class="px-4 py-3 text-left">Liters</th>
+                          <th class="px-4 py-3 text-left">Amount</th>
+                          <th class="px-4 py-3 text-left">Station</th>
+                          <th class="px-4 py-3 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr *ngFor="let row of fuelLogRows" class="border-t text-gray-700">
+                          <td class="px-4 py-3">{{ row.dateLabel }}</td>
+                          <td class="px-4 py-3">{{ row.odometerKm ?? '—' }}</td>
+                          <td class="px-4 py-3">
+                            {{
+                              row.distanceSinceLast != null ? row.distanceSinceLast + ' km' : '—'
+                            }}
+                          </td>
+                          <td class="px-4 py-3">{{ row.liters ?? '—' }}</td>
+                          <td class="px-4 py-3">{{ row.amount ?? '—' }}</td>
+                          <td class="px-4 py-3">{{ row.station ?? '—' }}</td>
+                          <td class="px-4 py-3 text-right">
+                            <button
+                              type="button"
+                              class="mr-2 text-xs font-semibold text-blue-600 hover:text-blue-700"
+                              (click)="openFuelForm('edit', row.raw)"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              class="text-xs font-semibold text-red-600 hover:text-red-700"
+                              (click)="deleteFuelLog(row.raw)"
+                            >
+                              Delete
+                            </button>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div
+                    *ngIf="fuelFormOpen"
+                    class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+                  >
+                    <div class="w-full max-w-xl rounded-lg bg-white shadow-lg">
+                      <div class="flex items-center justify-between border-b px-5 py-4">
+                        <h4 class="text-base font-semibold text-gray-900">
+                          {{ fuelFormMode === 'create' ? 'Add Fuel Log' : 'Edit Fuel Log' }}
+                        </h4>
+                        <button
+                          type="button"
+                          class="text-gray-500 hover:text-gray-700"
+                          (click)="closeFuelForm()"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      <form
+                        class="space-y-4 p-5"
+                        [formGroup]="fuelForm"
+                        (ngSubmit)="submitFuelForm()"
+                      >
+                        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                          <label class="space-y-1 text-sm text-gray-600">
+                            Date
+                            <input type="date" formControlName="filledAt" class="input-field" />
+                          </label>
+                          <label class="space-y-1 text-sm text-gray-600">
+                            Odometer (km)
+                            <input type="number" formControlName="odometerKm" class="input-field" />
+                          </label>
+                          <label class="space-y-1 text-sm text-gray-600">
+                            Liters
+                            <input type="number" formControlName="liters" class="input-field" />
+                          </label>
+                          <label class="space-y-1 text-sm text-gray-600">
+                            Amount
+                            <input type="number" formControlName="amount" class="input-field" />
+                          </label>
+                        </div>
+                        <label class="space-y-1 text-sm text-gray-600">
+                          Station
+                          <input type="text" formControlName="station" class="input-field" />
+                        </label>
+                        <label class="space-y-1 text-sm text-gray-600">
+                          Notes
+                          <textarea rows="3" formControlName="notes" class="input-field"></textarea>
+                        </label>
+                        <p *ngIf="fuelFormError" class="text-xs font-semibold text-red-600">
+                          {{ fuelFormError }}
+                        </p>
+                        <div class="flex justify-end gap-2">
+                          <button
+                            type="button"
+                            class="rounded-lg border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-700"
+                            (click)="closeFuelForm()"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="submit"
+                            [disabled]="fuelFormSubmitting || fuelForm.invalid"
+                            class="rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white disabled:opacity-70"
+                          >
+                            {{
+                              fuelFormSubmitting
+                                ? 'Saving…'
+                                : fuelFormMode === 'create'
+                                  ? 'Create Log'
+                                  : 'Save Changes'
+                            }}
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section *ngSwitchCase="'documents'">
+                <div class="space-y-6 p-6">
+                  <div class="rounded-lg border border-gray-100 bg-white p-4 shadow-sm">
+                    <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                      <div>
+                        <h3 class="text-lg font-semibold text-gray-900">Documents</h3>
+                        <p class="text-sm text-gray-500">Licenses, registration, and attachments</p>
+                      </div>
+                      <div class="flex flex-col items-end gap-2">
+                        <div class="flex items-center gap-2">
+                          <button
+                            type="button"
+                            (click)="viewVehicleDocuments()"
+                            class="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                          >
+                            Open Documents
+                          </button>
+                          <button
+                            type="button"
+                            (click)="openDocumentForm('create')"
+                            class="rounded-lg border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-700 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                          >
+                            + Add Document
+                          </button>
+                          <span
+                            *ngIf="hasRecentDocument"
+                            class="rounded-full border border-green-200 bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-700"
+                          >
+                            Recently updated
+                          </span>
+                        </div>
+                        <span class="text-xs text-gray-500"
+                          >Last synced: {{ lastSyncedAt || 'Not synced yet' }}</span
+                        >
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="grid gap-4 md:grid-cols-4">
+                    <div class="rounded-lg border border-gray-100 bg-white p-4">
+                      <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        Total Documents
+                      </div>
+                      <div class="mt-2 text-2xl font-semibold text-gray-900">
+                        {{ totalDocuments }}
+                      </div>
+                    </div>
+                    <div class="rounded-lg border border-gray-100 bg-white p-4">
+                      <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        Active
+                      </div>
+                      <div class="mt-2 text-2xl font-semibold text-emerald-600">
+                        {{ activeDocuments }}
+                      </div>
+                    </div>
+                    <div class="rounded-lg border border-gray-100 bg-white p-4">
+                      <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        Expired
+                      </div>
+                      <div class="mt-2 text-2xl font-semibold text-red-600">
+                        {{ expiredDocuments }}
+                      </div>
+                    </div>
+                    <div class="rounded-lg border border-gray-100 bg-white p-4">
+                      <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        Missing Required
+                      </div>
+                      <div class="mt-2 text-2xl font-semibold text-amber-600">
+                        {{ missingRequiredDocuments.length }}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="rounded-lg border border-gray-100 bg-white p-4">
+                    <div class="grid gap-4 md:grid-cols-4">
+                      <label class="space-y-1 text-sm text-gray-600">
+                        Search documents
+                        <input
+                          type="text"
+                          [(ngModel)]="documentFilters.search"
+                          (ngModelChange)="applyDocumentFilters()"
+                          placeholder="Search by name or type"
+                          class="input-field"
+                        />
+                      </label>
+                      <label class="space-y-1 text-sm text-gray-600">
+                        Status
+                        <select
+                          [(ngModel)]="documentFilters.status"
+                          (ngModelChange)="applyDocumentFilters()"
+                          class="input-field"
+                        >
+                          <option value="all">All</option>
+                          <option value="active">Active</option>
+                          <option value="expired">Expired</option>
+                        </select>
+                      </label>
+                      <label class="space-y-1 text-sm text-gray-600">
+                        Type
+                        <select
+                          [(ngModel)]="documentFilters.type"
+                          (ngModelChange)="applyDocumentFilters()"
+                          class="input-field"
+                        >
+                          <option value="all">All</option>
+                          <option *ngFor="let type of documentTypeOptions" [value]="type">
+                            {{ documentTypeLabel(type) }}
+                          </option>
+                        </select>
+                      </label>
+                      <div class="flex items-end">
+                        <button
+                          type="button"
+                          (click)="clearDocumentFilters()"
+                          class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 transition hover:bg-gray-50"
+                        >
+                          Clear filters
+                        </button>
+                      </div>
+                    </div>
+                    <div
+                      *ngIf="missingRequiredDocuments.length"
+                      class="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700"
+                    >
+                      Missing required:
+                      <span class="font-semibold">{{ missingRequiredDocumentsLabel }}</span>
+                    </div>
+                  </div>
+
+                  <div class="rounded-lg border border-gray-100 bg-white p-4">
+                    <div class="flex items-center justify-between">
+                      <div>
+                        <p class="text-xs uppercase tracking-wide text-gray-500">
+                          Document library
+                        </p>
+                        <h4 class="text-sm font-semibold text-gray-900">Filtered items</h4>
+                      </div>
+                      <span class="text-xs text-gray-500">
+                        Showing {{ filteredDocuments.length }} /
+                        {{ vehicle?.documents?.length ?? 0 }}
+                      </span>
+                    </div>
+                    <div
+                      *ngIf="totalDocuments === 0"
+                      class="mt-6 rounded-lg border border-dashed border-gray-200 bg-gray-50 p-6 text-center"
+                    >
+                      <div
+                        class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-blue-600"
+                      >
+                        <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M12 4v16m8-8H4"
+                          />
+                        </svg>
+                      </div>
+                      <h4 class="mt-3 text-sm font-semibold text-gray-900">No documents yet</h4>
+                      <p class="mt-1 text-xs text-gray-500">
+                        Add registration, insurance, and permits to keep the vehicle compliant.
+                      </p>
+                      <button
+                        type="button"
+                        (click)="openDocumentForm('create')"
+                        class="mt-3 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-500"
+                      >
+                        + Add Document
+                      </button>
+                    </div>
+                    <div *ngIf="totalDocuments > 0" class="mt-4 overflow-x-auto">
+                      <table class="min-w-full divide-y divide-gray-200 text-sm">
+                        <thead class="bg-gray-50 text-xs uppercase tracking-wider text-gray-500">
+                          <tr>
+                            <th class="px-3 py-2 text-left font-semibold">Type</th>
+                            <th class="px-3 py-2 text-left font-semibold">Doc No</th>
+                            <th class="px-3 py-2 text-left font-semibold">File</th>
+                            <th class="px-3 py-2 text-left font-semibold">Expiry</th>
+                            <th class="px-3 py-2 text-left font-semibold">Status</th>
+                            <th class="px-3 py-2 text-left font-semibold">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100 bg-white">
+                          <tr *ngFor="let doc of filteredDocuments" class="hover:bg-gray-50">
+                            <td class="px-3 py-3 text-gray-700">
+                              {{ documentTypeLabel(doc.documentType) }}
+                            </td>
+                            <td class="px-3 py-3 text-gray-700">
+                              {{ doc.docNumber || doc.documentNumber || doc.id }}
+                            </td>
+                            <td class="px-3 py-3 text-gray-700">
+                              {{ doc.fileName || '—' }}
+                            </td>
+                            <td class="px-3 py-3 text-gray-700">
+                              {{ formatDocumentDate(doc.expiryDate || doc.uploadedDate) }}
+                            </td>
+                            <td class="px-3 py-3">
+                              <span
+                                class="rounded-full border px-3 py-1 text-xs font-semibold"
+                                [ngClass]="documentStatusClass(doc)"
+                              >
+                                {{ documentStatusLabel(doc) }}
+                              </span>
+                            </td>
+                            <td class="px-3 py-3">
+                              <div class="flex flex-wrap gap-2">
+                                <a
+                                  *ngIf="getDocumentUrl(doc)"
+                                  [href]="getDocumentUrl(doc)!"
+                                  target="_blank"
+                                  rel="noopener"
+                                  class="text-xs font-semibold text-emerald-600 hover:underline"
+                                >
+                                  View
+                                </a>
+                                <a
+                                  *ngIf="getDocumentUrl(doc)"
+                                  [href]="getDocumentUrl(doc)!"
+                                  download
+                                  class="text-xs font-semibold text-gray-700 hover:underline"
+                                >
+                                  Download
+                                </a>
+                                <button
+                                  type="button"
+                                  (click)="openDocumentForm('edit', doc)"
+                                  class="text-xs font-semibold text-blue-600 hover:underline"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  (click)="deleteDocument(doc)"
+                                  class="text-xs font-semibold text-red-600 hover:underline"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <div
+                      *ngIf="totalDocuments > 0 && filteredDocuments.length === 0"
+                      class="mt-4 text-xs text-gray-500"
+                    >
+                      No documents match the current filters.
+                    </div>
+                  </div>
+                </div>
+                <div
+                  *ngIf="documentFormVisible"
+                  class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/40 p-4"
+                >
+                  <div
+                    class="relative w-full max-w-2xl rounded-2xl border border-gray-100 bg-white p-6 shadow-2xl"
+                  >
+                    <div class="mb-4 flex items-center justify-between">
+                      <div>
+                        <h3 class="text-lg font-semibold text-gray-900">
+                          {{
+                            documentFormMode === 'create'
+                              ? 'Add document details'
+                              : 'Edit document details'
+                          }}
+                        </h3>
+                        <p class="text-xs text-gray-500">
+                          {{
+                            documentFormMode === 'create'
+                              ? 'Create a new record for this vehicle.'
+                              : 'Update the metadata and approval status.'
+                          }}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        aria-label="Close document modal"
+                        (click)="closeDocumentForm()"
+                        class="rounded-full border border-gray-200 bg-white p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
+                      >
+                        &times;
+                      </button>
+                    </div>
+                    <form [formGroup]="documentForm" (ngSubmit)="submitDocumentForm()">
+                      <div class="grid gap-4 md:grid-cols-3">
+                        <label class="space-y-1 text-sm text-gray-600">
+                          Type
+                          <input
+                            list="documentTypeSuggestions"
+                            formControlName="documentType"
+                            placeholder="e.g., Insurance"
+                            class="input-field bg-white"
+                          />
+                          <datalist id="documentTypeSuggestions">
+                            <option *ngFor="let type of documentTypeOptions" [value]="type">
+                              {{ documentTypeLabel(type) }}
+                            </option>
+                          </datalist>
+                        </label>
+                        <label class="space-y-1 text-sm text-gray-600">
+                          Document No
+                          <input formControlName="docNumber" class="input-field bg-white" />
+                        </label>
+                        <label class="space-y-1 text-sm text-gray-600">
+                          Document name
+                          <input formControlName="documentName" class="input-field bg-white" />
+                        </label>
+                      </div>
+                      <div class="mt-4 grid gap-4 md:grid-cols-3">
+                        <label class="space-y-1 text-sm text-gray-600">
+                          Issue Date
+                          <input
+                            type="date"
+                            formControlName="issueDate"
+                            class="input-field bg-white"
+                          />
+                        </label>
+                        <label class="space-y-1 text-sm text-gray-600">
+                          Expiry Date
+                          <input
+                            type="date"
+                            formControlName="expiryDate"
+                            class="input-field bg-white"
+                          />
+                        </label>
+                        <label class="space-y-1 text-sm text-gray-600 flex items-center gap-2">
+                          <input type="checkbox" formControlName="approved" class="h-4 w-4" />
+                          Approved
+                        </label>
+                      </div>
+                      <label class="mt-4 space-y-1 text-sm text-gray-600">
+                        Notes
+                        <textarea
+                          formControlName="notes"
+                          rows="3"
+                          class="input-field bg-white resize-none"
+                          placeholder="Add context or reminders (optional)"
+                        ></textarea>
+                      </label>
+                      <div class="mt-6 flex flex-wrap items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          (click)="closeDocumentForm()"
+                          class="rounded-lg border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-700 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          [disabled]="documentFormSubmitting"
+                          class="rounded-lg border border-blue-600 bg-blue-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-60"
+                        >
+                          {{ documentFormMode === 'create' ? 'Save document' : 'Update document' }}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </section>
+
+              <section *ngSwitchCase="'cost-summary'">
+                <div class="space-y-4 p-6">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <h3 class="text-lg font-semibold text-gray-900">Cost Summary</h3>
+                      <p class="text-sm text-gray-500">Projected and historic cost breakdown</p>
+                    </div>
+                  </div>
+                  <div *ngIf="costSummaryLoading" class="text-sm text-gray-500">
+                    Loading cost summary…
+                  </div>
+                  <div *ngIf="!costSummaryLoading && !costSummary" class="text-sm text-gray-500">
+                    No cost summary available yet.
+                  </div>
+                  <div *ngIf="costSummary" class="grid gap-4 md:grid-cols-2">
+                    <div class="rounded-lg border border-gray-100 p-4">
+                      <div class="text-xs uppercase tracking-wide text-gray-500">Total Cost</div>
+                      <div class="text-lg font-semibold text-gray-900">
+                        {{ costSummary.totalCost || '—' }}
+                      </div>
+                    </div>
+                    <div class="rounded-lg border border-gray-100 p-4">
+                      <div class="text-xs uppercase tracking-wide text-gray-500">Fuel Spend</div>
+                      <div class="text-lg font-semibold text-gray-900">
+                        {{ costSummary.fuelCost || '—' }}
+                      </div>
+                    </div>
+                    <div class="rounded-lg border border-gray-100 p-4">
+                      <div class="text-xs uppercase tracking-wide text-gray-500">
+                        Maintenance Spend
+                      </div>
+                      <div class="text-lg font-semibold text-gray-900">
+                        {{ costSummary.maintenanceCost || '—' }}
+                      </div>
+                    </div>
+                    <div class="rounded-lg border border-gray-100 p-4">
+                      <div class="text-xs uppercase tracking-wide text-gray-500">Other Spend</div>
+                      <div class="text-lg font-semibold text-gray-900">
+                        {{ costSummary.otherCost || '—' }}
+                      </div>
+                    </div>
+                  </div>
+                  <pre
+                    class="rounded-lg border border-gray-100 bg-gray-50 p-4 text-xs text-gray-500"
+                    *ngIf="costSummary"
+                  >
+                    {{ costSummary | json }}
+                  </pre>
+                </div>
+              </section>
+            </ng-container>
+          </ng-container>
+
+          <ng-template #loadingBlock>
+            <div class="p-6 text-sm text-gray-500">
+              <p *ngIf="errorMessage">{{ errorMessage }}</p>
+              <p *ngIf="!errorMessage">Fetching vehicle data…</p>
+            </div>
+          </ng-template>
+        </section>
+      </main>
+    </div>
+  </div>
+</div>

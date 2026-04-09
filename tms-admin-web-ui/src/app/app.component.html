@@ -1,0 +1,27 @@
+<!-- 🔌 Global Connection Status Banner (hidden on public pages like login/tracking) -->
+<app-connection-status-banner *ngIf="!isPublicPage()"></app-connection-status-banner>
+
+<div class="flex min-h-screen">
+  <!-- ensure full height -->
+  <!-- Sidebar with slide-in/out (hidden on public pages) -->
+  <ng-container *ngIf="!isPublicPage()">
+    <div
+      [ngClass]="{
+        'w-64 translate-x-0': sidebarOpen,
+        'w-0 -translate-x-full': !sidebarOpen,
+      }"
+      class="z-50 min-h-screen transition-all duration-300 ease-in-out bg-white shadow-md flex-shrink-0"
+    >
+      <app-sidebar *ngIf="sidebarOpen"></app-sidebar>
+    </div>
+  </ng-container>
+
+  <!-- Main Content (fills remaining space) -->
+  <main class="flex-1 min-h-screen transition-all duration-300 bg-gray-50">
+    <ng-container *ngIf="!isPublicPage()">
+      <app-header (sidebarToggled)="toggleSidebar()"></app-header>
+    </ng-container>
+
+    <router-outlet> </router-outlet>
+  </main>
+</div>

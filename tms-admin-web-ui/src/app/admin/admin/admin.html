@@ -1,0 +1,43 @@
+<div class="admin-container">
+  <div class="admin-header">
+    <h1 class="admin-title">
+      <mat-icon class="admin-icon">admin_panel_settings</mat-icon>
+      Administration Panel
+    </h1>
+    <p class="admin-subtitle">Manage users, roles, and permissions for your system</p>
+  </div>
+
+  <div class="admin-content">
+    <mat-tab-group class="admin-tabs" animationDuration="300ms">
+      <mat-tab label="Users">
+        <div class="tab-content">
+          <app-user-management></app-user-management>
+        </div>
+      </mat-tab>
+
+      <mat-tab label="Roles">
+        <div class="tab-content">
+          <app-role-management></app-role-management>
+        </div>
+      </mat-tab>
+
+      <mat-tab label="Permissions">
+        <div class="tab-content">
+          <app-permission-management></app-permission-management>
+        </div>
+      </mat-tab>
+
+      <mat-tab label="Dynamic Permissions">
+        <div class="tab-content">
+          <app-dynamic-permission-management></app-dynamic-permission-management>
+        </div>
+      </mat-tab>
+
+      <!-- <mat-tab label="Image Management">
+        <div class="tab-content">
+          <app-image-management></app-image-management>
+        </div>
+      </mat-tab> -->
+    </mat-tab-group>
+  </div>
+</div>

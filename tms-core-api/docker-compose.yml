@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  driver-app:
+    build: .
+    container_name: driver-app
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./application.properties:/app/application.properties
+    environment:
+      - SPRING_CONFIG_LOCATION=file:/app/application.properties
+    restart: unless-stopped

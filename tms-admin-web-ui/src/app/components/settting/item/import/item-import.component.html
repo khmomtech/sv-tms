@@ -1,0 +1,112 @@
+<h2 class="mb-4 text-xl font-semibold">📥 Import Items from Excel</h2>
+
+<!-- File Upload -->
+<div class="mb-4">
+  <input type="file" (change)="handleFileInput($event)" accept=".xlsx, .xls" />
+</div>
+
+<!-- Column Mapping UI -->
+<div *ngIf="excelColumns.length > 0" class="mb-6">
+  <h3 class="text-lg font-medium">🛠️ Map Excel Columns</h3>
+  <div
+    *ngFor="
+      let field of [
+        'itemCode',
+        'itemName',
+        'itemNameKh',
+        'quantity',
+        'unit',
+        'size',
+        'weight',
+        'itemType',
+        'palletType',
+        'status',
+      ]
+    "
+    class="flex items-center gap-2 mb-2"
+  >
+    <label class="w-32 font-medium capitalize">{{ fieldLabels[field] || field }}</label>
+    <select [(ngModel)]="columnMapping[field]" class="w-full p-1 border rounded">
+      <option value="">-- Select column --</option>
+      <option *ngFor="let col of excelColumns" [value]="col">{{ col }}</option>
+    </select>
+  </div>
+  <button
+    (click)="generatePreview()"
+    class="px-4 py-2 mt-4 text-white bg-blue-600 rounded hover:bg-blue-700"
+  >
+    👁️ Generate Preview
+  </button>
+</div>
+
+<!-- Preview Table -->
+<div *ngIf="isPreviewReady && previewItems.length > 0" class="mt-6">
+  <h3 class="mb-2 text-lg font-medium">🔍 Preview ({{ previewItems.length }} records)</h3>
+
+  <table border="1" cellpadding="6" cellspacing="0" class="w-full text-left">
+    <thead class="bg-gray-200">
+      <tr>
+        <th>Item Code</th>
+        <th>Name</th>
+        <th>Name (Khmer)</th>
+        <th>Quantity</th>
+        <th>Unit</th>
+        <th>Size</th>
+        <th>Weight</th>
+        <th>Type</th>
+        <th>Pallet Type</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let i of previewItems">
+        <td>{{ i.itemCode }}</td>
+        <td>{{ i.itemName }}</td>
+        <td>{{ i.itemNameKh }}</td>
+        <td>{{ i.quantity }}</td>
+        <td>{{ i.unit }}</td>
+        <td>{{ i.size }}</td>
+        <td>{{ i.weight }}</td>
+        <td>{{ i.itemType }}</td>
+        <td>{{ i.palletType }}</td>
+        <td>{{ i.status }}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Confirm Import & Export Buttons -->
+  <div class="flex gap-4 mt-4">
+    <button
+      (click)="confirmImport()"
+      [disabled]="loading"
+      class="px-4 py-2 text-white bg-green-600 rounded hover:bg-green-700"
+    >
+      {{ loading ? '⏳ Importing...' : ' Confirm Import' }}
+    </button>
+
+    <button
+      *ngIf="failedItems.length > 0"
+      (click)="exportFailedToExcel()"
+      class="px-4 py-2 text-white bg-red-600 rounded hover:bg-red-700"
+    >
+      ⬇️ Export Failed Records ({{ failedItems.length }})
+    </button>
+  </div>
+</div>
+
+<!-- No Preview Case -->
+<div *ngIf="isPreviewReady && previewItems.length === 0" class="mt-4 text-red-600">
+  ⚠️ No valid items found in the file.
+</div>
+
+<!-- Toast Notification -->
+<div
+  *ngIf="showToast"
+  class="fixed px-4 py-2 text-white rounded shadow-lg bottom-4 right-4"
+  [ngClass]="{
+    'bg-green-600': toastType === 'success',
+    'bg-red-600': toastType === 'error',
+  }"
+>
+  {{ toastMessage }}
+</div>

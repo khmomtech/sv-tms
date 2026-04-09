@@ -1,0 +1,154 @@
+<div class="order-container">
+  <div class="header">
+    <h1>Shipment Order</h1>
+    <button class="btn-add" (click)="router.navigate(['/shipments'])">+ Add</button>
+  </div>
+
+  <div class="filters" role="region" aria-label="Shipment filters">
+    <div class="dates">
+      <label for="fromDate">From</label>
+      <input id="fromDate" type="date" [(ngModel)]="fromDate" (change)="fetchOrders()" />
+    </div>
+
+    <div class="dates">
+      <label for="toDate">To</label>
+      <input id="toDate" type="date" [(ngModel)]="toDate" (change)="fetchOrders()" />
+    </div>
+
+    <div class="preset-buttons" aria-hidden="false">
+      <button class="preset" (click)="applyPreset('7d')">Last 7d</button>
+      <button class="preset" (click)="applyPreset('30d')">Last 30d</button>
+      <button class="preset" (click)="applyPreset('month')">This Month</button>
+      <button class="preset" (click)="applyPreset('all')">All</button>
+    </div>
+
+    <div class="select">
+      <label for="statusSelect">Status</label>
+      <select id="statusSelect" [(ngModel)]="status" (change)="fetchOrders()">
+        <option value="All">All</option>
+        <option value="APPROVED">Approved</option>
+        <option value="DELIVERED">Delivered</option>
+        <option value="UNLOADED">Unloaded</option>
+        <option value="PENDING">Pending</option>
+      </select>
+    </div>
+
+    <div class="select">
+      <label for="sortSelect">Sort</label>
+      <select id="sortSelect" [(ngModel)]="newestFirst" (change)="fetchOrders()">
+        <option [ngValue]="true">Newest First</option>
+        <option [ngValue]="false">Oldest First</option>
+      </select>
+    </div>
+
+    <div class="search" aria-label="Search orders">
+      <label for="searchInput" class="sr-only">Search orders</label>
+      <input
+        id="searchInput"
+        type="text"
+        placeholder="Search orders (id, customer, from, to)..."
+        [(ngModel)]="search"
+        (ngModelChange)="onSearchInput($event)"
+        (keyup.enter)="onSearchChangeEnter()"
+        (keydown)="onInputKeydown($event)"
+        aria-autocomplete="list"
+        aria-haspopup="listbox"
+      />
+      <button class="btn-clear" (click)="clearFilters()" aria-label="Clear filters">Clear</button>
+
+      <div class="search-spinner" *ngIf="loadingSearch" aria-hidden="true">⟳</div>
+
+      <!-- Autocomplete suggestions -->
+      <ul *ngIf="showSuggestions" class="suggestions" role="listbox">
+        <li
+          *ngFor="let s of customerSuggestions; let i = index"
+          (click)="onSuggestionChoose(s)"
+          (mouseenter)="suggestionActiveIndex = i"
+          [class.highlight]="i === suggestionActiveIndex"
+          role="option"
+          [attr.aria-selected]="i === suggestionActiveIndex"
+        >
+          {{ s }}
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Active filter chips -->
+  <div class="chips" *ngIf="search || status !== 'All' || fromDate || toDate">
+    <span *ngIf="search" class="chip"
+      >Search: {{ search }} <button (click)="removeFilter('search')">×</button></span
+    >
+    <span *ngIf="status !== 'All'" class="chip"
+      >Status: {{ status }} <button (click)="removeFilter('status')">×</button></span
+    >
+    <span *ngIf="fromDate || toDate" class="chip"
+      >Date: {{ fromDate || '—' }} → {{ toDate || '—' }}
+      <button (click)="removeFilter('dates')">×</button></span
+    >
+  </div>
+
+  <div *ngIf="loading" class="loading" role="status">Loading orders…</div>
+  <div *ngIf="error" class="error" role="alert">{{ error }}</div>
+
+  <div class="results-meta" *ngIf="!loading">
+    <div>Showing {{ totalElements }} result{{ totalElements === 1 ? '' : 's' }}</div>
+  </div>
+
+  <div class="table-wrap" *ngIf="!loading">
+    <table class="orders-table" aria-live="polite">
+      <thead>
+        <tr>
+          <th>No</th>
+          <th>Order Date</th>
+          <th>Delivery Date</th>
+          <th>Customer</th>
+          <th>From</th>
+          <th>To</th>
+          <th>Status</th>
+          <th>Origin</th>
+          <th>Requires Driver</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let o of orders">
+          <td>
+            <a (click)="viewOrder(o.id)">{{ o.id }}</a>
+          </td>
+          <td>{{ o.orderDate | date: 'dd-MMM-yyyy' }}</td>
+          <td>{{ o.deliveryDate | date: 'dd-MMM-yyyy' }}</td>
+          <td>
+            <a (click)="router.navigate(['/customers', o.customerId || o.customer])">{{
+              o.customerName || o.customer
+            }}</a>
+          </td>
+          <td>
+            <span class="pill">{{ o.fromLocation || o.from }}</span>
+          </td>
+          <td>
+            <span class="pill">{{ o.toLocation || o.to }}</span>
+          </td>
+          <td>
+            <span class="status status-{{ (o.status || '').toLowerCase() }}">{{ o.status }}</span>
+          </td>
+          <td>{{ o.origin }}</td>
+          <td class="center">{{ o.requiresDriver ? 'Yes' : 'No' }}</td>
+          <td class="center">
+            <button class="action-btn" (click)="viewOrder(o.id)">View</button>
+            <button class="action-btn danger" (click)="deleteOrder(o.id)">Delete</button>
+          </td>
+        </tr>
+        <tr *ngIf="orders.length === 0">
+          <td colspan="10" class="empty">No shipments found.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="pagination" *ngIf="totalPages > 0">
+    <button (click)="prevPage()" [disabled]="page === 0">Prev</button>
+    <span>Page {{ page + 1 }} / {{ totalPages }}</span>
+    <button (click)="nextPage()" [disabled]="page >= totalPages - 1">Next</button>
+  </div>
+</div>

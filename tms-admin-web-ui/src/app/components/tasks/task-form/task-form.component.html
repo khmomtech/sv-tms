@@ -1,0 +1,152 @@
+<div class="container-fluid p-4">
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="mb-1">{{ isEditMode() ? 'Edit Task' : 'Create Task' }}</h2>
+      <p class="text-muted mb-0">
+        {{ isEditMode() ? 'Update the maintenance task details' : 'Create a new maintenance task' }}
+      </p>
+    </div>
+    <a routerLink="/tasks" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left me-2"></i>Back to List
+    </a>
+  </div>
+
+  <!-- Loading Spinner -->
+  <div *ngIf="loading()" class="text-center py-5">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+  </div>
+
+  <!-- Form -->
+  <div *ngIf="!loading()" class="card">
+    <div class="card-body">
+      <form [formGroup]="taskForm" (ngSubmit)="onSubmit()">
+        <div class="row g-3">
+          <!-- Title -->
+          <div class="col-md-12">
+            <label for="title" class="form-label"> Title <span class="text-danger">*</span> </label>
+            <input
+              type="text"
+              class="form-control"
+              id="title"
+              formControlName="title"
+              placeholder="Enter task title"
+              [class.is-invalid]="hasFieldError('title')"
+              [class.is-valid]="isFieldValid('title')"
+            />
+            <div class="invalid-feedback" *ngIf="hasFieldError('title')">
+              {{ getFieldError('title') }}
+            </div>
+          </div>
+
+          <!-- Description -->
+          <div class="col-md-12">
+            <label for="description" class="form-label"> Description </label>
+            <textarea
+              class="form-control"
+              id="description"
+              formControlName="description"
+              rows="4"
+              placeholder="Enter task description"
+              [class.is-invalid]="hasFieldError('description')"
+            ></textarea>
+            <div class="invalid-feedback" *ngIf="hasFieldError('description')">
+              {{ getFieldError('description') }}
+            </div>
+          </div>
+
+          <!-- Task Type ID -->
+          <div class="col-md-6">
+            <label for="taskTypeId" class="form-label">
+              Task Type ID <span class="text-danger">*</span>
+            </label>
+            <input
+              type="number"
+              class="form-control"
+              id="taskTypeId"
+              formControlName="taskTypeId"
+              placeholder="Enter task type ID"
+              [class.is-invalid]="hasFieldError('taskTypeId')"
+            />
+            <div class="invalid-feedback" *ngIf="hasFieldError('taskTypeId')">
+              {{ getFieldError('taskTypeId') }}
+            </div>
+          </div>
+
+          <!-- Vehicle ID -->
+          <div class="col-md-6">
+            <label for="vehicleId" class="form-label">
+              Vehicle ID <span class="text-danger">*</span>
+            </label>
+            <input
+              type="number"
+              class="form-control"
+              id="vehicleId"
+              formControlName="vehicleId"
+              placeholder="Enter vehicle ID"
+              [class.is-invalid]="hasFieldError('vehicleId')"
+            />
+            <div class="invalid-feedback" *ngIf="hasFieldError('vehicleId')">
+              {{ getFieldError('vehicleId') }}
+            </div>
+          </div>
+
+          <!-- Status -->
+          <div class="col-md-6">
+            <label for="status" class="form-label">
+              Status <span class="text-danger">*</span>
+            </label>
+            <select
+              class="form-select"
+              id="status"
+              formControlName="status"
+              [class.is-invalid]="hasFieldError('status')"
+            >
+              <option *ngFor="let status of maintenanceStatuses" [value]="status">
+                {{ getStatusLabel(status) }}
+              </option>
+            </select>
+            <div class="invalid-feedback" *ngIf="hasFieldError('status')">
+              {{ getFieldError('status') }}
+            </div>
+          </div>
+
+          <!-- Due Date -->
+          <div class="col-md-6">
+            <label for="dueDate" class="form-label">
+              Due Date <span class="text-danger">*</span>
+            </label>
+            <input
+              type="datetime-local"
+              class="form-control"
+              id="dueDate"
+              formControlName="dueDate"
+              [class.is-invalid]="hasFieldError('dueDate')"
+            />
+            <div class="invalid-feedback" *ngIf="hasFieldError('dueDate')">
+              {{ getFieldError('dueDate') }}
+            </div>
+          </div>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="mt-4 d-flex justify-content-end gap-2">
+          <button type="button" class="btn btn-outline-secondary" (click)="onCancel()">
+            <i class="bi bi-x-circle me-2"></i>Cancel
+          </button>
+          <button
+            type="submit"
+            class="btn btn-primary"
+            [disabled]="taskForm.invalid || submitting()"
+          >
+            <span *ngIf="submitting()" class="spinner-border spinner-border-sm me-2"></span>
+            <i *ngIf="!submitting()" class="bi bi-check-circle me-2"></i>
+            {{ isEditMode() ? 'Update' : 'Create' }} Task
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

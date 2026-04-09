@@ -1,0 +1,28 @@
+/* Reuse your existing input/btn styles so it matches your app */
+.input {
+  width: 100%;
+  padding: 8px;
+  margin: 4px 0;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+.btn {
+  padding: 10px 15px;
+  font-weight: bold;
+  border-radius: 4px;
+}
+.btn-primary {
+  background-color: #007bff;
+  color: #fff;
+  border: none;
+}
+.btn-secondary {
+  background-color: #6c757d;
+  color: #fff;
+  border: none;
+}
+.btn-danger {
+  background-color: #dc3545;
+  color: #fff;
+  border: none;
+}

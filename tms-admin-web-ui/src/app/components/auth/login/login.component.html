@@ -1,0 +1,51 @@
+<div class="login-wrapper">
+  <div class="login-container">
+    <div class="brand-header">
+      <img src="assets/svtrucking-logo.png" alt="SVTRUCKING Logo" class="brand-logo" />
+      <h2 class="brand-title">SVTRUCKING Co., Ltd.</h2>
+    </div>
+
+    <h3 class="panel-title">{{ 'auth.login.panel_title' | translate }}</h3>
+
+    <form (ngSubmit)="onLogin()" class="login-form">
+      <div class="input-group">
+        <label for="username">{{ 'auth.login.username' | translate }}</label>
+        <input
+          type="text"
+          id="username"
+          [(ngModel)]="username"
+          name="username"
+          autocomplete="username"
+          required
+        />
+      </div>
+
+      <div class="input-group">
+        <label for="password">{{ 'auth.login.password' | translate }}</label>
+        <input
+          type="password"
+          id="password"
+          [(ngModel)]="password"
+          name="password"
+          autocomplete="current-password"
+          required
+        />
+      </div>
+
+      <button type="submit" class="login-btn">{{ 'common.login' | translate }}</button>
+    </form>
+
+    <p *ngIf="errorMessage" class="error-message">{{ errorMessage }}</p>
+
+    <!-- Footer with legal links -->
+    <div class="login-footer">
+      <a [href]="privacyPolicyUrl" target="_blank" rel="noopener noreferrer">{{
+        'auth.login.privacy_policy' | translate
+      }}</a>
+      <span class="separator">•</span>
+      <a [href]="termsOfServiceUrl" target="_blank" rel="noopener noreferrer">{{
+        'auth.login.terms_of_service' | translate
+      }}</a>
+    </div>
+  </div>
+</div>

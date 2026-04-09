@@ -1,0 +1,265 @@
+<form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-6">
+  <!-- Order Context -->
+  <div
+    class="p-3 rounded-lg bg-blue-50 border border-blue-200"
+    *ngIf="form.get('transportOrderId')?.value"
+  >
+    <p class="text-sm font-medium text-blue-800">
+      📦 Order ID: <span class="font-bold">{{ form.get('transportOrderId')?.value }}</span>
+    </p>
+  </div>
+
+  <!-- Trip Details -->
+  <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+    <div>
+      <label class="block text-sm font-medium">Route Code</label>
+      <input
+        formControlName="manualRouteCode"
+        class="w-full p-2 border rounded"
+        placeholder="Auto-generated if empty"
+      />
+    </div>
+    <div>
+      <label class="block text-sm font-medium">Trip Type</label>
+      <select formControlName="tripType" class="w-full p-2 border rounded">
+        <option value="STANDARD">Standard</option>
+        <option value="URGENT">Urgent</option>
+      </select>
+    </div>
+    <div>
+      <label class="block text-sm font-medium"
+        >Start Time <span class="text-red-500">*</span></label
+      >
+      <input
+        type="datetime-local"
+        formControlName="startTime"
+        class="w-full p-2 border rounded"
+        [class.border-red-500]="form.get('startTime')?.invalid && form.get('startTime')?.touched"
+      />
+      <p
+        *ngIf="form.get('startTime')?.invalid && form.get('startTime')?.touched"
+        class="text-red-500 text-xs mt-1"
+      >
+        Start time is required
+      </p>
+    </div>
+    <div>
+      <label class="block text-sm font-medium"
+        >Estimated Arrival <span class="text-red-500">*</span></label
+      >
+      <input
+        type="datetime-local"
+        formControlName="estimatedArrival"
+        class="w-full p-2 border rounded"
+        [class.border-red-500]="
+          form.get('estimatedArrival')?.invalid && form.get('estimatedArrival')?.touched
+        "
+      />
+      <p
+        *ngIf="form.get('estimatedArrival')?.invalid && form.get('estimatedArrival')?.touched"
+        class="text-red-500 text-xs mt-1"
+      >
+        Estimated arrival is required
+      </p>
+    </div>
+
+    <!-- Driver -->
+    <div>
+      <label class="block text-sm font-medium">Driver <span class="text-red-500">*</span></label>
+      <div class="flex items-center">
+        <input
+          type="text"
+          [value]="
+            selectedDriver
+              ? selectedDriver.name || selectedDriver.fullName || 'Not selected'
+              : 'Not selected'
+          "
+          class="flex-1 p-2 bg-gray-100 border rounded-l"
+          readonly
+          [class.border-red-500]="form.get('driverId')?.invalid && form.get('driverId')?.touched"
+        />
+        <button
+          type="button"
+          (click)="showDriverModal = true"
+          class="px-3 text-white bg-blue-600 rounded-r hover:bg-blue-700"
+        >
+          🔍
+        </button>
+      </div>
+      <p
+        *ngIf="form.get('driverId')?.invalid && form.get('driverId')?.touched"
+        class="text-red-500 text-xs mt-1"
+      >
+        Driver is required
+      </p>
+    </div>
+
+    <!-- Vehicle -->
+    <div>
+      <label class="block text-sm font-medium">Vehicle <span class="text-red-500">*</span></label>
+      <div class="flex items-center">
+        <input
+          type="text"
+          [value]="selectedVehicle ? selectedVehicle.licensePlate : 'Not selected'"
+          class="flex-1 p-2 bg-gray-100 border rounded-l"
+          readonly
+          [class.border-red-500]="form.get('vehicleId')?.invalid && form.get('vehicleId')?.touched"
+        />
+        <button
+          type="button"
+          (click)="showVehicleModal = true"
+          class="px-3 text-white bg-blue-600 rounded-r hover:bg-blue-700"
+        >
+          🔍
+        </button>
+      </div>
+      <p
+        *ngIf="form.get('vehicleId')?.invalid && form.get('vehicleId')?.touched"
+        class="text-red-500 text-xs mt-1"
+      >
+        Vehicle is required
+      </p>
+    </div>
+
+    <div class="md:col-span-2">
+      <label class="block text-sm font-medium">Remark</label>
+      <input
+        formControlName="cancelReason"
+        class="w-full p-2 border rounded"
+        placeholder="Optional notes about this dispatch"
+      />
+    </div>
+  </div>
+
+  <!-- Stops Section -->
+  <div class="mt-8 border-t pt-6">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-lg font-semibold">Stops</h3>
+      <button
+        type="button"
+        class="px-3 py-1 text-white bg-green-600 rounded hover:bg-green-700"
+        (click)="addStop()"
+      >
+        ➕ Add Stop
+      </button>
+    </div>
+
+    <!-- Stops Table -->
+    <div *ngIf="stopsFormArray.length > 0" class="overflow-x-auto border rounded-lg">
+      <table class="min-w-full text-sm">
+        <thead class="bg-gray-100 border-b">
+          <tr>
+            <th class="px-4 py-2 text-left font-medium">Seq</th>
+            <th class="px-4 py-2 text-left font-medium">Label</th>
+            <th class="px-4 py-2 text-left font-medium">Type</th>
+            <th class="px-4 py-2 text-left font-medium">Location</th>
+            <th class="px-4 py-2 text-left font-medium">Coordinates</th>
+            <th class="px-4 py-2 text-center font-medium">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            *ngFor="let stop of stopsFormArray.controls; let i = index"
+            class="border-b hover:bg-gray-50"
+          >
+            <td class="px-4 py-2 font-semibold">{{ i + 1 }}</td>
+            <td class="px-4 py-2">{{ stop.get('label')?.value || '-' }}</td>
+            <td class="px-4 py-2">
+              <span
+                [class]="
+                  'px-2 py-1 rounded text-xs ' +
+                  (stop.get('type')?.value === 'pickup'
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-red-100 text-red-800')
+                "
+              >
+                {{ stop.get('type')?.value || '-' }}
+              </span>
+            </td>
+            <td class="px-4 py-2 text-sm">{{ stop.get('location')?.value || '-' }}</td>
+            <td class="px-4 py-2 text-xs font-mono">{{ stop.get('coordinates')?.value || '-' }}</td>
+            <td class="px-4 py-2 text-center">
+              <div class="flex gap-1 justify-center">
+                <button
+                  type="button"
+                  *ngIf="i > 0"
+                  class="px-2 py-1 text-xs bg-gray-300 rounded hover:bg-gray-400"
+                  (click)="moveStopUp(i)"
+                  title="Move up"
+                >
+                  ⬆
+                </button>
+                <button
+                  type="button"
+                  *ngIf="i < stopsFormArray.length - 1"
+                  class="px-2 py-1 text-xs bg-gray-300 rounded hover:bg-gray-400"
+                  (click)="moveStopDown(i)"
+                  title="Move down"
+                >
+                  ⬇
+                </button>
+                <button
+                  type="button"
+                  class="px-2 py-1 text-xs text-white bg-blue-600 rounded hover:bg-blue-700"
+                  (click)="openEditStop(i)"
+                  title="Edit"
+                >
+                  ✏️
+                </button>
+                <button
+                  type="button"
+                  class="px-2 py-1 text-xs text-white bg-red-600 rounded hover:bg-red-700"
+                  (click)="removeStop(i)"
+                  title="Delete"
+                >
+                  🗑️
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div
+      *ngIf="stopsFormArray.length === 0"
+      class="p-4 text-center text-gray-500 bg-gray-50 rounded border border-dashed"
+    >
+      No stops added yet. Click "Add Stop" to create one.
+    </div>
+  </div>
+
+  <!-- Form Submission -->
+  <div class="flex justify-end gap-4 pt-6 border-t">
+    <button type="submit" class="px-4 py-2 text-white bg-blue-600 rounded">Submit</button>
+    <button type="button" (click)="onCancel()" class="px-4 py-2 text-gray-700 bg-gray-200 rounded">
+      Cancel
+    </button>
+  </div>
+</form>
+
+<!-- Driver Modal -->
+<app-driver-modal
+  [visible]="showDriverModal"
+  (close)="showDriverModal = false"
+  (selected)="onDriverSelected($event)"
+>
+</app-driver-modal>
+
+<!-- Vehicle Modal -->
+<app-vehicle-modal
+  *ngIf="showVehicleModal"
+  [visible]="showVehicleModal"
+  [vehicles]="allVehicles"
+  (vehicleSelected)="onVehicleSelected($event)"
+  (closed)="showVehicleModal = false"
+  class="z-50"
+>
+</app-vehicle-modal>
+
+<!-- Stop Modal -->
+<app-edit-stop-modal
+  [visible]="showEditStopModal"
+  [form]="editStopForm"
+  (close)="cancelStopEdit()"
+  (save)="saveStop()"
+></app-edit-stop-modal>

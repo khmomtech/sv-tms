@@ -1,0 +1,208 @@
+<div class="container mt-3">
+  <h2 class="mb-4 fw-bold text-primary">Trip Plan Preview</h2>
+
+  <!-- 🔍 Filters -->
+  <form class="mb-3 row g-2" (ngSubmit)="searchTrips()">
+    <div class="col-md-3">
+      <label class="form-label">Upload Date</label>
+      <input type="date" [(ngModel)]="uploadDate" name="uploadDate" class="form-control" required />
+    </div>
+
+    <div class="col-md-3">
+      <label class="form-label">Zone</label>
+      <select [(ngModel)]="zone" name="zone" class="form-select">
+        <option value="">-- All Zones --</option>
+        <option value="PHNOM_PENH">PHNOM PENH</option>
+        <option value="PROVINCE">PROVINCE</option>
+      </select>
+    </div>
+
+    <div class="col-md-3">
+      <label class="form-label">Distributor Code</label>
+      <input
+        type="text"
+        [(ngModel)]="distributorCode"
+        name="distributorCode"
+        class="form-control"
+      />
+    </div>
+
+    <div class="col-md-3 d-flex align-items-end">
+      <button class="btn btn-primary w-100" type="submit" [disabled]="loading">🔍 Search</button>
+    </div>
+  </form>
+  <div class="mb-4 truck-capacity-input">
+    <h5 class="text-primary fw-semibold">🚛 Truck Capacity Input</h5>
+
+    <div class="row g-3">
+      <div class="col-12 col-md-6" *ngFor="let key of truckInputKeys">
+        <div class="input-card">
+          <label class="form-label small text-muted">{{ keyLabels[key] }} Trucks</label>
+          <input
+            type="number"
+            class="form-control form-control-sm"
+            [(ngModel)]="truckInput[key].trucks"
+            [attr.name]="key + '_trucks'"
+            min="0"
+            placeholder="0"
+          />
+        </div>
+      </div>
+    </div>
+  </div>
+  <!--  Actions -->
+  <div class="flex-wrap gap-2 mb-4 d-flex">
+    <button class="btn btn-success" (click)="exportTripPlan()">📥 Export Trip Excel</button>
+    <button class="btn btn-warning" (click)="saveToTempPreview()" [disabled]="!trips.length">
+      💾 Save to Temp
+    </button>
+    <button class="btn btn-outline-info" (click)="loadPreviewFromTemp()">📂 Load Temp</button>
+    <button class="btn btn-outline-primary" (click)="loadFinalSummary()">
+      💹 View Final Summary
+    </button>
+    <button class="btn btn-outline-success" (click)="exportFinalSummary()">
+      Export Final Summary
+    </button>
+  </div>
+
+  <!-- Trip Count by Zone -->
+  <div
+    *ngIf="tripZoneKeys().length > 0"
+    class="grid grid-cols-2 gap-4 p-4 mb-4 bg-white rounded-lg shadow md:grid-cols-3 lg:grid-cols-6"
+  >
+    <div
+      *ngFor="let zone of tripZoneKeys()"
+      class="p-3 text-center border rounded bg-indigo-50 card-metric"
+    >
+      <div class="mb-1 text-sm text-gray-500">Zone: {{ zone }}</div>
+      <div class="text-xl font-semibold text-indigo-700">{{ tripZoneCounts[zone] }}</div>
+    </div>
+  </div>
+
+  <!-- 📊 Summary Metrics -->
+  <div
+    class="grid grid-cols-2 gap-4 p-4 mb-4 bg-white rounded-lg shadow md:grid-cols-3 lg:grid-cols-6"
+  >
+    <div class="p-3 text-center border rounded bg-blue-50 card-metric">
+      <div class="mb-1 text-sm text-gray-500">Total Trips</div>
+      <div class="text-xl font-semibold text-blue-700">{{ summary.totalTrips }}</div>
+    </div>
+    <div class="p-3 text-center border rounded bg-green-50 card-metric">
+      <div class="mb-1 text-sm text-gray-500">Total Quantity</div>
+      <div class="text-xl font-semibold text-green-700">{{ summary.totalQuantity }}</div>
+    </div>
+    <div class="p-3 text-center border rounded bg-yellow-50 card-metric">
+      <div class="mb-1 text-sm text-gray-500">Total Pallets</div>
+      <div class="text-xl font-semibold text-yellow-700">
+        {{ summary.totalPallets | number: '1.2-2' }}
+      </div>
+    </div>
+    <div class="p-3 text-center border rounded bg-sky-50 card-metric">
+      <div class="mb-1 text-sm text-gray-500">Drop-offs</div>
+      <div class="text-xl font-semibold text-sky-700">{{ summary.totalDropOffs }}</div>
+    </div>
+    <div class="p-3 text-center border rounded bg-gray-50 card-metric">
+      <div class="mb-1 text-sm text-gray-500">Distributors</div>
+      <div class="text-xl font-semibold text-gray-700">{{ summary.totalDistributors }}</div>
+    </div>
+    <div class="p-3 text-center border rounded bg-red-50 card-metric">
+      <div class="mb-1 text-sm text-gray-500">Trucks Used</div>
+      <div class="text-xl font-semibold text-red-700">{{ summary.totalTrucksUsed }}</div>
+    </div>
+  </div>
+
+  <!--  Formatted Trip Table like Excel -->
+  <div
+    *ngIf="!loading && trips.length > 0"
+    class="mb-4 table-responsive"
+    style="max-height: 600px; overflow-y: auto"
+  >
+    <table class="table table-bordered table-sm">
+      <thead
+        class="text-center align-middle table-primary sticky-top"
+        style="top: 60px; z-index: 1020"
+      >
+        <tr>
+          <th>Truck No</th>
+          <th>Driver</th>
+          <th>Trip No</th>
+          <th>Doc No</th>
+          <th>Doc Date</th>
+          <th>Sold to Party</th>
+          <th>Sold to Party Name</th>
+          <th>Ship-to Code</th>
+          <th>Ship-to Name</th>
+          <th>Plant</th>
+          <th>Product</th>
+          <th>Qty</th>
+          <th>Qty/Pallet</th>
+          <th>Pallet Est.</th>
+          <th>Truck Capacity</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let trip of trips" [ngClass]="getVehicleColorClass(trip)">
+          <td>{{ trip.assignedVehicleNumber || trip.truckNo }}</td>
+          <td>{{ trip.displayDriverName || 'Unassigned' }}</td>
+          <td>{{ trip.tripNo }}</td>
+          <td>{{ trip.docNo }}</td>
+          <td>{{ trip.docDate }}</td>
+          <td>{{ trip.distributorCode }}</td>
+          <td>{{ trip.distributorName }}</td>
+          <td>{{ trip.shipToParty }}</td>
+          <td>{{ trip.shipToPartyName }}</td>
+          <td>{{ trip.plant }}</td>
+          <td>{{ trip.productName }}</td>
+          <td class="text-end">{{ trip.quantity }}</td>
+          <td class="text-end">{{ trip.qtyPerPallet }}</td>
+          <td class="text-end">{{ trip.palletEstimate | number: '1.2-2' }}</td>
+          <td class="text-end">{{ trip.vehicleMaxPalletCapacity }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!--  Pagination -->
+  <div *ngIf="totalPages > 1" class="mt-3 d-flex justify-content-between">
+    <button class="btn btn-outline-secondary" (click)="prevPage()" [disabled]="currentPage === 0">
+      ⏪ Previous
+    </button>
+    <div>Page {{ currentPage + 1 }} / {{ totalPages }}</div>
+    <button
+      class="btn btn-outline-secondary"
+      (click)="nextPage()"
+      [disabled]="currentPage + 1 >= totalPages"
+    >
+      Next ⏩
+    </button>
+  </div>
+
+  <!-- 📈 Final Summary Pivot Report -->
+  <div *ngIf="finalSummary.length > 0" class="mt-5 table-responsive">
+    <h5 class="mb-3">📈 Final Summary Pivot Report</h5>
+    <table class="table text-center align-middle table-bordered table-sm">
+      <thead class="table-secondary">
+        <tr>
+          <th>Zone</th>
+          <th>Truck</th>
+          <th>Drop-off</th>
+          <th>Distributor</th>
+          <th *ngFor="let col of dynamicProductColumns">{{ col }}</th>
+          <th>Total Qty</th>
+          <th>Total Pallet</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let row of finalSummary">
+          <td>{{ row.zone }}</td>
+          <td>{{ row.truck }}</td>
+          <td>{{ row.dropOff }}</td>
+          <td>{{ row.distributor }}</td>
+          <td *ngFor="let col of dynamicProductColumns">{{ row.productMap?.[col] || 0 }}</td>
+          <td>{{ row.totalQty }}</td>
+          <td>{{ row.totalPallet | number: '1.2-2' }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

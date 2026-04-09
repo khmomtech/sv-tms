@@ -1,0 +1,175 @@
+<div class="driver-management-nav bg-white border-r border-gray-200 h-full overflow-y-auto">
+  <!-- Header -->
+  <div class="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-blue-700">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+          <span class="text-white text-lg">🚛</span>
+        </div>
+        <div>
+          <h2 class="text-white font-semibold text-sm">Driver Management</h2>
+          <p class="text-blue-100 text-xs">Manage your fleet</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Search -->
+  <div class="p-4 border-b border-gray-100">
+    <div class="relative">
+      <input
+        type="text"
+        [(ngModel)]="searchTerm"
+        (input)="onSearchChange()"
+        placeholder="Search features..."
+        class="w-full pl-9 pr-9 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+      />
+      <div class="absolute inset-y-0 left-0 flex items-center pl-3">
+        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+          ></path>
+        </svg>
+      </div>
+      <button
+        *ngIf="searchTerm"
+        (click)="clearSearch()"
+        class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M6 18L18 6M6 6l12 12"
+          ></path>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Navigation Categories -->
+  <div class="py-2">
+    <ng-container *ngFor="let category of navCategories; trackBy: trackByCategoryId">
+      <!-- Category Header -->
+      <div
+        class="px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors"
+        [class.bg-blue-50]="activeCategory === category.id"
+        (click)="setActiveCategory(category.id)"
+      >
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <span class="text-lg">{{ category.icon }}</span>
+            <div>
+              <h3 class="font-medium text-gray-900 text-sm">{{ category.label }}</h3>
+              <p class="text-xs text-gray-500">{{ getTotalItemsInCategory(category) }} features</p>
+            </div>
+          </div>
+          <button
+            (click)="toggleCategory(category.id); $event.stopPropagation()"
+            class="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <svg
+              class="w-4 h-4 transform transition-transform"
+              [class.rotate-180]="!isCategoryCollapsed(category.id)"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M19 9l-7 7-7-7"
+              ></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Category Items -->
+      <div
+        class="overflow-hidden transition-all duration-200"
+        [class.max-h-0]="isCategoryCollapsed(category.id)"
+        [class.max-h-96]="!isCategoryCollapsed(category.id)"
+      >
+        <ng-container *ngFor="let item of getFilteredItems(category); trackBy: trackByItemId">
+          <a
+            [routerLink]="item.route"
+            routerLinkActive="bg-blue-50 border-r-2 border-blue-600"
+            class="block px-4 py-3 ml-4 border-l-2 border-transparent hover:bg-gray-50 hover:border-gray-300 transition-all group"
+          >
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <span class="text-base">{{ item.icon }}</span>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2">
+                    <p class="font-medium text-gray-900 text-sm truncate">{{ item.label }}</p>
+                    <span
+                      *ngIf="item.badge"
+                      class="px-2 py-0.5 text-xs font-medium text-white bg-red-500 rounded-full min-w-[20px] text-center"
+                    >
+                      {{ item.badge }}
+                    </span>
+                  </div>
+                  <p class="text-xs text-gray-500 truncate">{{ item.description }}</p>
+                </div>
+              </div>
+              <svg
+                class="w-4 h-4 text-gray-400 group-hover:text-blue-600 transition-colors opacity-0 group-hover:opacity-100"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 5l7 7-7 7"
+                ></path>
+              </svg>
+            </div>
+          </a>
+        </ng-container>
+      </div>
+    </ng-container>
+  </div>
+
+  <!-- Quick Actions Footer -->
+  <div class="mt-auto p-4 border-t border-gray-200 bg-gray-50">
+    <div class="space-y-2">
+      <button
+        [routerLink]="'/drivers/add'"
+        class="w-full flex items-center gap-2 px-3 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+          ></path>
+        </svg>
+        Quick Add Driver
+      </button>
+
+      <button
+        [routerLink]="'/drivers/communication/messages'"
+        class="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+          ></path>
+        </svg>
+        Send Message
+      </button>
+    </div>
+  </div>
+</div>

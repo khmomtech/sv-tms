@@ -1,0 +1,1372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>SV TMS & Fleet Management Admin</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    :root {
+      --sidebar-width: 280px;
+      --sidebar-collapsed-width: 70px;
+      --bg-main: #f8fafc;
+      --bg-sidebar: #1e293b;
+      --bg-sidebar-hover: #334155;
+      --bg-sidebar-active: #475569;
+      --bg-card: #ffffff;
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --primary-soft: rgba(59, 130, 246, 0.1);
+      --secondary: #64748b;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --text-main: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #64748b;
+      --text-light: #94a3b8;
+      --border-soft: #e2e8f0;
+      --border-light: #f1f5f9;
+      --radius: 12px;
+      --radius-sm: 8px;
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+      --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg-main);
+      color: var(--text-main);
+      display: flex;
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    a {
+      text-decoration: none;
+      color: inherit;
+    }
+
+    /* Layout */
+    .layout {
+      display: flex;
+      width: 100%;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: var(--sidebar-width);
+      background: var(--bg-sidebar);
+      color: #e2e8f0;
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      inset: 0 auto 0 0;
+      z-index: 30;
+      transition: var(--transition);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .sidebar.collapsed {
+      width: var(--sidebar-collapsed-width);
+    }
+
+    .sidebar-header {
+      padding: 20px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-height: 78px;
+    }
+
+    .sidebar-toggle {
+      position: absolute;
+      right: -12px;
+      top: 25px;
+      background: var(--bg-sidebar);
+      border: 2px solid var(--border-soft);
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 12px;
+      color: #94a3b8;
+      transition: var(--transition);
+      z-index: 31;
+    }
+
+    .sidebar-toggle:hover {
+      background: var(--bg-sidebar-hover);
+      color: #e2e8f0;
+    }
+
+    .logo-circle {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-sm);
+      background: linear-gradient(135deg, #60a5fa, var(--primary));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 16px;
+      color: white;
+      box-shadow: var(--shadow);
+      flex-shrink: 0;
+    }
+
+    .sidebar-title {
+      display: flex;
+      flex-direction: column;
+      transition: var(--transition);
+      overflow: hidden;
+    }
+
+    .sidebar.collapsed .sidebar-title {
+      opacity: 0;
+      width: 0;
+    }
+
+    .sidebar-title span:first-child {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #94a3b8;
+      font-weight: 500;
+    }
+
+    .sidebar-title span:last-child {
+      font-size: 17px;
+      font-weight: 600;
+      color: #f1f5f9;
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      padding: 16px 12px 20px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: #475569 transparent;
+    }
+
+    .sidebar-nav::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .sidebar-nav::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .sidebar-nav::-webkit-scrollbar-thumb {
+      background: #475569;
+      border-radius: 3px;
+    }
+
+    .nav-section-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: #64748b;
+      padding: 16px 12px 8px;
+      font-weight: 600;
+      transition: var(--transition);
+    }
+
+    .sidebar.collapsed .nav-section-label {
+      opacity: 0;
+      height: 0;
+      padding: 0;
+      margin: 8px 0;
+    }
+
+    .nav-group {
+      margin-bottom: 8px;
+    }
+
+    .nav-item {
+      list-style: none;
+      margin-bottom: 2px;
+    }
+
+    .nav-link {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px;
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-weight: 500;
+      color: #e2e8f0;
+      cursor: pointer;
+      transition: var(--transition);
+      position: relative;
+      text-decoration: none;
+    }
+
+    .nav-link:hover {
+      background: var(--bg-sidebar-hover);
+      color: #f1f5f9;
+      transform: translateX(2px);
+    }
+
+    .nav-link.active {
+      background: var(--bg-sidebar-active);
+      color: #ffffff;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .nav-link.active::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 3px;
+      height: 20px;
+      background: var(--primary);
+      border-radius: 0 2px 2px 0;
+    }
+
+    .nav-link-content {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      overflow: hidden;
+    }
+
+    .nav-icon {
+      font-size: 18px;
+      opacity: 0.8;
+      flex-shrink: 0;
+      width: 20px;
+      text-align: center;
+    }
+
+    .nav-text {
+      transition: var(--transition);
+      white-space: nowrap;
+    }
+
+    .sidebar.collapsed .nav-text {
+      opacity: 0;
+      width: 0;
+    }
+
+    .nav-arrow {
+      font-size: 12px;
+      transition: var(--transition);
+      opacity: 0.6;
+    }
+
+    .sidebar.collapsed .nav-arrow {
+      opacity: 0;
+    }
+
+    .nav-link.expanded .nav-arrow {
+      transform: rotate(90deg);
+    }
+
+    .nav-submenu {
+      list-style: none;
+      padding-left: 44px;
+      margin: 4px 0 8px 0;
+      max-height: 0;
+      overflow: hidden;
+      transition: var(--transition);
+    }
+
+    .nav-submenu.expanded {
+      max-height: 500px;
+      padding-bottom: 8px;
+    }
+
+    .sidebar.collapsed .nav-submenu {
+      display: none;
+    }
+
+    .nav-submenu a {
+      display: block;
+      padding: 8px 12px;
+      font-size: 13px;
+      color: #94a3b8;
+      border-radius: 6px;
+      margin: 2px 0;
+      transition: var(--transition);
+      position: relative;
+    }
+
+    .nav-submenu a:hover {
+      background: rgba(148, 163, 184, 0.12);
+      color: #e2e8f0;
+      padding-left: 16px;
+    }
+
+    .nav-submenu a.active {
+      background: rgba(59, 130, 246, 0.2);
+      color: #93c5fd;
+    }
+
+    /* Tooltip for collapsed sidebar */
+    .nav-tooltip {
+      position: absolute;
+      left: 100%;
+      top: 50%;
+      transform: translateY(-50%);
+      margin-left: 12px;
+      background: var(--text-main);
+      color: white;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      white-space: nowrap;
+      opacity: 0;
+      visibility: hidden;
+      transition: var(--transition);
+      pointer-events: none;
+      z-index: 100;
+    }
+
+    .sidebar.collapsed .nav-link:hover .nav-tooltip {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    /* Main */
+    .main {
+      margin-left: var(--sidebar-width);
+      width: calc(100% - var(--sidebar-width));
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      transition: var(--transition);
+    }
+
+    .sidebar.collapsed + .main {
+      margin-left: var(--sidebar-collapsed-width);
+      width: calc(100% - var(--sidebar-collapsed-width));
+    }
+
+    /* Topbar */
+    .topbar {
+      height: 70px;
+      background: #ffffff;
+      border-bottom: 1px solid var(--border-soft);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .topbar-left {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .topbar-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .breadcrumb {
+      font-size: 12px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .breadcrumb-separator {
+      opacity: 0.5;
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .topbar-stats {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 13px;
+    }
+
+    .stat-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: var(--bg-main);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-soft);
+    }
+
+    .stat-value {
+      font-weight: 600;
+      color: var(--primary);
+    }
+
+    .user-menu {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      transition: var(--transition);
+    }
+
+    .user-menu:hover {
+      background: var(--bg-main);
+    }
+
+    .avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #38bdf8, #6366f1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 14px;
+      font-weight: 600;
+      box-shadow: var(--shadow);
+    }
+
+    .user-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .user-name {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-main);
+    }
+
+    .user-role {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* Content */
+    .content {
+      padding: 24px;
+      flex: 1;
+    }
+
+    .page-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .page-title {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 8px;
+    }
+
+    .page-subtitle {
+      font-size: 16px;
+      color: var(--text-secondary);
+      max-width: 600px;
+    }
+
+    .page-actions {
+      display: flex;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+
+    .btn {
+      font-size: 14px;
+      padding: 10px 20px;
+      border-radius: var(--radius-sm);
+      border: 1px solid transparent;
+      cursor: pointer;
+      font-weight: 500;
+      transition: var(--transition);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-hover);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow);
+    }
+
+    .btn-outline {
+      background: transparent;
+      border-color: var(--border-soft);
+      color: var(--text-secondary);
+    }
+
+    .btn-outline:hover {
+      background: var(--bg-main);
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    /* Dashboard Cards */
+    .stats-grid {
+      display: grid;
+      gap: 20px;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      margin-bottom: 32px;
+    }
+
+    .stat-card {
+      background: var(--bg-card);
+      border-radius: var(--radius);
+      padding: 24px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border-soft);
+      transition: var(--transition);
+    }
+
+    .stat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .stat-header {
+      display: flex;
+      align-items: center;
+      justify-content: between;
+      margin-bottom: 16px;
+    }
+
+    .stat-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: var(--radius-sm);
+      background: var(--primary-soft);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      color: var(--primary);
+      margin-bottom: 16px;
+    }
+
+    .stat-title {
+      font-size: 14px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .stat-value {
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 8px;
+    }
+
+    .stat-change {
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .stat-change.positive {
+      color: var(--success);
+    }
+
+    .stat-change.negative {
+      color: var(--danger);
+    }
+
+    /* Section blocks */
+    .section-card {
+      background: var(--bg-card);
+      border-radius: var(--radius);
+      padding: 32px;
+      margin-bottom: 32px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border-soft);
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .section-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--text-main);
+      margin-bottom: 8px;
+    }
+
+    .section-subtitle {
+      font-size: 14px;
+      color: var(--text-secondary);
+      max-width: 500px;
+    }
+
+    /* Quick action grid */
+    .quick-actions {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+    }
+
+    .action-card {
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-soft);
+      background: var(--bg-main);
+      padding: 20px;
+      cursor: pointer;
+      transition: var(--transition);
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .action-card:hover {
+      background: #ffffff;
+      border-color: var(--primary);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow);
+    }
+
+    .action-title {
+      font-weight: 600;
+      font-size: 16px;
+      color: var(--text-main);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .action-icon {
+      font-size: 20px;
+      color: var(--primary);
+    }
+
+    .action-desc {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    /* Filter chips */
+    .filter-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 16px 0 24px;
+    }
+
+    .chip {
+      padding: 8px 16px;
+      border-radius: 999px;
+      background: var(--bg-main);
+      border: 1px solid var(--border-soft);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .chip.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: white;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .chip:hover {
+      background: var(--primary-soft);
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    /* Responsive */
+    @media (max-width: 1024px) {
+      .sidebar {
+        transform: translateX(-100%);
+      }
+
+      .sidebar.mobile-open {
+        transform: translateX(0);
+      }
+
+      .main {
+        margin-left: 0;
+        width: 100%;
+      }
+
+      .stats-grid {
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      }
+
+      .quick-actions {
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      }
+    }
+
+    @media (max-width: 768px) {
+      .topbar {
+        padding: 0 16px;
+      }
+
+      .content {
+        padding: 16px;
+      }
+
+      .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+      }
+
+      .page-actions {
+        width: 100%;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+      }
+
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .quick-actions {
+        grid-template-columns: 1fr;
+      }
+
+      .topbar-stats {
+        display: none;
+      }
+    }
+
+    /* Mobile sidebar backdrop */
+    .sidebar-backdrop {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 25;
+    }
+
+    @media (max-width: 1024px) {
+      .sidebar-backdrop.show {
+        display: block;
+      }
+    }
+
+    /* Loading states */
+    .loading {
+      opacity: 0.7;
+      pointer-events: none;
+    }
+
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 2px solid #e5e7eb;
+      border-top: 2px solid var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Notification badge */
+    .notification-badge {
+      position: absolute;
+      top: -4px;
+      right: -4px;
+      background: var(--danger);
+      color: white;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 999px;
+      min-width: 16px;
+      text-align: center;
+    }
+
+    /* Status indicators */
+    .status-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+
+    .status-dot.success { background: var(--success); }
+    .status-dot.warning { background: var(--warning); }
+    .status-dot.danger { background: var(--danger); }
+    .status-dot.secondary { background: var(--secondary); }
+  </style>
+</head>
+<body>
+<div class="layout">
+  <!-- Mobile sidebar backdrop -->
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-toggle" id="sidebarToggle">
+      <span>‹</span>
+    </div>
+
+    <div class="sidebar-header">
+      <div class="logo-circle">SV</div>
+      <div class="sidebar-title">
+        <span>SV TRUCKING</span>
+        <span>TMS & Fleet Admin</span>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <!-- Dashboard -->
+      <div class="nav-section-label">Main</div>
+      <ul class="nav-group">
+        <li class="nav-item">
+          <a class="nav-link active" href="#dashboard" data-section="dashboard">
+            <div class="nav-link-content">
+              <span class="nav-icon">📊</span>
+              <span class="nav-text">Dashboard</span>
+            </div>
+            <div class="nav-tooltip">Dashboard</div>
+          </a>
+        </li>
+      </ul>
+
+      <!-- Operations -->
+      <div class="nav-section-label">Operations</div>
+      <ul class="nav-group">
+        <li class="nav-item">
+          <a class="nav-link" href="#transport-orders" data-section="transport-orders" data-submenu="transport-submenu">
+            <div class="nav-link-content">
+              <span class="nav-icon">📦</span>
+              <span class="nav-text">Transport Orders</span>
+            </div>
+            <span class="nav-arrow">▶</span>
+            <div class="nav-tooltip">Transport Orders</div>
+          </a>
+          <ul class="nav-submenu" id="transport-submenu">
+            <li><a href="#transport-orders" data-action="create">Create New Order</a></li>
+            <li><a href="#transport-orders" data-action="list">Order List & Filters</a></li>
+            <li><a href="#transport-orders" data-action="timeline">Timeline View</a></li>
+            <li><a href="#transport-orders" data-action="attachments">Attachments</a></li>
+            <li><a href="#transport-orders" data-action="costing">Order Costing</a></li>
+          </ul>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link" href="#dispatch" data-section="dispatch" data-submenu="dispatch-submenu">
+            <div class="nav-link-content">
+              <span class="nav-icon">🚛</span>
+              <span class="nav-text">Dispatch Management</span>
+            </div>
+            <span class="nav-arrow">▶</span>
+            <div class="nav-tooltip">Dispatch Management</div>
+          </a>
+          <ul class="nav-submenu" id="dispatch-submenu">
+            <li><a href="#dispatch" data-action="board">Dispatch Board</a></li>
+            <li><a href="#dispatch" data-action="assign">Assign Driver & Vehicle</a></li>
+            <li><a href="#dispatch" data-action="routes">Multi-Stop Routes</a></li>
+            <li><a href="#dispatch" data-action="proof">Loading Proof</a></li>
+            <li><a href="#dispatch" data-action="status">Status Updates</a></li>
+          </ul>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link" href="#trip-planner" data-section="trip-planner" data-submenu="trip-submenu">
+            <div class="nav-link-content">
+              <span class="nav-icon">🗺️</span>
+              <span class="nav-text">Route & Trip Planner</span>
+            </div>
+            <span class="nav-arrow">▶</span>
+            <div class="nav-tooltip">Route & Trip Planner</div>
+          </a>
+          <ul class="nav-submenu" id="trip-submenu">
+            <li><a href="#trip-planner" data-action="auto">Auto Route Planner</a></li>
+            <li><a href="#trip-planner" data-action="list">Trip List</a></li>
+            <li><a href="#trip-planner" data-action="calendar">Trip Calendar</a></li>
+            <li><a href="#trip-planner" data-action="comparison">Planned vs Actual</a></li>
+          </ul>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link" href="#live-tracking" data-section="live-tracking" data-submenu="tracking-submenu">
+            <div class="nav-link-content">
+              <span class="nav-icon">📍</span>
+              <span class="nav-text">Live Tracking & Map</span>
+            </div>
+            <span class="nav-arrow">▶</span>
+            <div class="nav-tooltip">Live Tracking & Map</div>
+          </a>
+          <ul class="nav-submenu" id="tracking-submenu">
+            <li><a href="#live-tracking" data-action="drivers">Drivers Map</a></li>
+            <li><a href="#live-tracking" data-action="vehicles">Vehicles Map</a></li>
+            <li><a href="#live-tracking" data-action="replay">Route Replay</a></li>
+            <li><a href="#live-tracking" data-action="geofence">Geofence & Alerts</a></li>
+          </ul>
+        </li>
+      </ul>
+
+      <!-- Fleet & Drivers -->
+      <div class="nav-section-label">Fleet & Drivers</div>
+      <ul class="nav-group">
+        <li class="nav-item">
+          <a class="nav-link" href="#drivers" data-section="drivers" data-submenu="drivers-submenu">
+            <div class="nav-link-content">
+              <span class="nav-icon">👤</span>
+              <span class="nav-text">Driver Management</span>
+            </div>
+            <span class="nav-arrow">▶</span>
+            <div class="nav-tooltip">Driver Management</div>
+          </a>
+          <ul class="nav-submenu" id="drivers-submenu">
+            <li><a href="#drivers" data-action="list">Driver List</a></li>
+            <li><a href="#drivers" data-action="documents">Documents & Licenses</a></li>
+            <li><a href="#drivers" data-action="shifts">Shifts & Hours</a></li>
+            <li><a href="#drivers" data-action="accounts">Driver App Accounts</a></li>
+            <li><a href="#drivers" data-action="performance">Performance & Incidents</a></li>
+          </ul>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link" href="#fleet" data-section="fleet" data-submenu="fleet-submenu">
+            <div class="nav-link-content">
+              <span class="nav-icon">🚚</span>
+              <span class="nav-text">Fleet Management</span>
+            </div>
+            <span class="nav-arrow">▶</span>
+            <div class="nav-tooltip">Fleet Management</div>
+          </a>
+          <ul class="nav-submenu" id="fleet-submenu">
+            <li><a href="#fleet" data-action="vehicles">Vehicles</a></li>
+            <li><a href="#fleet" data-action="trailers">Trailers</a></li>
+            <li><a href="#fleet" data-action="assignments">Assignments</a></li>
+            <li><a href="#maintenance" data-action="records">Maintenance Records</a></li>
+          </ul>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link" href="#maintenance" data-section="maintenance" data-submenu="maintenance-submenu">
+            <div class="nav-link-content">
+              <span class="nav-icon">🔧</span>
+              <span class="nav-text">Maintenance</span>
+            </div>
+            <span class="nav-arrow">▶</span>
+            <div class="nav-tooltip">Maintenance</div>
+          </a>
+          <ul class="nav-submenu" id="maintenance-submenu">
+            <li><a href="#maintenance" data-action="schedule">PM Schedule</a></li>
+            <li><a href="#maintenance" data-action="workorders">Work Orders</a></li>
+            <li><a href="#maintenance" data-action="repairs">Repairs</a></li>
+            <li><a href="#maintenance" data-action="parts">Parts & Inventory</a></li>
+          </ul>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link" href="#fuel" data-section="fuel" data-submenu="fuel-submenu">
+            <div class="nav-link-content">
+              <span class="nav-icon">⛽</span>
+              <span class="nav-text">Fuel Management</span>
+            </div>
+            <span class="nav-arrow">▶</span>
+            <div class="nav-tooltip">Fuel Management</div>
+          </a>
+          <ul class="nav-submenu" id="fuel-submenu">
+            <li><a href="#fuel" data-action="logs">Fuel Logs</a></li>
+            <li><a href="#fuel" data-action="cards">Fuel Cards</a></li>
+            <li><a href="#fuel" data-action="efficiency">Fuel Efficiency</a></li>
+          </ul>
+        </li>
+      </ul>
+
+      <!-- Business -->
+      <div class="nav-section-label">Business</div>
+      <ul class="nav-group">
+        <li class="nav-item">
+          <a class="nav-link" href="#inventory" data-section="inventory">
+            <div class="nav-link-content">
+              <span class="nav-icon">📋</span>
+              <span class="nav-text">Inventory (Hub)</span>
+            </div>
+            <div class="nav-tooltip">Inventory (Hub)</div>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#billing" data-section="billing">
+            <div class="nav-link-content">
+              <span class="nav-icon">💰</span>
+              <span class="nav-text">Billing & Finance</span>
+            </div>
+            <div class="nav-tooltip">Billing & Finance</div>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#reports" data-section="reports">
+            <div class="nav-link-content">
+              <span class="nav-icon">📊</span>
+              <span class="nav-text">Reports & Analytics</span>
+            </div>
+            <div class="nav-tooltip">Reports & Analytics</div>
+          </a>
+        </li>
+      </ul>
+
+      <!-- System -->
+      <div class="nav-section-label">System</div>
+      <ul class="nav-group">
+        <li class="nav-item">
+          <a class="nav-link" href="#settings" data-section="settings">
+            <div class="nav-link-content">
+              <span class="nav-icon">⚙️</span>
+              <span class="nav-text">Settings</span>
+            </div>
+            <div class="nav-tooltip">Settings & Configuration</div>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#integrations" data-section="integrations">
+            <div class="nav-link-content">
+              <span class="nav-icon">🔌</span>
+              <span class="nav-text">Integrations</span>
+            </div>
+            <div class="nav-tooltip">Integrations</div>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#support" data-section="support">
+            <div class="nav-link-content">
+              <span class="nav-icon">❓</span>
+              <span class="nav-text">Support & Help</span>
+            </div>
+            <div class="nav-tooltip">Support & Help</div>
+          </a>
+        </li>
+      </ul>
+    </nav>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <!-- TOPBAR -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="btn btn-outline mobile-menu-toggle" id="mobileMenuToggle" style="display: none;">☰</button>
+        <div>
+          <div class="topbar-title">SV TMS & Fleet Management</div>
+          <div class="breadcrumb">
+            <span>Dashboard</span>
+            <span class="breadcrumb-separator">•</span>
+            <span>Phnom Penh</span>
+            <span class="breadcrumb-separator">•</span>
+            <span>Live Operations</span>
+          </div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-stats">
+          <div class="stat-item">
+            <span class="status-dot success"></span>
+            <span>34 Trips</span>
+          </div>
+          <div class="stat-item">
+            <span>120 Orders</span>
+          </div>
+        </div>
+        <div class="user-menu">
+          <div class="user-info">
+            <div class="user-name">Sothea Kh</div>
+            <div class="user-role">Fleet Manager</div>
+          </div>
+          <div class="avatar">SK</div>
+        </div>
+      </div>
+    </header>
+
+    <!-- CONTENT -->
+    <div class="content">
+      <!-- DASHBOARD -->
+      <section id="dashboard">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Dashboard</h1>
+            <p class="page-subtitle">
+              Monitor your fleet operations, track performance metrics, and manage daily activities from one central location.
+            </p>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn-outline">📊 Download Report</button>
+            <button class="btn btn-primary">⚙️ Configure Widgets</button>
+          </div>
+        </div>
+
+        <!-- KPI Cards -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon">🚛</div>
+            <div class="stat-title">Active Trips</div>
+            <div class="stat-value">34</div>
+            <div class="stat-change positive">
+              ↗ +12% from yesterday
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">📈</div>
+            <div class="stat-title">Fleet Utilization</div>
+            <div class="stat-value">82%</div>
+            <div class="stat-change positive">
+              ↗ 28/34 Vehicles Active
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">⏰</div>
+            <div class="stat-title">On-Time Delivery</div>
+            <div class="stat-value">94%</div>
+            <div class="stat-change positive">
+              ↗ +3% this week
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">💰</div>
+            <div class="stat-title">Daily Revenue</div>
+            <div class="stat-value">$12,450</div>
+            <div class="stat-change negative">
+              ↘ -5% from yesterday
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="section-card">
+          <div class="section-header">
+            <div>
+              <h2 class="section-title">Quick Actions</h2>
+              <p class="section-subtitle">
+                Jump directly to the most commonly used operations and management tasks.
+              </p>
+            </div>
+          </div>
+          <div class="quick-actions">
+            <a href="#transport-orders" class="action-card" data-action="create-order">
+              <div class="action-title">
+                <span class="action-icon">📦</span>
+                New Transport Order
+              </div>
+              <div class="action-desc">Create a new transport order for customer bookings and deliveries</div>
+            </a>
+            <a href="#dispatch" class="action-card" data-action="dispatch-board">
+              <div class="action-title">
+                <span class="action-icon">🚛</span>
+                Dispatch Board
+              </div>
+              <div class="action-desc">Assign drivers and vehicles for today's scheduled trips</div>
+            </a>
+            <a href="#live-tracking" class="action-card" data-action="live-map">
+              <div class="action-title">
+                <span class="action-icon">📍</span>
+                Live Map
+              </div>
+              <div class="action-desc">Monitor all active drivers and vehicles in real-time</div>
+            </a>
+            <a href="#fleet" class="action-card" data-action="fleet-status">
+              <div class="action-title">
+                <span class="action-icon">📊</span>
+                Fleet Status
+              </div>
+              <div class="action-desc">Check which trucks are active, idle, or under maintenance</div>
+            </a>
+            <a href="#maintenance" class="action-card" data-action="maintenance-alerts">
+              <div class="action-title">
+                <span class="action-icon">🔧</span>
+                Maintenance Alerts
+              </div>
+              <div class="action-desc">View upcoming preventive maintenance tasks and schedules</div>
+            </a>
+            <a href="#reports" class="action-card" data-action="reports">
+              <div class="action-title">
+                <span class="action-icon">📈</span>
+                Performance Reports
+              </div>
+              <div class="action-desc">Download KPI reports for management and accounting</div>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <!-- Additional sections would go here... -->
+      <!-- For brevity, I'm including just the enhanced dashboard section -->
+      <!-- The other sections would follow the same improved styling patterns -->
+    </div>
+  </main>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Sidebar functionality
+  const sidebar = document.getElementById('sidebar');
+  const sidebarToggle = document.getElementById('sidebarToggle');
+  const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+  const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+
+  // Toggle sidebar collapse
+  sidebarToggle.addEventListener('click', function() {
+    sidebar.classList.toggle('collapsed');
+    const isCollapsed = sidebar.classList.contains('collapsed');
+    sidebarToggle.querySelector('span').textContent = isCollapsed ? '›' : '‹';
+
+    // Store preference
+    localStorage.setItem('sidebarCollapsed', isCollapsed);
+  });
+
+  // Load sidebar preference
+  const savedState = localStorage.getItem('sidebarCollapsed');
+  if (savedState === 'true') {
+    sidebar.classList.add('collapsed');
+    sidebarToggle.querySelector('span').textContent = '›';
+  }
+
+  // Mobile menu functionality
+  function checkMobile() {
+    if (window.innerWidth <= 1024) {
+      mobileMenuToggle.style.display = 'inline-flex';
+    } else {
+      mobileMenuToggle.style.display = 'none';
+      sidebar.classList.remove('mobile-open');
+      sidebarBackdrop.classList.remove('show');
+    }
+  }
+
+  checkMobile();
+  window.addEventListener('resize', checkMobile);
+
+  mobileMenuToggle.addEventListener('click', function() {
+    sidebar.classList.toggle('mobile-open');
+    sidebarBackdrop.classList.toggle('show');
+  });
+
+  sidebarBackdrop.addEventListener('click', function() {
+    sidebar.classList.remove('mobile-open');
+    sidebarBackdrop.classList.remove('show');
+  });
+
+  // Navigation functionality
+  const navLinks = document.querySelectorAll('.nav-link');
+  const submenuLinks = document.querySelectorAll('.nav-submenu a');
+
+  navLinks.forEach(link => {
+    link.addEventListener('click', function(e) {
+      const submenuId = this.getAttribute('data-submenu');
+
+      if (submenuId) {
+        e.preventDefault();
+        const submenu = document.getElementById(submenuId);
+        const arrow = this.querySelector('.nav-arrow');
+
+        // Close other submenus
+        document.querySelectorAll('.nav-submenu.expanded').forEach(menu => {
+          if (menu !== submenu) {
+            menu.classList.remove('expanded');
+            const parentLink = document.querySelector(`[data-submenu="${menu.id}"]`);
+            if (parentLink) {
+              parentLink.classList.remove('expanded');
+            }
+          }
+        });
+
+        // Toggle current submenu
+        submenu.classList.toggle('expanded');
+        this.classList.toggle('expanded');
+      }
+
+      // Update active state
+      navLinks.forEach(l => l.classList.remove('active'));
+      this.classList.add('active');
+    });
+  });
+
+  // Submenu link clicks
+  submenuLinks.forEach(link => {
+    link.addEventListener('click', function() {
+      submenuLinks.forEach(l => l.classList.remove('active'));
+      this.classList.add('active');
+    });
+  });
+
+  // Smooth scrolling for anchor links
+  document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', function(e) {
+      e.preventDefault();
+      const target = document.querySelector(this.getAttribute('href'));
+      if (target) {
+        target.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start'
+        });
+      }
+    });
+  });
+
+  // Auto-close mobile menu on navigation
+  document.querySelectorAll('.nav-link, .nav-submenu a').forEach(link => {
+    link.addEventListener('click', function() {
+      if (window.innerWidth <= 1024) {
+        sidebar.classList.remove('mobile-open');
+        sidebarBackdrop.classList.remove('show');
+      }
+    });
+  });
+});
+</script>
+</body>
+</html>

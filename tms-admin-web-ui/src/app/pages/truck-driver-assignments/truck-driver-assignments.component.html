@@ -1,0 +1,298 @@
+<div class="assignments-container">
+  <!-- Header -->
+  <div class="page-header">
+    <div class="header-left">
+      <h1 class="page-title">
+        <mat-icon class="title-icon">list_alt</mat-icon>
+        Truck-Driver Assignments
+      </h1>
+      <p class="page-subtitle">Manage and view all permanent truck-driver assignments</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-secondary" (click)="refreshData()" [disabled]="loading">
+        <mat-icon>refresh</mat-icon>
+        Refresh
+      </button>
+      <button
+        class="btn btn-secondary"
+        (click)="exportToCSV()"
+        [disabled]="filteredAssignments.length === 0"
+      >
+        <mat-icon>download</mat-icon>
+        Export CSV
+      </button>
+      <button class="btn btn-primary" (click)="navigateToAssign()">
+        <mat-icon>add</mat-icon>
+        New Assignment
+      </button>
+    </div>
+  </div>
+
+  <!-- Messages -->
+  <div class="messages" *ngIf="successMessage || errorMessage">
+    <div class="alert alert-success" *ngIf="successMessage">
+      <mat-icon>check_circle</mat-icon>
+      {{ successMessage }}
+    </div>
+    <div class="alert alert-error" *ngIf="errorMessage">
+      <mat-icon>error</mat-icon>
+      {{ errorMessage }}
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters-card">
+    <div class="filters-header">
+      <h3>
+        <mat-icon>filter_list</mat-icon>
+        Filters
+      </h3>
+      <button class="btn-link" (click)="clearFilters()">
+        <mat-icon>clear</mat-icon>
+        Clear All
+      </button>
+    </div>
+
+    <form [formGroup]="filterForm" class="filters-form">
+      <div class="filters-grid">
+        <!-- Search -->
+        <div class="form-group">
+          <label for="searchQuery">
+            <mat-icon>search</mat-icon>
+            Search
+          </label>
+          <input
+            type="text"
+            id="searchQuery"
+            formControlName="searchQuery"
+            placeholder="Search by driver name or truck plate..."
+            class="form-control"
+          />
+        </div>
+
+        <!-- Driver Filter -->
+        <div class="form-group">
+          <label for="driverId">
+            <mat-icon>person</mat-icon>
+            Driver
+          </label>
+          <select id="driverId" formControlName="driverId" class="form-control">
+            <option value="">All Drivers</option>
+            <option *ngFor="let driver of drivers" [value]="driver.id">
+              {{ driver.name || driver.firstName + ' ' + driver.lastName }}
+            </option>
+          </select>
+        </div>
+
+        <!-- Truck Filter -->
+        <div class="form-group">
+          <label for="vehicleId">
+            <mat-icon>local_shipping</mat-icon>
+            Truck
+          </label>
+          <select id="vehicleId" formControlName="vehicleId" class="form-control">
+            <option value="">All Trucks</option>
+            <option *ngFor="let vehicle of vehicles" [value]="vehicle.id">
+              {{ vehicle.licensePlate }}
+            </option>
+          </select>
+        </div>
+
+        <!-- Status Filter -->
+        <div class="form-group">
+          <label for="status">
+            <mat-icon>check_circle</mat-icon>
+            Status
+          </label>
+          <select id="status" formControlName="status" class="form-control">
+            <option *ngFor="let status of statusOptions" [value]="status.value">
+              {{ status.label }}
+            </option>
+          </select>
+        </div>
+
+        <!-- Date From -->
+        <div class="form-group">
+          <label for="dateFrom">
+            <mat-icon>calendar_today</mat-icon>
+            From Date
+          </label>
+          <input type="date" id="dateFrom" formControlName="dateFrom" class="form-control" />
+        </div>
+
+        <!-- Date To -->
+        <div class="form-group">
+          <label for="dateTo">
+            <mat-icon>event</mat-icon>
+            To Date
+          </label>
+          <input type="date" id="dateTo" formControlName="dateTo" class="form-control" />
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <!-- Results Summary -->
+  <div class="results-summary">
+    <div class="summary-info">
+      <mat-icon>info</mat-icon>
+      Showing {{ (pagination.currentPage - 1) * pagination.pageSize + 1 }} to
+      {{ Math.min(pagination.currentPage * pagination.pageSize, pagination.totalElements) }} of
+      {{ pagination.totalElements }} assignments
+    </div>
+    <div class="page-size-selector">
+      <label>Show:</label>
+      <select
+        [value]="pagination.pageSize"
+        (change)="changePageSize(+$any($event.target).value)"
+        class="form-control-sm"
+      >
+        <option *ngFor="let size of pageSizes" [value]="size">{{ size }}</option>
+      </select>
+      <span>per page</span>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div class="loading-container" *ngIf="loading">
+    <mat-spinner diameter="50"></mat-spinner>
+    <p>Loading assignments...</p>
+  </div>
+
+  <!-- Table -->
+  <div class="table-container" *ngIf="!loading">
+    <table class="assignments-table" *ngIf="filteredAssignments.length > 0">
+      <thead>
+        <tr>
+          <th (click)="sort('id')" class="sortable">
+            ID
+            <mat-icon class="sort-icon">{{ getSortIcon('id') }}</mat-icon>
+          </th>
+          <th (click)="sort('driverName')" class="sortable">
+            Driver Name
+            <mat-icon class="sort-icon">{{ getSortIcon('driverName') }}</mat-icon>
+          </th>
+          <th (click)="sort('truckPlate')" class="sortable">
+            Truck Plate
+            <mat-icon class="sort-icon">{{ getSortIcon('truckPlate') }}</mat-icon>
+          </th>
+          <th (click)="sort('assignedAt')" class="sortable">
+            Assigned At
+            <mat-icon class="sort-icon">{{ getSortIcon('assignedAt') }}</mat-icon>
+          </th>
+          <th>Assigned By</th>
+          <th>Reason</th>
+          <th (click)="sort('active')" class="sortable">
+            Status
+            <mat-icon class="sort-icon">{{ getSortIcon('active') }}</mat-icon>
+          </th>
+          <th class="actions-column">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr
+          *ngFor="let assignment of filteredAssignments"
+          [class.inactive-row]="!assignment.active"
+        >
+          <td>{{ assignment.id }}</td>
+          <td>
+            <div class="driver-cell">
+              <mat-icon class="cell-icon">person</mat-icon>
+              {{ assignment.driverName }}
+            </div>
+          </td>
+          <td>
+            <div class="truck-cell">
+              <mat-icon class="cell-icon">local_shipping</mat-icon>
+              {{ assignment.truckPlate }}
+            </div>
+          </td>
+          <td>{{ formatDate(assignment.assignedAt) }}</td>
+          <td>{{ assignment.assignedBy }}</td>
+          <td>
+            <span class="reason-text" [title]="assignment.reason || '-'">
+              {{ assignment.reason || '-' }}
+            </span>
+          </td>
+          <td>
+            <span class="status-badge" [ngClass]="getStatusBadgeClass(assignment.active)">
+              <mat-icon class="badge-icon">{{
+                assignment.active ? 'check_circle' : 'cancel'
+              }}</mat-icon>
+              {{ assignment.active ? 'Active' : 'Inactive' }}
+            </span>
+          </td>
+          <td class="actions-cell">
+            <div class="action-buttons">
+              <button class="btn-icon" (click)="viewDetails(assignment)" title="View Details">
+                <mat-icon>visibility</mat-icon>
+              </button>
+              <button
+                class="btn-icon btn-icon-danger"
+                (click)="revokeAssignment(assignment)"
+                [disabled]="!assignment.active"
+                title="Revoke Assignment"
+              >
+                <mat-icon>cancel</mat-icon>
+              </button>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Empty State -->
+    <div class="empty-state" *ngIf="filteredAssignments.length === 0">
+      <mat-icon>assignment_late</mat-icon>
+      <h3>No Assignments Found</h3>
+      <p>
+        {{
+          assignments.length === 0
+            ? 'No assignments have been created yet.'
+            : 'No assignments match your current filters.'
+        }}
+      </p>
+      <button class="btn btn-primary" *ngIf="assignments.length === 0" (click)="navigateToAssign()">
+        <mat-icon>add</mat-icon>
+        Create First Assignment
+      </button>
+      <button class="btn btn-secondary" *ngIf="assignments.length > 0" (click)="clearFilters()">
+        <mat-icon>clear</mat-icon>
+        Clear Filters
+      </button>
+    </div>
+  </div>
+
+  <!-- Pagination -->
+  <div class="pagination-container" *ngIf="!loading && filteredAssignments.length > 0">
+    <button
+      class="btn-pagination"
+      (click)="changePage(pagination.currentPage - 1)"
+      [disabled]="pagination.currentPage === 1"
+    >
+      <mat-icon>chevron_left</mat-icon>
+      Previous
+    </button>
+
+    <div class="page-numbers">
+      <button
+        *ngFor="let page of getPageNumbers()"
+        class="btn-page"
+        [class.active]="page === pagination.currentPage"
+        [disabled]="page === -1"
+        (click)="page !== -1 && changePage(page)"
+      >
+        {{ page === -1 ? '...' : page }}
+      </button>
+    </div>
+
+    <button
+      class="btn-pagination"
+      (click)="changePage(pagination.currentPage + 1)"
+      [disabled]="pagination.currentPage === pagination.totalPages"
+    >
+      Next
+      <mat-icon>chevron_right</mat-icon>
+    </button>
+  </div>
+</div>

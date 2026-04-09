@@ -1,0 +1,35 @@
+<div class="fixed inset-0 flex items-center justify-center overflow-auto bg-black/70">
+  <div class="p-6 bg-white rounded-lg shadow-lg w-[32rem] max-h-[90vh] overflow-y-auto">
+    <h3 class="text-lg font-semibold">Select Pickup Address</h3>
+
+    <!-- Search Input -->
+    <input
+      type="text"
+      [formControl]="searchQuery"
+      class="w-full p-2 mt-2 border rounded"
+      placeholder=" Search by name or address..."
+    />
+
+    <!-- Loading Indicator -->
+    <div *ngIf="isLoading" class="mt-2 text-blue-500">Loading...</div>
+
+    <!-- Error Message -->
+    <div *ngIf="errorMessage" class="mt-2 text-red-500">❗ {{ errorMessage }}</div>
+
+    <!-- Address List -->
+    <ul *ngIf="!isLoading && !errorMessage" class="mt-4 border divide-y rounded">
+      <li
+        *ngFor="let address of filteredAddresses"
+        class="p-3 cursor-pointer hover:bg-gray-100"
+        (click)="selectAddress(address)"
+      >
+        <div class="font-semibold text-blue-700">{{ address.name }}</div>
+        <div class="text-sm text-gray-600">{{ address.address }}</div>
+        <div class="text-xs text-gray-500">{{ address.postcode }} | {{ address.country }} |</div>
+      </li>
+    </ul>
+
+    <!-- Close Button -->
+    <button type="button" class="w-full mt-4 btn btn-danger" (click)="close.emit()">Close</button>
+  </div>
+</div>

@@ -1,0 +1,19 @@
+<div
+  *ngIf="status !== 'connected'"
+  class="w-full p-2 font-semibold text-center text-white flex justify-between items-center"
+  [ngClass]="{
+    'bg-red-600': status === 'disconnected',
+    'bg-yellow-500': status === 'error',
+  }"
+>
+  <span>{{
+    status === 'disconnected' ? '🔴 Disconnected - Reconnecting...' : '⚠️ Connection Error'
+  }}</span>
+  <button
+    *ngIf="status === 'disconnected'"
+    (click)="reconnect()"
+    class="bg-white text-red-600 px-3 py-1 rounded text-sm hover:bg-gray-100"
+  >
+    Reconnect
+  </button>
+</div>

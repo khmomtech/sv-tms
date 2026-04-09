@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "729258825838",
+    "project_id": "sv-driver-app",
+    "storage_bucket": "sv-driver-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:729258825838:android:18a337e97eb9e3005d2e7f",
+        "android_client_info": {
+          "package_name": "com.svtrucking.svdriverapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB62vjX_zbexXLvsvXBUOoLM5DwtE61zbk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:729258825838:android:047066d2cd5406b85d2e7f",
+        "android_client_info": {
+          "package_name": "com.svtrucking.svdriverapp.dev"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB62vjX_zbexXLvsvXBUOoLM5DwtE61zbk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

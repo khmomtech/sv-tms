@@ -1,0 +1,73 @@
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  img {
+    max-width: 100%;
+    height: auto;
+  }
+
+  table,
+  th,
+  td {
+    border: 1px solid #ccc;
+    border-collapse: collapse;
+  }
+
+  th,
+  td {
+    padding: 8px;
+  }
+}
+
+/* Print optimization */
+@media print {
+  /* Global print settings */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide interactive elements */
+  button,
+  .no-print,
+  .html2canvas-ignore {
+    display: none !important;
+  }
+
+  /* Preserve background colors */
+  [class*='bg-'] {
+    background-color: inherit !important;
+  }
+
+  /* Improve readability */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    page-break-after: avoid;
+  }
+
+  /* Table headers repeat on new pages */
+  thead {
+    display: table-header-group;
+  }
+
+  tfoot {
+    display: table-footer-group;
+  }
+
+  /* Prevent row breaks */
+  tr {
+    page-break-inside: avoid;
+  }
+
+  /* Show all content in scrollable divs */
+  .overflow-auto {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+}

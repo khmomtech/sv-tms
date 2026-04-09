@@ -1,0 +1,387 @@
+<div class="case-list-container container p-6 mx-auto" tabindex="0">
+  <!-- Header -->
+  <div class="flex items-start justify-between mb-6">
+    <div class="flex items-center gap-3">
+      <div class="flex items-center justify-center w-12 h-12 bg-blue-100 rounded-lg">
+        <i class="bi bi-briefcase text-2xl text-blue-600"></i>
+      </div>
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900">{{ 'caseList.title' | translate }}</h1>
+        <p class="text-sm text-gray-500">{{ 'caseList.subtitle' | translate }}</p>
+      </div>
+    </div>
+    <button
+      *ngIf="canCreateCase()"
+      class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition"
+      [routerLink]="['/cases/create']"
+    >
+      <i class="bi bi-plus-circle"></i> {{ 'caseList.create_case' | translate }}
+    </button>
+  </div>
+
+  <!-- Statistics Cards -->
+  <ng-container *ngIf="statistics() as stats">
+    <div class="grid grid-cols-1 gap-4 mb-6 sm:grid-cols-2 lg:grid-cols-5">
+      <div
+        class="summary-card p-4 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition"
+      >
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-gray-600">
+              {{ 'caseList.total_cases' | translate }}
+            </p>
+            <p class="mt-1 text-2xl font-bold text-gray-900">{{ stats.total || 0 }}</p>
+          </div>
+          <div class="flex items-center justify-center w-12 h-12 bg-blue-100 rounded-full">
+            <i class="bi bi-collection text-xl text-blue-600"></i>
+          </div>
+        </div>
+      </div>
+      <div
+        class="summary-card p-4 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition"
+      >
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-gray-600">{{ 'caseList.open' | translate }}</p>
+            <p class="mt-1 text-2xl font-bold text-green-600">{{ stats.open || 0 }}</p>
+          </div>
+          <div class="flex items-center justify-center w-12 h-12 bg-green-100 rounded-full">
+            <i class="bi bi-check2-circle text-xl text-green-600"></i>
+          </div>
+        </div>
+      </div>
+      <div
+        class="summary-card p-4 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition"
+      >
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-gray-600">
+              {{ 'caseList.investigation' | translate }}
+            </p>
+            <p class="mt-1 text-2xl font-bold text-amber-600">{{ stats.investigation || 0 }}</p>
+          </div>
+          <div class="flex items-center justify-center w-12 h-12 bg-amber-100 rounded-full">
+            <i class="bi bi-search text-xl text-amber-600"></i>
+          </div>
+        </div>
+      </div>
+      <div
+        class="summary-card p-4 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition"
+      >
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-gray-600">
+              {{ 'caseList.pending_approval' | translate }}
+            </p>
+            <p class="mt-1 text-2xl font-bold text-orange-600">{{ stats.pending_approval || 0 }}</p>
+          </div>
+          <div class="flex items-center justify-center w-12 h-12 bg-orange-100 rounded-full">
+            <i class="bi bi-hourglass-split text-xl text-orange-600"></i>
+          </div>
+        </div>
+      </div>
+      <div
+        class="summary-card p-4 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition"
+      >
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-gray-600">{{ 'caseList.closed' | translate }}</p>
+            <p class="mt-1 text-2xl font-bold text-gray-700">{{ stats.closed || 0 }}</p>
+          </div>
+          <div class="flex items-center justify-center w-12 h-12 bg-gray-100 rounded-full">
+            <i class="bi bi-archive text-xl text-gray-600"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+
+  <!-- Filters -->
+  <div class="filters-card bg-white border border-gray-200 rounded-xl shadow-sm mb-6">
+    <div class="px-6 pb-6">
+      <div class="mb-6">
+        <h3 class="mb-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+          {{ 'caseList.search_and_filters' | translate }}
+        </h3>
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div>
+            <label class="block mb-1.5 text-sm font-medium text-gray-700">{{
+              'common.search' | translate
+            }}</label>
+            <input
+              type="text"
+              class="filter-control w-full"
+              [placeholder]="'caseList.search_cases' | translate"
+              [(ngModel)]="filters.search"
+              (input)="applyFilters()"
+            />
+          </div>
+          <div>
+            <label class="block mb-1.5 text-sm font-medium text-gray-700">{{
+              'common.status' | translate
+            }}</label>
+            <select
+              class="filter-control w-full"
+              [(ngModel)]="filters.status"
+              (change)="applyFilters()"
+            >
+              <option [ngValue]="undefined">{{ 'caseList.all_statuses' | translate }}</option>
+              <option *ngFor="let status of statuses" [ngValue]="status">
+                {{ tStatus(status) }}
+              </option>
+            </select>
+          </div>
+          <div>
+            <label class="block mb-1.5 text-sm font-medium text-gray-700">{{
+              'common.priority' | translate
+            }}</label>
+            <select class="filter-control w-full" disabled>
+              <option>{{ 'caseList.all_priorities' | translate }}</option>
+            </select>
+          </div>
+          <div>
+            <label class="block mb-1.5 text-sm font-medium text-gray-700">{{
+              'common.category' | translate
+            }}</label>
+            <select
+              class="filter-control w-full"
+              [(ngModel)]="filters.category"
+              (change)="applyFilters()"
+            >
+              <option [ngValue]="undefined">{{ 'caseList.all_categories' | translate }}</option>
+              <option *ngFor="let category of categories" [ngValue]="category">
+                {{ category }}
+              </option>
+            </select>
+          </div>
+          <div>
+            <label class="block mb-1.5 text-sm font-medium text-gray-700">{{
+              'common.severity' | translate
+            }}</label>
+            <select
+              class="filter-control w-full"
+              [(ngModel)]="filters.severity"
+              (change)="applyFilters()"
+            >
+              <option [ngValue]="undefined">{{ 'caseList.all_severities' | translate }}</option>
+              <option *ngFor="let severity of severities" [ngValue]="severity">
+                {{ tSeverity(severity) }}
+              </option>
+            </select>
+          </div>
+          <div>
+            <label class="block mb-1.5 text-sm font-medium text-gray-700">{{
+              'common.created_after' | translate
+            }}</label>
+            <input
+              type="date"
+              class="filter-control w-full"
+              [(ngModel)]="filters.createdAfter"
+              (change)="applyFilters()"
+            />
+          </div>
+          <div>
+            <label class="block mb-1.5 text-sm font-medium text-gray-700">{{
+              'common.created_before' | translate
+            }}</label>
+            <input
+              type="date"
+              class="filter-control w-full"
+              [(ngModel)]="filters.createdBefore"
+              (change)="applyFilters()"
+            />
+          </div>
+        </div>
+        <div class="flex items-center justify-end gap-2 mt-4">
+          <button
+            class="inline-flex items-center gap-2 px-4 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+            (click)="clearFilters()"
+          >
+            <i class="bi bi-arrow-repeat"></i>
+            {{ 'common.reset' | translate }}
+          </button>
+          <button
+            class="inline-flex items-center gap-2 px-4 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+            (click)="applyFilters()"
+          >
+            {{ 'caseList.apply_filters' | translate }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading()" class="loading-state">
+    <div class="spinner-border" role="status">
+      <span class="visually-hidden">{{ 'common.loading' | translate }}</span>
+    </div>
+    <p>{{ 'caseList.loading_cases' | translate }}</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="error()" class="alert alert-danger">
+    <i class="bi bi-exclamation-triangle"></i>
+    {{ error() }}
+  </div>
+
+  <!-- Cases Table -->
+  <div
+    *ngIf="!loading() && !error()"
+    class="table-container bg-white border border-gray-200 rounded-lg shadow-sm"
+  >
+    <table class="task-table w-full text-sm">
+      <thead>
+        <tr>
+          <th>{{ 'caseList.code' | translate }}</th>
+          <th>{{ 'caseList.title_column' | translate }}</th>
+          <th>{{ 'common.status' | translate }}</th>
+          <th>{{ 'common.category' | translate }}</th>
+          <th>{{ 'common.severity' | translate }}</th>
+          <th>{{ 'caseList.assigned_to' | translate }}</th>
+          <th>{{ 'caseList.incidents' | translate }}</th>
+          <th>{{ 'caseList.tasks' | translate }}</th>
+          <th>{{ 'caseList.created_at' | translate }}</th>
+          <th class="text-right pr-6">{{ 'common.actions' | translate }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let case of cases()" class="transition clickable-row" (click)="goToCase(case)">
+          <td class="font-semibold text-gray-900">{{ case.code || '—' }}</td>
+          <td>
+            <div class="font-semibold text-gray-900">
+              {{ case.title || ('caseList.untitled_case' | translate) }}
+            </div>
+          </td>
+          <td>
+            <span class="badge-status" [ngClass]="case.status">{{ tStatus(case.status) }}</span>
+          </td>
+          <td class="text-gray-900">
+            <span class="badge bg-info text-white">{{
+              case.category || ('common.not_available' | translate)
+            }}</span>
+          </td>
+          <td class="text-gray-900">
+            <span class="severity-pill" [ngClass]="case.severity">{{
+              tSeverity(case.severity)
+            }}</span>
+          </td>
+          <td class="text-gray-900">
+            {{ case.assignedToUsername || ('caseList.unassigned' | translate) }}
+          </td>
+          <td class="text-gray-900">
+            <span class="badge bg-primary text-white">{{ case.incidentCount ?? 0 }}</span>
+          </td>
+          <td class="text-gray-900">
+            <span class="badge bg-secondary text-white">{{ case.taskCount ?? 0 }}</span>
+          </td>
+          <td class="text-gray-900">{{ formatDate(case.createdAt) }}</td>
+          <td class="text-right pr-6 action-menu" (click)="$event.stopPropagation()">
+            <div class="relative inline-flex items-center gap-2">
+              <button
+                type="button"
+                class="action-circle action-circle-primary"
+                (click)="viewCase(case)"
+                [title]="'caseList.view_details' | translate"
+              >
+                <i class="bi bi-eye"></i>
+              </button>
+              <button
+                type="button"
+                class="action-circle"
+                (click)="openMenu.set(openMenu() === case.id ? null : (case.id ?? null))"
+                [title]="'caseList.more_actions' | translate"
+              >
+                <i class="bi bi-three-dots"></i>
+              </button>
+              <div
+                *ngIf="openMenu() === case.id"
+                class="absolute right-0 top-11 z-20 w-48 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden"
+              >
+                <button
+                  class="flex w-full items-center gap-3 px-4 py-3 text-sm text-gray-800 hover:bg-gray-50"
+                  (click)="viewCase(case); openMenu.set(null)"
+                >
+                  <i class="bi bi-eye text-green-600"></i>
+                  <span>{{ 'common.view_details' | translate }}</span>
+                </button>
+                <button
+                  class="flex w-full items-center gap-3 px-4 py-3 text-sm text-blue-700 hover:bg-gray-50"
+                  (click)="editCase(case); openMenu.set(null)"
+                >
+                  <i class="bi bi-pencil-square"></i>
+                  <span>{{ 'common.edit' | translate }}</span>
+                </button>
+                <button
+                  class="flex w-full items-center gap-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 border-t border-gray-100"
+                  (click)="deleteCase(case); openMenu.set(null)"
+                >
+                  <i class="bi bi-trash"></i>
+                  <span>{{ 'common.delete' | translate }}</span>
+                </button>
+              </div>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Empty State -->
+    <div *ngIf="cases().length === 0" class="empty-state">
+      <i class="bi bi-inbox"></i>
+      <h3>{{ 'caseList.no_cases_found' | translate }}</h3>
+      <p>{{ 'caseList.empty_message' | translate }}</p>
+    </div>
+
+    <!-- Pagination -->
+    <div
+      class="flex items-center justify-between p-4 bg-gray-50 border border-gray-200 rounded-xl shadow-sm"
+    >
+      <div class="text-sm text-gray-600">
+        {{
+          'caseList.showing_range'
+            | translate
+              : {
+                  from: totalElements() === 0 ? 0 : currentPage() * pageSize + 1,
+                  to: Math.min((currentPage() + 1) * pageSize, totalElements()),
+                  total: totalElements(),
+                }
+        }}
+      </div>
+      <div class="flex items-center gap-2">
+        <button class="pager-btn" [disabled]="currentPage() === 0" (click)="goToPage(0)">
+          {{ 'common.first' | translate }}
+        </button>
+        <button
+          class="pager-btn"
+          [disabled]="currentPage() === 0"
+          (click)="goToPage(currentPage() - 1)"
+        >
+          {{ 'common.prev' | translate }}
+        </button>
+        <button
+          *ngFor="let page of pageNumbers()"
+          class="pager-btn"
+          [class.pager-btn-active]="page === currentPage()"
+          (click)="goToPage(page)"
+        >
+          {{ page + 1 }}
+        </button>
+        <button
+          class="pager-btn"
+          [disabled]="currentPage() === totalPages() - 1"
+          (click)="goToPage(currentPage() + 1)"
+        >
+          {{ 'common.next' | translate }}
+        </button>
+        <button
+          class="pager-btn"
+          [disabled]="currentPage() === totalPages() - 1"
+          (click)="goToPage(totalPages() - 1)"
+        >
+          {{ 'common.last' | translate }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

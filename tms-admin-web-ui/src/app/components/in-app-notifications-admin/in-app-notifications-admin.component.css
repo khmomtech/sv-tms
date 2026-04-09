@@ -1,0 +1,8 @@
+:host {
+  display: block;
+  font-family: 'Roboto', 'Noto Sans Khmer', sans-serif;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+}

@@ -1,0 +1,217 @@
+<div class="container p-6 mx-auto">
+  <h2 class="flex items-center gap-2 mb-6 text-2xl font-bold text-black">
+    Driver Location History
+  </h2>
+
+  <!-- Toggle Mode -->
+  <button
+    (click)="toggleMarkers()"
+    class="px-4 py-2 text-white bg-purple-600 rounded hover:bg-purple-700"
+  >
+    {{ showMarkers ? '🛣 Show Route Only' : 'Show All Markers' }}
+  </button>
+
+  <!-- Date Filters -->
+  <div class="flex flex-wrap items-center gap-4 mt-4 mb-6">
+    <div>
+      <label class="block text-sm font-semibold text-gray-700">From Date:</label>
+      <input type="date" [(ngModel)]="filterFromDate" class="p-2 border rounded" />
+    </div>
+    <div>
+      <label class="block text-sm font-semibold text-gray-700">To Date:</label>
+      <input type="date" [(ngModel)]="filterToDate" class="p-2 border rounded" />
+    </div>
+    <div class="flex self-end gap-2">
+      <button
+        (click)="applyDateFilter()"
+        class="px-4 py-2 text-white bg-blue-600 rounded hover:bg-blue-700"
+      >
+        Filter
+      </button>
+      <button
+        (click)="resetFilter()"
+        class="px-4 py-2 text-sm text-gray-700 border rounded hover:bg-gray-200"
+      >
+        Reset
+      </button>
+    </div>
+  </div>
+
+  <!-- Driver Info -->
+  <div *ngIf="driver" class="p-4 mb-6 bg-gray-100 border border-gray-200 rounded-lg shadow-sm">
+    <p><strong>Name:</strong> {{ driver.name }}</p>
+    <p><strong>Vehicle Type:</strong> {{ driver.vehicleType }}</p>
+    <p><strong>Last Seen:</strong> {{ driver.lastLocationAt | date: 'medium' }}</p>
+  </div>
+
+  <!-- Summary and Controls -->
+  <div *ngIf="locationHistory.length > 0" class="flex flex-wrap items-center justify-between mb-4">
+    <div class="space-y-1 text-sm text-gray-600">
+      <p><strong>Total Points:</strong> {{ locationHistory.length }}</p>
+      <p><strong>Total Distance:</strong> {{ totalDistanceKm }} km</p>
+      <p><strong>Start:</strong> {{ locationHistory[0]?.timestamp | date: 'medium' }}</p>
+      <p>
+        <strong>End:</strong>
+        {{ locationHistory[locationHistory.length - 1]?.timestamp | date: 'medium' }}
+      </p>
+    </div>
+    <div class="flex flex-wrap gap-2 mt-2 md:mt-0">
+      <button
+        (click)="startPlayback()"
+        [disabled]="isPlaying"
+        class="px-4 py-2 text-white bg-green-600 rounded hover:bg-green-700"
+      >
+        ▶ Play Route
+      </button>
+      <button
+        (click)="stopPlayback()"
+        [disabled]="!isPlaying"
+        class="px-4 py-2 text-white bg-red-600 rounded hover:bg-red-700"
+      >
+        ⏹ Stop
+      </button>
+      <button
+        (click)="exportAsCSV()"
+        class="px-4 py-2 text-white bg-blue-800 rounded hover:bg-blue-900"
+      >
+        ⬇ Export CSV
+      </button>
+    </div>
+  </div>
+
+  <!-- Playback Speed -->
+  <div *ngIf="locationHistory.length > 0" class="mb-6">
+    <label class="block mb-1 font-semibold text-gray-600">Playback Speed:</label>
+    <div class="flex gap-2">
+      <button
+        (click)="setPlaybackSpeed(1)"
+        [class.bg-indigo-600]="playbackSpeed === 1"
+        class="px-3 py-1 text-sm text-white bg-gray-400 rounded"
+      >
+        1x
+      </button>
+      <button
+        (click)="setPlaybackSpeed(2)"
+        [class.bg-indigo-600]="playbackSpeed === 2"
+        class="px-3 py-1 text-sm text-white bg-gray-400 rounded"
+      >
+        2x
+      </button>
+      <button
+        (click)="setPlaybackSpeed(4)"
+        [class.bg-indigo-600]="playbackSpeed === 4"
+        class="px-3 py-1 text-sm text-white bg-gray-400 rounded"
+      >
+        4x
+      </button>
+      <button
+        (click)="setPlaybackSpeed(8)"
+        [class.bg-indigo-600]="playbackSpeed === 8"
+        class="px-3 py-1 text-sm text-white bg-gray-400 rounded"
+      >
+        8x
+      </button>
+      <button
+        (click)="setPlaybackSpeed(12)"
+        [class.bg-indigo-600]="playbackSpeed === 12"
+        class="px-3 py-1 text-sm text-white bg-gray-400 rounded"
+      >
+        12x
+      </button>
+      <button
+        (click)="setPlaybackSpeed(20)"
+        [class.bg-indigo-600]="playbackSpeed === 20"
+        class="px-3 py-1 text-sm text-white bg-gray-400 rounded"
+      >
+        20x
+      </button>
+      <button
+        (click)="setPlaybackSpeed(30)"
+        [class.bg-indigo-600]="playbackSpeed === 30"
+        class="px-3 py-1 text-sm text-white bg-gray-400 rounded"
+      >
+        30x
+      </button>
+    </div>
+  </div>
+
+  <!-- Time Slider -->
+  <div *ngIf="locationHistory.length > 0" class="mb-6">
+    <label class="block mb-1 font-semibold text-gray-600">Time Slider:</label>
+    <input
+      type="range"
+      min="0"
+      [max]="locationHistory.length - 1"
+      [(ngModel)]="sliderIndex"
+      (input)="onSliderChange(sliderIndex)"
+      class="w-full"
+    />
+    <div class="mt-1 text-sm text-gray-600">
+      {{ locationHistory[sliderIndex]?.timestamp | date: 'medium' }}
+    </div>
+  </div>
+
+  <!-- Map Section -->
+  <google-map
+    *ngIf="locationHistory.length > 0"
+    #googleMap
+    [center]="mapCenter"
+    [zoom]="zoom"
+    height="500px"
+    width="100%"
+  >
+    <!-- Polyline fallback if directions not available -->
+    <map-polyline *ngIf="!isDirectionsVisible" [path]="locationPath" [options]="polylineOptions">
+    </map-polyline>
+
+    <!-- All historical markers with speed label -->
+    <ng-container *ngIf="showMarkers">
+      <map-marker
+        *ngFor="let loc of locationHistory"
+        #mapMarker="mapMarker"
+        [position]="{ lat: loc.latitude, lng: loc.longitude }"
+        [label]="{ text: loc.speed ? loc.speed + ' km/h' : '', color: 'white' }"
+        [title]="driver?.name"
+        (mapClick)="openInfoWindow(mapMarker, loc)"
+      >
+      </map-marker>
+    </ng-container>
+
+    <!-- Start point -->
+    <map-marker
+      *ngIf="locationHistory.length > 0"
+      [position]="{ lat: locationHistory[0].latitude, lng: locationHistory[0].longitude }"
+      [icon]="startMarkerIcon"
+      title="Start Point"
+    >
+    </map-marker>
+
+    <!-- End point -->
+    <map-marker
+      *ngIf="locationHistory.length > 1"
+      [position]="{
+        lat: locationHistory[locationHistory.length - 1].latitude,
+        lng: locationHistory[locationHistory.length - 1].longitude,
+      }"
+      [icon]="endMarkerIcon"
+      title="End Point"
+    >
+    </map-marker>
+
+    <!-- Info window on marker click -->
+    <map-info-window #infoWindow>
+      <div *ngIf="selectedLocation">
+        <p><strong>Time:</strong> {{ selectedLocation.timestamp | date: 'medium' }}</p>
+        <p><strong>Lat:</strong> {{ selectedLocation.latitude }}</p>
+        <p><strong>Lng:</strong> {{ selectedLocation.longitude }}</p>
+        <p *ngIf="selectedLocation.speed">
+          <strong>Speed:</strong> {{ selectedLocation.speed }} km/h
+        </p>
+      </div>
+    </map-info-window>
+  </google-map>
+
+  <div *ngIf="locationHistory.length === 0" class="mt-6 italic text-center text-gray-500">
+    No location history found for this driver.
+  </div>
+</div>

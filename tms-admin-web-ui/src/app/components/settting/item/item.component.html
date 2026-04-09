@@ -1,0 +1,691 @@
+<div class="container p-4 mx-auto max-w-7xl">
+  <div class="flex flex-col gap-6">
+    <!-- Header -->
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <h2 class="text-2xl font-bold text-gray-900">Item Management</h2>
+      <div class="flex gap-2">
+        <button
+          (click)="openItemModal()"
+          class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+        >
+          <i class="mr-2 fas fa-plus"></i>
+          Add Item
+        </button>
+      </div>
+    </div>
+
+    <!-- Filters & Controls -->
+    <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+      <div class="flex flex-col gap-4 lg:flex-row lg:items-end">
+        <!-- Search and Filters -->
+        <div class="flex flex-col gap-4 sm:flex-row sm:flex-1">
+          <div class="flex-1 min-w-0">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Search</label>
+            <div class="relative">
+              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <i class="fas fa-search text-gray-400"></i>
+              </div>
+              <input
+                [(ngModel)]="keyword"
+                (input)="searchItems()"
+                placeholder="Search by code, name..."
+                class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+          </div>
+
+          <div class="sm:w-40">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+            <select
+              [(ngModel)]="filterStatus"
+              (change)="searchItems()"
+              class="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">All Status</option>
+              <option value="1">Active</option>
+              <option value="0">Inactive</option>
+            </select>
+          </div>
+
+          <div class="sm:w-48">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Type</label>
+            <select
+              [(ngModel)]="filterType"
+              (change)="searchItems()"
+              class="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">All Types</option>
+              <option *ngFor="let t of availableTypes" [value]="t">{{ t }}</option>
+            </select>
+          </div>
+
+          <div class="flex gap-2">
+            <button
+              (click)="clearFilters()"
+              class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Column Visibility Toggle -->
+        <div class="lg:w-auto">
+          <label class="block text-sm font-medium text-gray-700 mb-1">Columns</label>
+          <div class="relative">
+            <button
+              (click)="toggleDropdown('columns')"
+              class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <i class="fas fa-columns"></i>
+              <i class="ml-2 fas fa-chevron-down"></i>
+            </button>
+            <div
+              *ngIf="dropdownOpen === 'columns'"
+              class="absolute right-0 z-10 mt-2 w-56 bg-white shadow-lg rounded-md ring-1 ring-black ring-opacity-5"
+            >
+              <div class="p-2">
+                <div *ngFor="let col of visibleColumns | keyvalue" class="flex items-center">
+                  <input
+                    type="checkbox"
+                    [checked]="col.value"
+                    (change)="toggleColumnVisibility(col.key)"
+                    class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label class="ml-2 block text-sm text-gray-900 capitalize">
+                    {{ getColumnDisplayName(col.key) }}
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bulk Actions -->
+    <div
+      *ngIf="selectedIds.length > 0"
+      class="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 bg-white border border-gray-300 rounded-lg shadow-lg p-4"
+    >
+      <div class="flex items-center gap-4">
+        <span class="text-sm font-medium text-gray-700">
+          {{ selectedIds.length }} item{{ selectedIds.length > 1 ? 's' : '' }} selected
+        </span>
+        <button
+          (click)="deleteSelectedItems()"
+          class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+        >
+          <i class="fas fa-trash-alt mr-2"></i>
+          Delete Selected
+        </button>
+      </div>
+    </div>
+
+    <!-- Table Container -->
+    <div class="bg-white shadow-sm rounded-lg border border-gray-200 overflow-hidden">
+      <!-- Loading State -->
+      <div *ngIf="isLoading" class="flex items-center justify-center py-12">
+        <div class="flex items-center space-x-2">
+          <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+          <span class="text-gray-600">Loading items...</span>
+        </div>
+      </div>
+
+      <!-- Empty State -->
+      <div *ngIf="!isLoading && totalItems === 0" class="text-center py-12">
+        <i class="fas fa-box-open text-gray-400 text-4xl mb-4"></i>
+        <h3 class="text-lg font-medium text-gray-900 mb-2">No items found</h3>
+        <p class="text-gray-500 mb-4">
+          {{
+            keyword || filterStatus || filterType
+              ? 'Try adjusting your filters or search terms.'
+              : 'Get started by adding your first item.'
+          }}
+        </p>
+        <button
+          *ngIf="!keyword && !filterStatus && !filterType"
+          (click)="openItemModal()"
+          class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+        >
+          <i class="fas fa-plus mr-2"></i>
+          Add Item
+        </button>
+      </div>
+
+      <!-- Table -->
+      <div *ngIf="!isLoading && totalItems > 0" class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th
+                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >
+                <input
+                  type="checkbox"
+                  [checked]="
+                    selectedIds.length === paginatedItems.length && paginatedItems.length > 0
+                  "
+                  [indeterminate]="
+                    selectedIds.length > 0 && selectedIds.length < paginatedItems.length
+                  "
+                  (change)="toggleAll($event)"
+                  class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+              </th>
+              <th
+                *ngIf="visibleColumns.id"
+                (click)="sortBy('id')"
+                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+              >
+                <div class="flex items-center space-x-1">
+                  <span>ID</span>
+                  <i [class]="getSortIcon('id')"></i>
+                </div>
+              </th>
+              <th
+                *ngIf="visibleColumns.itemCode"
+                (click)="sortBy('itemCode')"
+                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+              >
+                <div class="flex items-center space-x-1">
+                  <span>Code</span>
+                  <i [class]="getSortIcon('itemCode')"></i>
+                </div>
+              </th>
+              <th
+                *ngIf="visibleColumns.itemName"
+                (click)="sortBy('itemName')"
+                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+              >
+                <div class="flex items-center space-x-1">
+                  <span>Name</span>
+                  <i [class]="getSortIcon('itemName')"></i>
+                </div>
+              </th>
+              <th
+                *ngIf="visibleColumns.itemNameKh"
+                (click)="sortBy('itemNameKh')"
+                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+              >
+                <div class="flex items-center space-x-1">
+                  <span>Khmer Name</span>
+                  <i [class]="getSortIcon('itemNameKh')"></i>
+                </div>
+              </th>
+              <th
+                *ngIf="visibleColumns.itemType"
+                (click)="sortBy('itemType')"
+                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+              >
+                <div class="flex items-center space-x-1">
+                  <span>Type</span>
+                  <i [class]="getSortIcon('itemType')"></i>
+                </div>
+              </th>
+              <th
+                *ngIf="visibleColumns.quantity"
+                (click)="sortBy('quantity')"
+                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+              >
+                <div class="flex items-center space-x-1">
+                  <span>Quantity</span>
+                  <i [class]="getSortIcon('quantity')"></i>
+                </div>
+              </th>
+              <th
+                *ngIf="visibleColumns.unit"
+                (click)="sortBy('unit')"
+                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+              >
+                <div class="flex items-center space-x-1">
+                  <span>Unit</span>
+                  <i [class]="getSortIcon('unit')"></i>
+                </div>
+              </th>
+              <th
+                *ngIf="visibleColumns.size"
+                (click)="sortBy('size')"
+                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+              >
+                <div class="flex items-center space-x-1">
+                  <span>Size</span>
+                  <i [class]="getSortIcon('size')"></i>
+                </div>
+              </th>
+              <th
+                *ngIf="visibleColumns.weight"
+                (click)="sortBy('weight')"
+                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+              >
+                <div class="flex items-center space-x-1">
+                  <span>Weight</span>
+                  <i [class]="getSortIcon('weight')"></i>
+                </div>
+              </th>
+              <th
+                *ngIf="visibleColumns.pallets"
+                (click)="sortBy('pallets')"
+                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+              >
+                <div class="flex items-center space-x-1">
+                  <span>Pallets</span>
+                  <i [class]="getSortIcon('pallets')"></i>
+                </div>
+              </th>
+              <th
+                *ngIf="visibleColumns.palletType"
+                (click)="sortBy('palletType')"
+                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+              >
+                <div class="flex items-center space-x-1">
+                  <span>Pallet Type</span>
+                  <i [class]="getSortIcon('palletType')"></i>
+                </div>
+              </th>
+              <th
+                *ngIf="visibleColumns.sortOrder"
+                (click)="sortBy('sortOrder')"
+                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+              >
+                <div class="flex items-center space-x-1">
+                  <span>Sort</span>
+                  <i [class]="getSortIcon('sortOrder')"></i>
+                </div>
+              </th>
+              <th
+                *ngIf="visibleColumns.status"
+                (click)="sortBy('status')"
+                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+              >
+                <div class="flex items-center space-x-1">
+                  <span>Status</span>
+                  <i [class]="getSortIcon('status')"></i>
+                </div>
+              </th>
+              <th
+                class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+            <tr *ngFor="let item of paginatedItems" class="hover:bg-gray-50">
+              <td class="px-6 py-4 whitespace-nowrap">
+                <input
+                  type="checkbox"
+                  [checked]="selectedIds.includes(item.id!)"
+                  (change)="toggleItemSelection(item.id!)"
+                  class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+              </td>
+              <td
+                *ngIf="visibleColumns.id"
+                class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+              >
+                {{ item.id }}
+              </td>
+              <td
+                *ngIf="visibleColumns.itemCode"
+                class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-mono"
+              >
+                {{ item.itemCode }}
+              </td>
+              <td *ngIf="visibleColumns.itemName" class="px-6 py-4 text-sm text-gray-900">
+                <div class="max-w-xs truncate" [title]="item.itemName">
+                  {{ item.itemName }}
+                </div>
+              </td>
+              <td *ngIf="visibleColumns.itemNameKh" class="px-6 py-4 text-sm text-gray-900">
+                <div class="max-w-xs truncate" [title]="item.itemNameKh">
+                  {{ item.itemNameKh }}
+                </div>
+              </td>
+              <td *ngIf="visibleColumns.itemType" class="px-6 py-4 whitespace-nowrap">
+                <span
+                  class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                  [ngClass]="{
+                    'bg-blue-100 text-blue-800': item.itemType === 'BEVERAGE',
+                    'bg-green-100 text-green-800': item.itemType === 'CONSUMER_GOODS',
+                    'bg-yellow-100 text-yellow-800': item.itemType === 'OTHERS',
+                    'bg-gray-100 text-gray-800': !item.itemType,
+                  }"
+                >
+                  {{ item.itemType || 'N/A' }}
+                </span>
+              </td>
+              <td
+                *ngIf="visibleColumns.quantity"
+                class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
+              >
+                {{ item.quantity }}
+              </td>
+              <td
+                *ngIf="visibleColumns.unit"
+                class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
+              >
+                {{ item.unit || '-' }}
+              </td>
+              <td
+                *ngIf="visibleColumns.size"
+                class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
+              >
+                {{ item.size || '-' }}
+              </td>
+              <td
+                *ngIf="visibleColumns.weight"
+                class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
+              >
+                {{ item.weight || '-' }}
+              </td>
+              <td
+                *ngIf="visibleColumns.pallets"
+                class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
+              >
+                {{ item.pallets || '-' }}
+              </td>
+              <td
+                *ngIf="visibleColumns.palletType"
+                class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
+              >
+                {{ item.palletType || '-' }}
+              </td>
+              <td
+                *ngIf="visibleColumns.sortOrder"
+                class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
+              >
+                {{ item.sortOrder }}
+              </td>
+              <td *ngIf="visibleColumns.status" class="px-6 py-4 whitespace-nowrap">
+                <span
+                  class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                  [ngClass]="
+                    item.status === 1 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                  "
+                >
+                  {{ item.status === 1 ? 'Active' : 'Inactive' }}
+                </span>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                <div class="relative">
+                  <button
+                    (click)="toggleDropdown(item.id!); $event.stopPropagation()"
+                    class="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100"
+                  >
+                    <i class="fas fa-ellipsis-v"></i>
+                  </button>
+                  <div
+                    *ngIf="dropdownOpen === item.id"
+                    class="absolute right-0 z-10 mt-2 w-48 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5"
+                  >
+                    <div class="py-1">
+                      <button
+                        (click)="openItemModal(item)"
+                        class="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        <i class="fas fa-edit mr-3"></i>
+                        Edit
+                      </button>
+                      <button
+                        (click)="deleteItem(item.id!)"
+                        class="flex items-center w-full px-4 py-2 text-sm text-red-700 hover:bg-red-100"
+                      >
+                        <i class="fas fa-trash-alt mr-3"></i>
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Pagination -->
+    <div
+      *ngIf="!isLoading && totalItems > 0"
+      class="bg-white px-4 py-3 border-t border-gray-200 sm:px-6"
+    >
+      <div class="flex items-center justify-between">
+        <!-- Page Size Selector -->
+        <div class="flex items-center space-x-2">
+          <label class="text-sm text-gray-700">Show:</label>
+          <select
+            #pageSizeSelect
+            [(ngModel)]="pageSize"
+            (change)="onPageSizeChange(+pageSizeSelect.value)"
+            class="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+          >
+            <option *ngFor="let size of pageSizeOptions" [value]="size">{{ size }}</option>
+          </select>
+          <span class="text-sm text-gray-700">per page</span>
+        </div>
+
+        <!-- Pagination Info -->
+        <div class="text-sm text-gray-700">
+          Showing <span class="font-medium">{{ startItem }}</span> to
+          <span class="font-medium">{{ endItem }}</span> of
+          <span class="font-medium">{{ totalItems }}</span> results
+        </div>
+
+        <!-- Page Navigation -->
+        <div class="flex items-center space-x-1">
+          <button
+            (click)="goToPage(1)"
+            [disabled]="currentPage === 1"
+            class="relative inline-flex items-center px-2 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-l-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <i class="fas fa-angle-double-left"></i>
+          </button>
+          <button
+            (click)="prevPage()"
+            [disabled]="currentPage === 1"
+            class="relative inline-flex items-center px-2 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <i class="fas fa-angle-left"></i>
+          </button>
+
+          <div class="flex space-x-1">
+            <button
+              *ngFor="let page of visiblePages"
+              (click)="goToPage(page)"
+              [class.active]="page === currentPage"
+              class="relative inline-flex items-center px-3 py-2 text-sm font-medium border hover:bg-gray-50"
+              [ngClass]="
+                page === currentPage
+                  ? 'bg-blue-50 border-blue-500 text-blue-600'
+                  : 'bg-white border-gray-300 text-gray-500'
+              "
+            >
+              {{ page }}
+            </button>
+          </div>
+
+          <button
+            (click)="nextPage()"
+            [disabled]="currentPage === totalPages"
+            class="relative inline-flex items-center px-2 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <i class="fas fa-angle-right"></i>
+          </button>
+          <button
+            (click)="goToPage(totalPages)"
+            [disabled]="currentPage === totalPages"
+            class="relative inline-flex items-center px-2 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-r-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <i class="fas fa-angle-double-right"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div
+    *ngIf="isModalOpen"
+    class="fixed inset-0 z-50 overflow-y-auto"
+    aria-labelledby="modal-title"
+    role="dialog"
+    aria-modal="true"
+  >
+    <div
+      class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0"
+    >
+      <div
+        class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+        aria-hidden="true"
+        (click)="closeModal()"
+      ></div>
+
+      <div
+        class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full"
+      >
+        <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+          <div class="sm:flex sm:items-start">
+            <div class="mt-3 text-center sm:mt-0 sm:text-left w-full">
+              <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4" id="modal-title">
+                {{ selectedItem.id ? 'Edit' : 'Create' }} Item
+              </h3>
+
+              <form #itemForm="ngForm" (ngSubmit)="saveItem()" class="space-y-4">
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700">Item Code *</label>
+                    <input
+                      name="itemCode"
+                      [(ngModel)]="selectedItem.itemCode"
+                      class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700">Item Name *</label>
+                    <input
+                      name="itemName"
+                      [(ngModel)]="selectedItem.itemName"
+                      class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700">Khmer Name</label>
+                    <input
+                      name="itemNameKh"
+                      [(ngModel)]="selectedItem.itemNameKh"
+                      class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700">Item Type</label>
+                    <select
+                      name="itemType"
+                      [(ngModel)]="selectedItem.itemType"
+                      class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Select Type</option>
+                      <option *ngFor="let type of availableTypes" [value]="type">{{ type }}</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700">Quantity *</label>
+                    <input
+                      name="quantity"
+                      type="number"
+                      [(ngModel)]="selectedItem.quantity"
+                      class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700">Unit</label>
+                    <input
+                      name="unit"
+                      [(ngModel)]="selectedItem.unit"
+                      class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700">Size</label>
+                    <input
+                      name="size"
+                      [(ngModel)]="selectedItem.size"
+                      class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700">Weight</label>
+                    <input
+                      name="weight"
+                      [(ngModel)]="selectedItem.weight"
+                      class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700">Pallets</label>
+                    <input
+                      name="pallets"
+                      [(ngModel)]="selectedItem.pallets"
+                      class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700">Pallet Type</label>
+                    <input
+                      name="palletType"
+                      [(ngModel)]="selectedItem.palletType"
+                      class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700">Sort Order</label>
+                    <input
+                      name="sortOrder"
+                      type="number"
+                      [(ngModel)]="selectedItem.sortOrder"
+                      class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700">Status</label>
+                    <select
+                      name="status"
+                      [(ngModel)]="selectedItem.status"
+                      class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option [ngValue]="1">Active</option>
+                      <option [ngValue]="0">Inactive</option>
+                    </select>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+        <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+          <button
+            type="submit"
+            (click)="saveItem()"
+            [disabled]="isLoading"
+            class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50"
+          >
+            <span *ngIf="isLoading" class="inline-flex items-center">
+              <i class="animate-spin fas fa-spinner mr-2"></i>
+              Saving...
+            </span>
+            <span *ngIf="!isLoading">{{ selectedItem.id ? 'Update' : 'Create' }}</span>
+          </button>
+          <button
+            type="button"
+            (click)="closeModal()"
+            class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

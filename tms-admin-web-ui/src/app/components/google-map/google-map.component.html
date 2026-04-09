@@ -1,0 +1,107 @@
+<!--  Main layout -->
+<div class="map-wrapper" style="display: flex; height: 100vh; overflow: hidden">
+  <!--  Sidebar -->
+  <div
+    class="sidebar"
+    [class.collapsed]="sidebarCollapsed"
+    style="
+      width: 300px;
+      transition: width 0.3s;
+      background: #f8f9fa;
+      padding: 10px;
+      overflow-y: auto;
+    "
+  >
+    <button (click)="toggleSidebar()" style="float: right; margin-bottom: 10px">
+      {{ sidebarCollapsed ? '▶' : '◀' }}
+    </button>
+
+    <div *ngIf="!sidebarCollapsed">
+      <h3>Drivers</h3>
+
+      <!--  Search input -->
+      <input
+        type="text"
+        [(ngModel)]="searchTerm"
+        placeholder="Search by name"
+        style="width: 100%; padding: 6px; margin-bottom: 10px"
+      />
+
+      <!-- 🎯 Status filter -->
+      <select [(ngModel)]="selectedStatus" style="width: 100%; margin-bottom: 10px">
+        <option value="all">All Statuses</option>
+        <option value="online">Online</option>
+        <option value="busy">Busy</option>
+        <option value="offline">Offline</option>
+        <option value="idle">Idle</option>
+      </select>
+
+      <!--  Vehicle type filter -->
+      <select [(ngModel)]="selectedType" style="width: 100%; margin-bottom: 10px">
+        <option value="all">All Types</option>
+        <option value="TRUCK">Truck</option>
+        <option value="VAN">Van</option>
+        <option value="MOTORBIKE">Motorbike</option>
+      </select>
+
+      <!--  Driver list -->
+      <ul style="list-style: none; padding: 0">
+        <li
+          *ngFor="let driver of filteredDrivers"
+          (click)="zoomToDriver(driver)"
+          style="cursor: pointer; padding: 8px; border-bottom: 1px solid #ddd"
+        >
+          <strong>{{ driver.name }}</strong
+          ><br />
+          <small>Status: {{ getDriverStatus(driver) }}</small
+          ><br />
+          <small>Type: {{ driver.assignedVehicle?.type || 'N/A' }}</small>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <!--  Google Map -->
+  <div style="flex-grow: 1; position: relative">
+    <google-map
+      [height]="'100%'"
+      [width]="'100%'"
+      [zoom]="zoom"
+      [center]="center"
+      (zoomChanged)="onZoomChanged()"
+    >
+      <!-- 🚩 Markers -->
+      <map-marker
+        *ngFor="let marker of markers"
+        #markerRef="mapMarker"
+        [position]="marker.position"
+        [title]="marker.title"
+        [icon]="marker.icon"
+        (mapClick)="openInfoWindow(marker, markerRef)"
+      ></map-marker>
+
+      <!-- ℹ️ Info window -->
+      <map-info-window #infoWindow>
+        <div *ngIf="selectedDriver">
+          <h4>{{ selectedDriver.name }}</h4>
+          <p><strong>Phone:</strong> {{ selectedDriver.phone }}</p>
+          <p><strong>License:</strong> {{ selectedDriver.licenseNumber }}</p>
+          <!-- <p><strong>Rating:</strong> {{ selectedDriver.rating ?? 'N/A' }}</p> -->
+          <p><strong>Type:</strong> {{ selectedDriver.assignedVehicle?.type ?? 'N/A' }}</p>
+          <a
+            *ngIf="selectedDriver.latitude && selectedDriver.longitude"
+            [href]="
+              'https://www.google.com/maps?q=' +
+              selectedDriver.latitude +
+              ',' +
+              selectedDriver.longitude
+            "
+            target="_blank"
+          >
+            View on Google Maps
+          </a>
+        </div>
+      </map-info-window>
+    </google-map>
+  </div>
+</div>

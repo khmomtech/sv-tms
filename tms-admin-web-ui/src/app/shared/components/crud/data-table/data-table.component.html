@@ -1,0 +1,119 @@
+<div class="data-table-container">
+  <!-- Loading Overlay -->
+  <div *ngIf="config.loading" class="loading-overlay" aria-live="polite" aria-busy="true">
+    <mat-spinner [diameter]="48"></mat-spinner>
+    <p class="text-sm text-gray-600 mt-4">Loading data...</p>
+  </div>
+
+  <!-- Table -->
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-gray-200" [class.sticky-header]="config.stickyHeader">
+      <!-- Table Header -->
+      <thead class="bg-gray-50">
+        <tr>
+          <!-- Selection Column -->
+          <th
+            *ngIf="config.selectable"
+            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16"
+            scope="col"
+          >
+            <mat-checkbox
+              [checked]="isAllSelected"
+              [indeterminate]="isIndeterminate"
+              (change)="toggleAllRows()"
+              [attr.aria-label]="'Select all rows'"
+            >
+            </mat-checkbox>
+          </th>
+
+          <!-- Data Columns -->
+          <th
+            *ngFor="let column of config.columns; trackBy: trackByIndex"
+            class="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider"
+            [ngClass]="getAlignClass(column)"
+            [style.width]="column.width"
+            scope="col"
+          >
+            <div
+              class="flex items-center"
+              [class.cursor-pointer]="column.sortable"
+              [class.justify-center]="column.align === 'center'"
+              [class.justify-end]="column.align === 'right'"
+              (click)="onSort(column)"
+              [attr.role]="column.sortable ? 'button' : null"
+              [attr.tabindex]="column.sortable ? 0 : null"
+              (keydown.enter)="onSort(column)"
+              (keydown.space)="onSort(column)"
+            >
+              <span>{{ column.label }}</span>
+              <mat-icon *ngIf="column.sortable" class="ml-1 text-sm" [attr.aria-hidden]="true">
+                {{ getSortIcon(column) }}
+              </mat-icon>
+            </div>
+          </th>
+        </tr>
+      </thead>
+
+      <!-- Table Body -->
+      <tbody class="bg-white divide-y divide-gray-200">
+        <!-- Data Rows -->
+        <tr
+          *ngFor="let row of config.data; trackBy: trackByKey"
+          [class.hover:bg-gray-50]="config.rowClickable"
+          [class.cursor-pointer]="config.rowClickable"
+          [class.bg-blue-50]="isRowSelected(row)"
+          (click)="onRowClick(row)"
+          [attr.role]="config.rowClickable ? 'button' : null"
+          [attr.tabindex]="config.rowClickable ? 0 : null"
+          (keydown.enter)="onRowClick(row)"
+          (keydown.space)="onRowClick(row)"
+        >
+          <!-- Selection Cell -->
+          <td *ngIf="config.selectable" class="px-6 py-4 whitespace-nowrap w-16">
+            <mat-checkbox
+              [checked]="isRowSelected(row)"
+              (change)="toggleRow(row)"
+              (click)="$event.stopPropagation()"
+              [attr.aria-label]="'Select row'"
+            >
+            </mat-checkbox>
+          </td>
+
+          <!-- Data Cells -->
+          <td
+            *ngFor="let column of config.columns; trackBy: trackByIndex"
+            class="px-6 py-4 whitespace-nowrap text-sm"
+            [ngClass]="getAlignClass(column)"
+          >
+            <!-- Custom Template -->
+            <ng-container *ngIf="column.template">
+              <ng-container
+                *ngTemplateOutlet="column.template; context: { $implicit: row, column: column }"
+              >
+              </ng-container>
+            </ng-container>
+
+            <!-- Default Cell -->
+            <span *ngIf="!column.template" class="text-gray-900">
+              {{ getCellValue(column, row) }}
+            </span>
+          </td>
+        </tr>
+
+        <!-- Empty State -->
+        <tr *ngIf="!config.loading && config.data.length === 0">
+          <td
+            [attr.colspan]="config.columns.length + (config.selectable ? 1 : 0)"
+            class="px-6 py-12 text-center"
+          >
+            <div class="flex flex-col items-center justify-center text-gray-400">
+              <mat-icon class="text-6xl mb-2" [attr.aria-hidden]="true">inbox</mat-icon>
+              <p class="text-lg font-medium">No data found</p>
+              <p class="text-sm mt-1">Try adjusting your filters or search criteria</p>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

@@ -1,0 +1,100 @@
+<div class="p-6 bg-white rounded-lg shadow">
+  <div class="flex items-center justify-between mb-4">
+    <div>
+      <h2 class="text-2xl font-bold text-gray-800">Shipment Details</h2>
+      <p class="text-sm text-gray-500">View shipment information and status.</p>
+    </div>
+    <button
+      class="px-3 py-2 text-sm text-white bg-blue-600 rounded hover:bg-blue-700"
+      (click)="backToList()"
+    >
+      Back to List
+    </button>
+  </div>
+
+  <div *ngIf="loading" class="text-gray-500">Loading shipment...</div>
+  <div *ngIf="error" class="text-red-600">{{ error }}</div>
+
+  <div *ngIf="!loading && shipment" class="space-y-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <div class="text-sm text-gray-500">Tracking Number</div>
+        <div class="text-lg font-semibold text-gray-800">{{ shipment.trackingNumber }}</div>
+      </div>
+      <div>
+        <div class="text-sm text-gray-500">Status</div>
+        <div class="text-lg font-semibold text-gray-800">{{ shipment.shipmentStatus }}</div>
+      </div>
+      <div>
+        <div class="text-sm text-gray-500">Assigned Vehicle</div>
+        <div class="text-lg font-semibold text-gray-800">
+          {{ shipment.assignedVehicle || 'N/A' }}
+        </div>
+      </div>
+      <div>
+        <div class="text-sm text-gray-500">Assigned Driver</div>
+        <div class="text-lg font-semibold text-gray-800">
+          {{ shipment.assignedDriver || 'N/A' }}
+        </div>
+      </div>
+      <div>
+        <div class="text-sm text-gray-500">ETA</div>
+        <div class="text-lg font-semibold text-gray-800">
+          {{ shipment.estimatedDeliveryDate || 'N/A' }}
+        </div>
+      </div>
+      <div>
+        <div class="text-sm text-gray-500">Delivered At</div>
+        <div class="text-lg font-semibold text-gray-800">
+          {{ shipment.actualDeliveryDate || 'N/A' }}
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <h3 class="text-lg font-semibold text-gray-800 mb-2">Loading Address</h3>
+      <div class="p-4 border rounded bg-gray-50" *ngIf="shipment.loadingAddresses?.length">
+        <div class="text-sm text-gray-600">{{ shipment.loadingAddresses[0]?.location }}</div>
+        <div class="text-sm text-gray-500">
+          Contact: {{ shipment.loadingAddresses[0]?.contactPerson }} —
+          {{ shipment.loadingAddresses[0]?.contactPhone }}
+        </div>
+        <div class="text-sm text-gray-500">
+          Scheduled: {{ shipment.loadingAddresses[0]?.scheduledTime || 'N/A' }}
+        </div>
+      </div>
+      <div *ngIf="!shipment.loadingAddresses?.length" class="text-sm text-gray-500">
+        No loading address.
+      </div>
+    </div>
+
+    <div>
+      <h3 class="text-lg font-semibold text-gray-800 mb-2">Drop Address</h3>
+      <div class="p-4 border rounded bg-gray-50" *ngIf="shipment.dropAddresses?.length">
+        <div class="text-sm text-gray-600">{{ shipment.dropAddresses[0]?.location }}</div>
+        <div class="text-sm text-gray-500">
+          Contact: {{ shipment.dropAddresses[0]?.contactPerson }} —
+          {{ shipment.dropAddresses[0]?.contactPhone }}
+        </div>
+        <div class="text-sm text-gray-500">
+          Scheduled: {{ shipment.dropAddresses[0]?.scheduledTime || 'N/A' }}
+        </div>
+      </div>
+      <div *ngIf="!shipment.dropAddresses?.length" class="text-sm text-gray-500">
+        No drop address.
+      </div>
+    </div>
+
+    <div *ngIf="shipment.proofOfDelivery">
+      <h3 class="text-lg font-semibold text-gray-800 mb-2">Proof of Delivery</h3>
+      <a
+        class="text-blue-600 hover:underline"
+        [href]="shipment.proofOfDelivery"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        View POD
+      </a>
+    </div>
+  </div>
+</div>

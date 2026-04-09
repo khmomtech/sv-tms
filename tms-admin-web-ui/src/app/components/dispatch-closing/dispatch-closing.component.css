@@ -1,0 +1,32 @@
+.page {
+  padding: 16px;
+}
+
+.controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.controls input {
+  padding: 6px 8px;
+  border: 1px solid #d0d5dd;
+  border-radius: 6px;
+}
+
+.controls button {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid #d0d5dd;
+  background: #fff;
+}
+
+.controls button.danger {
+  color: #b42318;
+}
+
+.status {
+  margin-top: 16px;
+  font-weight: 600;
+}

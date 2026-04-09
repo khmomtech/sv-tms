@@ -1,0 +1,28 @@
+<h2 mat-dialog-title>{{ data.title || 'Input' }}</h2>
+
+<mat-dialog-content>
+  <p *ngIf="data.message" class="whitespace-pre-line">{{ data.message }}</p>
+
+  <mat-form-field style="width: 100%">
+    <textarea
+      *ngIf="data.multiline"
+      matInput
+      rows="4"
+      [(ngModel)]="value"
+      [placeholder]="data.placeholder || ''"
+    ></textarea>
+    <input
+      *ngIf="!data.multiline"
+      matInput
+      [(ngModel)]="value"
+      [placeholder]="data.placeholder || ''"
+    />
+  </mat-form-field>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-stroked-button (click)="onCancel()">{{ data.cancelText || 'Cancel' }}</button>
+  <button mat-flat-button color="primary" (click)="onConfirm()">
+    {{ data.confirmText || 'OK' }}
+  </button>
+</mat-dialog-actions>

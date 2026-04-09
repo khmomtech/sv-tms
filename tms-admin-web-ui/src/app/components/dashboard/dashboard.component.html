@@ -1,0 +1,138 @@
+<div class="flex-wrap p-6 mx-auto">
+  <!-- KPI Summary Cards -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 flex items-center gap-4">
+      <div class="w-12 h-12 rounded-full flex items-center justify-center bg-blue-50">
+        <span class="material-icons text-lg" style="color: var(--sv-primary)">local_shipping</span>
+      </div>
+      <div>
+        <div class="text-2xl font-bold" style="color: var(--sv-text)">
+          {{ loadingSummaryTotals.totalTrip }}
+        </div>
+        <div class="text-xs font-medium text-gray-500">Total Trips</div>
+      </div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 flex items-center gap-4">
+      <div class="w-12 h-12 rounded-full flex items-center justify-center bg-green-50">
+        <span class="material-icons text-lg text-green-600">check_circle</span>
+      </div>
+      <div>
+        <div class="text-2xl font-bold text-green-700">
+          {{ loadingSummaryTotals.completedLoading }}
+        </div>
+        <div class="text-xs font-medium text-gray-500">Completed</div>
+      </div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 flex items-center gap-4">
+      <div class="w-12 h-12 rounded-full flex items-center justify-center bg-orange-50">
+        <span class="material-icons text-lg text-orange-500">hourglass_empty</span>
+      </div>
+      <div>
+        <div class="text-2xl font-bold text-orange-600">{{ loadingSummaryTotals.pending }}</div>
+        <div class="text-xs font-medium text-gray-500">Pending</div>
+      </div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 flex items-center gap-4">
+      <div class="w-12 h-12 rounded-full flex items-center justify-center bg-red-50">
+        <span class="material-icons text-lg" style="color: var(--sv-red)">bar_chart</span>
+      </div>
+      <div>
+        <div class="text-2xl font-bold" style="color: var(--sv-primary)">
+          {{ loadingSummaryTotals.achievedPercentage | number: '1.0-1' }}%
+        </div>
+        <div class="text-xs font-medium text-gray-500">Achievement</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container p-6 mx-auto bg-white rounded-lg">
+    <!-- 🔍 Filter Section -->
+    <div class="flex flex-wrap gap-4 mb-4 filter-bar">
+      <input
+        type="date"
+        [(ngModel)]="filters.fromDate"
+        class="px-4 py-2 border border-gray-300 rounded form-input"
+        placeholder="From Date"
+      />
+      <input
+        type="date"
+        [(ngModel)]="filters.toDate"
+        class="px-4 py-2 border border-gray-300 rounded form-input"
+        placeholder="To Date"
+      />
+      <input
+        type="text"
+        [(ngModel)]="filters.truckType"
+        class="px-4 py-2 border border-gray-300 rounded form-input"
+        placeholder="Truck Type"
+      />
+      <input
+        type="text"
+        [(ngModel)]="filters.customerName"
+        class="px-4 py-2 border border-gray-300 rounded form-input"
+        placeholder="Customer Name"
+      />
+      <button
+        (click)="applyDateFilter()"
+        class="px-4 py-2 text-white bg-blue-600 rounded hover:bg-blue-700"
+      >
+        Apply Filter
+      </button>
+    </div>
+
+    <!-- 🟡 Loading Summary Table -->
+    <div class="mt-8 overflow-x-auto border border-gray-200 rounded-lg shadow">
+      <table class="min-w-full text-sm text-left text-gray-700 bg-white">
+        <thead class="text-white uppercase bg-blue-600 border-b">
+          <tr>
+            <th class="px-4 py-2">No</th>
+            <th class="px-4 py-2">Customer</th>
+            <th class="px-4 py-2">To Destination</th>
+            <th class="px-4 py-2 text-center">Total Trip</th>
+            <th class="px-4 py-2 text-center">Completed</th>
+            <!-- <th class="px-4 py-2 text-center">Loading</th> -->
+            <th class="px-4 py-2 text-center">Pending</th>
+            <th class="px-4 py-2 text-center">Truck Arrived Loading Area</th>
+            <th class="px-4 py-2 text-center">Truck Not Yet Arrive Loading Area</th>
+            <th class="px-4 py-2 text-center">Achieved Loading (%)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let row of summaryStats; let i = index" class="border-b hover:bg-gray-50">
+            <td class="px-4 py-2 font-medium text-center text-gray-900">{{ i + 1 }}</td>
+            <td class="px-4 py-2 font-medium text-gray-900">{{ row.customer }}</td>
+            <td class="px-4 py-2">{{ row.toDestination }}</td>
+            <td class="px-4 py-2 text-center">{{ row.totalTrip }}</td>
+            <td class="px-4 py-2 text-center text-green-600">{{ row.completedLoading }}</td>
+            <!-- <td class="px-4 py-2 text-center">{{ row.loading }}</td> -->
+            <td class="px-4 py-2 text-center">{{ row.pending }}</td>
+            <td class="px-4 py-2 text-center">{{ row.truckArrived }}</td>
+            <td class="px-4 py-2 text-center">{{ row.truckNotArrived }}</td>
+            <td class="px-4 py-2 font-semibold text-center">
+              {{ row.achievedPercentage | number: '1.0-2' }}%
+            </td>
+          </tr>
+          <!-- 🔸 Totals Row -->
+          <tr
+            *ngIf="summaryStats.length > 0 && loadingSummaryTotals"
+            class="font-semibold border-t bg-yellow-50"
+          >
+            <td class="px-4 py-2 text-center"></td>
+            <td class="px-4 py-2 text-center" colspan="2">Total</td>
+            <td class="px-4 py-2 text-center">{{ loadingSummaryTotals.totalTrip }}</td>
+            <td class="px-4 py-2 text-center text-green-700">
+              {{ loadingSummaryTotals.completedLoading }}
+            </td>
+            <!-- <td class="px-4 py-2 text-center">{{ loadingSummaryTotals.loading }}</td> -->
+            <td class="px-4 py-2 text-center">{{ loadingSummaryTotals.pending }}</td>
+            <td class="px-4 py-2 text-center">{{ loadingSummaryTotals.truckArrived }}</td>
+            <td class="px-4 py-2 text-center">{{ loadingSummaryTotals.truckNotArrived }}</td>
+            <td class="px-4 py-2 text-center">
+              {{ loadingSummaryTotals.achievedPercentage | number: '1.0-2' }}%
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

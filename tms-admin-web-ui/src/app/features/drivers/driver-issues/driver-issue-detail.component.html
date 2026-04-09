@@ -1,0 +1,323 @@
+<div class="min-h-screen bg-gray-50 p-6">
+  <!-- Loading State -->
+  <div *ngIf="isLoading" class="flex justify-center py-12">
+    <div
+      class="h-12 w-12 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"
+    ></div>
+  </div>
+
+  <!-- Content -->
+  <div *ngIf="!isLoading && issue" class="mx-auto max-w-5xl">
+    <!-- Header with Back Button -->
+    <div class="mb-6 flex items-center justify-between">
+      <button
+        (click)="goBack()"
+        class="flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-gray-700 transition hover:bg-gray-50"
+      >
+        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M10 19l-7-7m0 0l7-7m-7 7h18"
+          />
+        </svg>
+        Back to List
+      </button>
+
+      <div class="flex gap-2">
+        <button
+          *ngIf="canUpdateStatus()"
+          (click)="openStatusModal()"
+          class="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white transition hover:bg-blue-700"
+        >
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+            />
+          </svg>
+          Update Status
+        </button>
+
+        <button
+          (click)="deleteIssue()"
+          class="flex items-center gap-2 rounded-lg border border-red-300 px-4 py-2 text-red-600 transition hover:bg-red-50"
+        >
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+            />
+          </svg>
+          Delete
+        </button>
+      </div>
+    </div>
+
+    <!-- Issue Title & Status -->
+    <div class="mb-6 rounded-lg bg-white p-6 shadow-md">
+      <div class="mb-4 flex items-start justify-between">
+        <div>
+          <h1 class="text-3xl font-bold text-gray-900">{{ formatIssueType(issue.title) }}</h1>
+          <p class="mt-2 text-sm text-gray-500">Issue #{{ issue.id }}</p>
+        </div>
+        <div class="flex flex-col gap-2">
+          <span
+            [class]="
+              getStatusColor(issue.status || 'OPEN') +
+              ' inline-flex rounded-full px-3 py-1 text-sm font-semibold'
+            "
+          >
+            {{ getStatusBadgeText(issue.status || 'OPEN') }}
+          </span>
+          <span
+            [class]="
+              getSeverityColor(issue.severity) +
+              ' inline-flex rounded-full px-3 py-1 text-sm font-semibold'
+            "
+          >
+            {{ getSeverityBadgeText(issue.severity) }}
+          </span>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4 border-t pt-4 md:grid-cols-4">
+        <div>
+          <p class="text-sm font-medium text-gray-500">Driver</p>
+          <p class="mt-1 text-base font-semibold text-gray-900">
+            {{ issue.driverName || 'Driver #' + issue.driverId }}
+          </p>
+        </div>
+        <div>
+          <p class="text-sm font-medium text-gray-500">Vehicle</p>
+          <p class="mt-1 text-base font-semibold text-gray-900">
+            {{ issue.vehiclePlate || 'Vehicle #' + issue.vehicleId }}
+          </p>
+        </div>
+        <div>
+          <p class="text-sm font-medium text-gray-500">Reported At</p>
+          <p class="mt-1 text-base text-gray-900">
+            {{ formatDate(issue.reportedAt || issue.createdAt) }}
+          </p>
+        </div>
+        <div *ngIf="issue.resolvedAt">
+          <p class="text-sm font-medium text-gray-500">Resolved At</p>
+          <p class="mt-1 text-base text-gray-900">{{ formatDate(issue.resolvedAt) }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Description -->
+    <div class="mb-6 rounded-lg bg-white p-6 shadow-md">
+      <h2 class="mb-3 text-lg font-semibold text-gray-900">Description</h2>
+      <p class="whitespace-pre-wrap text-gray-700">{{ issue.description }}</p>
+    </div>
+
+    <!-- Additional Details -->
+    <div class="mb-6 grid gap-6 md:grid-cols-2">
+      <!-- Location & KM -->
+      <div class="rounded-lg bg-white p-6 shadow-md">
+        <h2 class="mb-3 text-lg font-semibold text-gray-900">Location & Mileage</h2>
+        <div class="space-y-2">
+          <div>
+            <p class="text-sm font-medium text-gray-500">Location</p>
+            <p class="mt-1 text-gray-900">{{ issue.location || 'Not specified' }}</p>
+          </div>
+          <div *ngIf="issue.currentKm">
+            <p class="text-sm font-medium text-gray-500">Current Odometer</p>
+            <p class="mt-1 text-gray-900">{{ issue.currentKm | number }} km</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Assignment -->
+      <div class="rounded-lg bg-white p-6 shadow-md">
+        <h2 class="mb-3 text-lg font-semibold text-gray-900">Assignment</h2>
+        <div class="space-y-2">
+          <div>
+            <p class="text-sm font-medium text-gray-500">Assigned To</p>
+            <p class="mt-1 text-gray-900">
+              {{
+                issue.assignedToName ||
+                  (issue.assignedToId ? 'Staff #' + issue.assignedToId : 'Unassigned')
+              }}
+            </p>
+          </div>
+          <div *ngIf="issue.workOrderId">
+            <p class="text-sm font-medium text-gray-500">Work Order</p>
+            <p class="mt-1 text-gray-900">#{{ issue.workOrderId }}</p>
+          </div>
+          <div *ngIf="issue.dispatchId">
+            <p class="text-sm font-medium text-gray-500">Related Dispatch</p>
+            <p class="mt-1 text-gray-900">#{{ issue.dispatchId }}</p>
+          </div>
+          <div *ngIf="issue.orderReference">
+            <p class="text-sm font-medium text-gray-500">Order Reference</p>
+            <p class="mt-1 text-gray-900">{{ issue.orderReference }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Resolution Notes -->
+    <div *ngIf="issue.resolutionNotes" class="mb-6 rounded-lg bg-green-50 p-6 shadow-md">
+      <h2 class="mb-3 flex items-center gap-2 text-lg font-semibold text-green-900">
+        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
+        Resolution Notes
+      </h2>
+      <p class="whitespace-pre-wrap text-gray-700">{{ issue.resolutionNotes }}</p>
+    </div>
+
+    <!-- Images Gallery -->
+    <div *ngIf="hasImages()" class="mb-6 rounded-lg bg-white p-6 shadow-md">
+      <h2 class="mb-4 text-lg font-semibold text-gray-900">
+        Attached Images ({{ getImages().length }})
+      </h2>
+      <div class="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+        <div
+          *ngFor="let image of getImages(); let i = index"
+          (click)="openImageModal(i)"
+          class="group relative cursor-pointer overflow-hidden rounded-lg border-2 border-gray-200 transition hover:border-blue-500"
+        >
+          <img
+            [src]="image"
+            [alt]="'Issue image ' + (i + 1)"
+            class="h-48 w-full object-cover transition group-hover:scale-110"
+          />
+          <div
+            class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-0 transition group-hover:bg-opacity-30"
+          >
+            <svg
+              class="h-8 w-8 text-white opacity-0 transition group-hover:opacity-100"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"
+              />
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status Update Modal -->
+  <div
+    *ngIf="showStatusModal"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+  >
+    <div class="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+      <h2 class="mb-4 text-xl font-bold text-gray-900">Update Issue Status</h2>
+      <p class="mb-4 text-sm text-gray-600">
+        Current status: <strong>{{ issue?.status || 'OPEN' }}</strong>
+      </p>
+
+      <div class="mb-6">
+        <label class="mb-2 block text-sm font-medium text-gray-700">New Status</label>
+        <select
+          [(ngModel)]="newStatus"
+          class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+        >
+          <option [value]="issue?.status || 'OPEN'">{{ issue?.status || 'OPEN' }}</option>
+          <option *ngFor="let status of availableStatuses" [value]="status">
+            {{ status }}
+          </option>
+        </select>
+        <p class="mt-2 text-xs text-gray-500">Only valid status transitions are available</p>
+      </div>
+
+      <div class="flex justify-end gap-2">
+        <button
+          (click)="closeStatusModal()"
+          [disabled]="isUpdating"
+          class="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
+        >
+          Cancel
+        </button>
+        <button
+          (click)="updateStatus()"
+          [disabled]="isUpdating || newStatus === (issue?.status || 'OPEN')"
+          class="rounded-lg bg-blue-600 px-4 py-2 text-white transition hover:bg-blue-700 disabled:opacity-50"
+        >
+          {{ isUpdating ? 'Updating...' : 'Update Status' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Image Preview Modal -->
+  <div
+    *ngIf="showImageModal"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-90"
+    (click)="closeImageModal()"
+  >
+    <div class="relative max-h-screen max-w-5xl" (click)="$event.stopPropagation()">
+      <img [src]="getCurrentImage()" alt="Issue image" class="max-h-screen max-w-full rounded-lg" />
+
+      <!-- Close Button -->
+      <button
+        (click)="closeImageModal()"
+        class="absolute right-4 top-4 rounded-full bg-white p-2 text-gray-900 shadow-lg transition hover:bg-gray-100"
+      >
+        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M6 18L18 6M6 6l12 12"
+          />
+        </svg>
+      </button>
+
+      <!-- Navigation Arrows -->
+      <button
+        *ngIf="getImages().length > 1"
+        (click)="previousImage()"
+        class="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-white p-3 text-gray-900 shadow-lg transition hover:bg-gray-100"
+      >
+        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M15 19l-7-7 7-7"
+          />
+        </svg>
+      </button>
+
+      <button
+        *ngIf="getImages().length > 1"
+        (click)="nextImage()"
+        class="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-white p-3 text-gray-900 shadow-lg transition hover:bg-gray-100"
+      >
+        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+        </svg>
+      </button>
+
+      <!-- Image Counter -->
+      <div
+        class="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-black bg-opacity-50 px-4 py-2 text-white"
+      >
+        {{ currentImageIndex + 1 }} / {{ getImages().length }}
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,133 @@
+<div class="p-6 bg-white rounded-lg shadow">
+  <div class="flex items-center justify-between mb-4">
+    <div>
+      <h2 class="text-xl font-semibold text-gray-700">In-App Notifications</h2>
+      <p class="text-sm text-gray-500">
+        Unread total: <span class="font-semibold text-gray-700">{{ totalUnread }}</span>
+      </p>
+    </div>
+    <div class="flex items-center gap-2">
+      <button
+        (click)="markAllAsRead()"
+        class="px-3 py-2 text-sm text-white bg-green-600 rounded hover:bg-green-700"
+      >
+        Mark All Read
+      </button>
+      <button
+        (click)="refresh()"
+        class="px-3 py-2 text-sm text-white bg-blue-600 rounded hover:bg-blue-700"
+      >
+        Refresh
+      </button>
+    </div>
+  </div>
+
+  <div class="flex flex-wrap items-center gap-3 mb-4">
+    <label for="search" class="text-sm text-gray-600">Search:</label>
+    <input
+      id="search"
+      type="text"
+      [(ngModel)]="searchKeyword"
+      placeholder="Search title or message..."
+      class="w-64 px-3 py-2 border rounded-md focus:ring focus:ring-blue-200"
+    />
+
+    <label class="flex items-center gap-2 text-sm text-gray-600">
+      <input type="checkbox" [(ngModel)]="showUnreadOnly" />
+      Unread only
+    </label>
+
+    <label class="text-sm text-gray-600">From:</label>
+    <input type="date" [(ngModel)]="fromDate" class="px-2 py-1 border rounded" />
+
+    <label class="text-sm text-gray-600">To:</label>
+    <input type="date" [(ngModel)]="toDate" class="px-2 py-1 border rounded" />
+
+    <button
+      (click)="applyFilters()"
+      class="px-3 py-2 text-sm text-white bg-blue-600 rounded hover:bg-blue-700"
+    >
+      Apply
+    </button>
+    <button
+      (click)="clearFilters()"
+      class="px-3 py-2 text-sm text-gray-700 bg-gray-100 border rounded hover:bg-gray-200"
+    >
+      Clear
+    </button>
+  </div>
+
+  <div *ngIf="filteredNotifications.length === 0" class="text-gray-500">
+    No notifications found.
+  </div>
+
+  <div *ngIf="filteredNotifications.length > 0" class="overflow-x-auto">
+    <table class="min-w-full border rounded-md">
+      <thead class="text-sm text-left text-white bg-blue-600">
+        <tr>
+          <th class="px-4 py-2">Title</th>
+          <th class="px-4 py-2">Message</th>
+          <th class="px-4 py-2">Entity</th>
+          <th class="px-4 py-2">Time</th>
+          <th class="px-4 py-2">Status</th>
+          <th class="px-4 py-2">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr
+          *ngFor="let notification of filteredNotifications"
+          class="text-sm border-b hover:bg-gray-50"
+        >
+          <td class="px-4 py-2 font-medium text-gray-800">{{ notification.title }}</td>
+          <td class="px-4 py-2">{{ notification.body }}</td>
+          <td class="px-4 py-2">
+            <span class="text-sm text-gray-700">
+              {{ resolveEntityLabel(notification) }}
+            </span>
+          </td>
+          <td class="px-4 py-2">{{ notification.createdAt | date: 'short' }}</td>
+          <td class="px-4 py-2">
+            <span [ngClass]="notification.isRead ? 'text-green-600' : 'text-yellow-600'">
+              {{ notification.isRead ? 'Read' : 'Unread' }}
+            </span>
+            <button
+              *ngIf="!notification.isRead"
+              (click)="markAsRead(notification.id)"
+              class="ml-2 text-xs text-blue-500 hover:underline"
+            >
+              Mark Read
+            </button>
+          </td>
+          <td class="px-4 py-2">
+            <a
+              *ngIf="resolveEntityRoute(notification) as route"
+              [routerLink]="route"
+              class="px-2 py-1 text-xs text-white bg-blue-600 rounded hover:bg-blue-700"
+            >
+              Open
+            </a>
+            <span *ngIf="!resolveEntityRoute(notification)" class="text-xs text-gray-400">-</span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="flex items-center justify-end gap-2 mt-4">
+    <button
+      (click)="changePage(-1)"
+      [disabled]="page <= 0"
+      class="px-3 py-1 text-sm text-white bg-gray-500 rounded hover:bg-gray-600 disabled:opacity-50"
+    >
+      Prev
+    </button>
+    <span class="text-sm text-gray-700">Page {{ page + 1 }} of {{ totalPages }}</span>
+    <button
+      (click)="changePage(1)"
+      [disabled]="page + 1 >= totalPages"
+      class="px-3 py-1 text-sm text-white bg-gray-500 rounded hover:bg-gray-600 disabled:opacity-50"
+    >
+      Next
+    </button>
+  </div>
+</div>

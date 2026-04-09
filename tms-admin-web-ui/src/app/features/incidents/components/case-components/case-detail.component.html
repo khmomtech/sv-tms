@@ -1,0 +1,813 @@
+<!-- Salesforce Lightning Design System (SLDS) Case Detail Component -->
+<div class="slds-scope">
+  <!-- Loading State -->
+  <div *ngIf="loading()" class="slds-align_absolute-center" style="min-height: 400px">
+    <div class="slds-spinner_container">
+      <div role="status" class="slds-spinner slds-spinner_medium">
+        <span class="slds-assistive-text">Loading case details...</span>
+        <div class="slds-spinner__dot-a"></div>
+        <div class="slds-spinner__dot-b"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="error()" class="slds-notify slds-notify_alert slds-alert_error" role="alert">
+    <span class="slds-assistive-text">error</span>
+    <span class="slds-icon_container slds-icon-utility-error slds-m-right_x-small">
+      <svg class="slds-icon slds-icon_x-small" aria-hidden="true">
+        <use xlink:href="/assets/icons/utility-sprite/svg/symbols.svg#error"></use>
+      </svg>
+    </span>
+    <h2>{{ error() }}</h2>
+    <button
+      class="slds-button slds-button_icon slds-notify__close"
+      title="Close"
+      (click)="error.set(null)"
+    >
+      <svg class="slds-button__icon" aria-hidden="true">
+        <use xlink:href="/assets/icons/utility-sprite/svg/symbols.svg#close"></use>
+      </svg>
+      <span class="slds-assistive-text">Close</span>
+    </button>
+  </div>
+
+  <!-- Case Details Content -->
+  <div *ngIf="!loading() && caseData()" class="slds-container_large slds-container_center">
+    <!-- Page Header -->
+    <div class="slds-page-header">
+      <div class="slds-page-header__row">
+        <div class="slds-page-header__col-title">
+          <div class="slds-media">
+            <div class="slds-media__figure">
+              <span class="slds-icon_container slds-icon-standard-case">
+                <svg class="slds-icon slds-page-header__icon" aria-hidden="true">
+                  <use xlink:href="/assets/icons/standard-sprite/svg/symbols.svg#case"></use>
+                </svg>
+              </span>
+            </div>
+            <div class="slds-media__body">
+              <div class="slds-page-header__name">
+                <div class="slds-page-header__name-title">
+                  <h1>
+                    <span class="slds-page-header__title slds-truncate" [title]="caseData()!.title">
+                      {{ caseData()!.title }}
+                    </span>
+                  </h1>
+                </div>
+              </div>
+              <p class="slds-page-header__name-meta">
+                Case {{ caseData()!.code || '#' + caseData()!.id }}
+              </p>
+            </div>
+          </div>
+        </div>
+        <div class="slds-page-header__col-actions">
+          <div class="slds-page-header__controls">
+            <div class="slds-page-header__control">
+              <div class="slds-button-group" role="group">
+                <button
+                  class="slds-button slds-button_neutral"
+                  (click)="router.navigate(['/cases'])"
+                >
+                  Back to Cases
+                </button>
+                <button
+                  *ngIf="!editMode()"
+                  class="slds-button slds-button_brand"
+                  (click)="toggleEdit()"
+                >
+                  Edit
+                </button>
+                <button
+                  *ngIf="editMode()"
+                  class="slds-button slds-button_brand"
+                  (click)="saveChanges()"
+                  [disabled]="processing()"
+                >
+                  {{ processing() ? 'Saving...' : 'Save' }}
+                </button>
+                <button
+                  *ngIf="editMode()"
+                  class="slds-button slds-button_neutral"
+                  (click)="cancelEdit()"
+                  [disabled]="processing()"
+                >
+                  Cancel
+                </button>
+                <button
+                  class="slds-button slds-button_destructive"
+                  (click)="showDeleteModal = true"
+                >
+                  Delete Case
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="slds-page-header__row">
+        <div class="slds-page-header__col-details">
+          <ul class="slds-page-header__detail-row">
+            <li class="slds-page-header__detail-block">
+              <div class="slds-text-title slds-truncate" title="Status">Status</div>
+              <div class="slds-truncate">
+                <span class="slds-badge" [ngClass]="getStatusBadgeClass(caseData()!.status)">
+                  {{ formatStatus(caseData()!.status) }}
+                </span>
+              </div>
+            </li>
+            <li class="slds-page-header__detail-block">
+              <div class="slds-text-title slds-truncate" title="Category">Category</div>
+              <div class="slds-truncate">{{ formatCategory(caseData()!.category) }}</div>
+            </li>
+            <li class="slds-page-header__detail-block">
+              <div class="slds-text-title slds-truncate" title="Severity">Severity</div>
+              <div class="slds-truncate">
+                <span class="slds-badge" [ngClass]="getSeverityBadgeClass(caseData()!.severity)">
+                  {{ formatSeverity(caseData()!.severity) }}
+                </span>
+              </div>
+            </li>
+            <li class="slds-page-header__detail-block">
+              <div class="slds-text-title slds-truncate" title="Assigned To">Assigned To</div>
+              <div class="slds-truncate">{{ caseData()!.assignedToUsername || 'Unassigned' }}</div>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Grid Layout -->
+    <div class="slds-grid slds-wrap slds-grid_pull-padded">
+      <!-- Main Content Area (8 of 12 columns) -->
+      <div class="slds-col slds-size_1-of-1 slds-medium-size_8-of-12 slds-p-horizontal_small">
+        <!-- Edit Mode Form -->
+        <div *ngIf="editMode()" class="slds-card slds-m-bottom_medium">
+          <div class="slds-card__header slds-grid">
+            <header class="slds-media slds-media_center slds-has-flexi-truncate">
+              <div class="slds-media__body">
+                <h2 class="slds-card__header-title">
+                  <span>Edit Case</span>
+                </h2>
+              </div>
+            </header>
+          </div>
+          <div class="slds-card__body slds-card__body_inner">
+            <div class="slds-form" role="list">
+              <div class="slds-form__row">
+                <div class="slds-form__item" role="listitem">
+                  <div class="slds-form-element">
+                    <label class="slds-form-element__label" for="case-title">Title</label>
+                    <div class="slds-form-element__control">
+                      <input
+                        type="text"
+                        id="case-title"
+                        class="slds-input"
+                        [(ngModel)]="editedCase.title"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="slds-form__row">
+                <div class="slds-form__item" role="listitem">
+                  <div class="slds-form-element">
+                    <label class="slds-form-element__label" for="case-status">Status</label>
+                    <div class="slds-form-element__control">
+                      <div class="slds-select_container">
+                        <select
+                          id="case-status"
+                          class="slds-select"
+                          [(ngModel)]="editedCase.status"
+                        >
+                          <option *ngFor="let s of statuses" [value]="s">
+                            {{ formatStatus(s) }}
+                          </option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="slds-form__item" role="listitem">
+                  <div class="slds-form-element">
+                    <label class="slds-form-element__label" for="case-category">Category</label>
+                    <div class="slds-form-element__control">
+                      <div class="slds-select_container">
+                        <select
+                          id="case-category"
+                          class="slds-select"
+                          [(ngModel)]="editedCase.category"
+                        >
+                          <option *ngFor="let c of categories" [value]="c">
+                            {{ formatCategory(c) }}
+                          </option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="slds-form__row">
+                <div class="slds-form__item" role="listitem">
+                  <div class="slds-form-element">
+                    <label class="slds-form-element__label" for="case-severity">Severity</label>
+                    <div class="slds-form-element__control">
+                      <div class="slds-select_container">
+                        <select
+                          id="case-severity"
+                          class="slds-select"
+                          [(ngModel)]="editedCase.severity"
+                        >
+                          <option *ngFor="let s of severities" [value]="s">
+                            {{ formatSeverity(s) }}
+                          </option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="slds-form__row">
+                <div class="slds-form__item" role="listitem">
+                  <div class="slds-form-element">
+                    <label class="slds-form-element__label" for="case-description"
+                      >Description</label
+                    >
+                    <div class="slds-form-element__control">
+                      <textarea
+                        id="case-description"
+                        class="slds-textarea"
+                        rows="4"
+                        [(ngModel)]="editedCase.description"
+                      ></textarea>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Case Information Card -->
+        <div *ngIf="!editMode()" class="slds-card slds-m-bottom_medium">
+          <div class="slds-card__header slds-grid">
+            <header class="slds-media slds-media_center slds-has-flexi-truncate">
+              <div class="slds-media__body">
+                <h2 class="slds-card__header-title">
+                  <span>Case Information</span>
+                </h2>
+              </div>
+            </header>
+          </div>
+          <div class="slds-card__body slds-card__body_inner">
+            <ul class="slds-list_horizontal slds-wrap">
+              <li class="slds-item slds-size_1-of-2 slds-p-bottom_small">
+                <div class="slds-text-title slds-truncate">Description</div>
+                <div class="slds-text-body_regular">
+                  {{ caseData()!.description || 'No description provided' }}
+                </div>
+              </li>
+              <li class="slds-item slds-size_1-of-2 slds-p-bottom_small">
+                <div class="slds-text-title slds-truncate">Created</div>
+                <div class="slds-text-body_regular">
+                  {{ caseData()!.createdAt | date: 'medium' }}
+                </div>
+              </li>
+              <li
+                class="slds-item slds-size_1-of-2 slds-p-bottom_small"
+                *ngIf="caseData()!.updatedAt"
+              >
+                <div class="slds-text-title slds-truncate">Last Modified</div>
+                <div class="slds-text-body_regular">
+                  {{ caseData()!.updatedAt | date: 'medium' }}
+                </div>
+              </li>
+              <li
+                class="slds-item slds-size_1-of-2 slds-p-bottom_small"
+                *ngIf="caseData()!.slaTargetAt"
+              >
+                <div class="slds-text-title slds-truncate">SLA Target</div>
+                <div class="slds-text-body_regular">
+                  {{ caseData()!.slaTargetAt | date: 'medium' }}
+                </div>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Linked Incidents Card -->
+        <div class="slds-card slds-m-bottom_medium">
+          <div class="slds-card__header slds-grid">
+            <header class="slds-media slds-media_center slds-has-flexi-truncate">
+              <div class="slds-media__body">
+                <h2 class="slds-card__header-title">
+                  <span>Linked Incidents ({{ caseData()!.incidents?.length || 0 }})</span>
+                </h2>
+              </div>
+              <div class="slds-no-flex">
+                <button
+                  class="slds-button slds-button_neutral"
+                  (click)="router.navigate(['/incidents/create'])"
+                >
+                  Link / Create Incident
+                </button>
+              </div>
+            </header>
+          </div>
+          <div class="slds-card__body">
+            <div
+              *ngIf="!caseData()!.incidents || caseData()!.incidents!.length === 0"
+              class="slds-p-around_medium slds-text-align_center slds-text-color_weak"
+            >
+              <p class="slds-m-bottom_x-small">No incidents linked to this case.</p>
+              <p class="slds-text-body_small slds-m-bottom_small">
+                Link an existing incident or create a new one to continue investigation.
+              </p>
+              <button
+                class="slds-button slds-button_neutral"
+                (click)="router.navigate(['/incidents/create'])"
+              >
+                Link / Create Incident
+              </button>
+            </div>
+            <table
+              *ngIf="caseData()!.incidents && caseData()!.incidents!.length > 0"
+              class="slds-table slds-table_bordered slds-table_cell-buffer"
+            >
+              <thead>
+                <tr class="slds-line-height_reset">
+                  <th class="slds-text-title_caps" scope="col">
+                    <div class="slds-truncate" title="Code">Code</div>
+                  </th>
+                  <th class="slds-text-title_caps" scope="col">
+                    <div class="slds-truncate" title="Title">Title</div>
+                  </th>
+                  <th class="slds-text-title_caps" scope="col">
+                    <div class="slds-truncate" title="Status">Status</div>
+                  </th>
+                  <th class="slds-text-title_caps" scope="col">
+                    <div class="slds-truncate" title="Severity">Severity</div>
+                  </th>
+                  <th class="slds-text-title_caps" scope="col">
+                    <div class="slds-truncate" title="Actions">Actions</div>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let incident of caseData()!.incidents" class="slds-hint-parent">
+                  <td data-label="Code">
+                    <div class="slds-truncate">{{ incident.code || '#' + incident.id }}</div>
+                  </td>
+                  <td data-label="Title">
+                    <div class="slds-truncate" [title]="incident.title">
+                      <a [routerLink]="['/incidents', incident.id]">{{ incident.title }}</a>
+                    </div>
+                  </td>
+                  <td data-label="Status">
+                    <span
+                      class="slds-badge"
+                      [ngClass]="getIncidentStatusBadgeClass(incident.incidentStatus)"
+                    >
+                      {{ incident.incidentStatus }}
+                    </span>
+                  </td>
+                  <td data-label="Severity">
+                    <span class="slds-badge" [ngClass]="getSeverityBadgeClass(incident.severity)">
+                      {{ formatSeverity(incident.severity) }}
+                    </span>
+                  </td>
+                  <td data-label="Actions">
+                    <button
+                      class="slds-button slds-button_icon slds-button_icon-border-filled"
+                      (click)="unlinkIncident(incident.id!)"
+                      [disabled]="processing()"
+                      title="Unlink incident"
+                    >
+                      <svg class="slds-button__icon" aria-hidden="true">
+                        <use xlink:href="/assets/icons/utility-sprite/svg/symbols.svg#unlink"></use>
+                      </svg>
+                      <span class="slds-assistive-text">Unlink</span>
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Tasks Card -->
+        <div class="slds-card slds-m-bottom_medium">
+          <div class="slds-card__header slds-grid">
+            <header class="slds-media slds-media_center slds-has-flexi-truncate">
+              <div class="slds-media__body">
+                <h2 class="slds-card__header-title">
+                  <span>Tasks ({{ tasks().length }}) - {{ completedTasksCount() }} Completed</span>
+                </h2>
+              </div>
+              <div class="slds-no-flex">
+                <button class="slds-button slds-button_neutral" (click)="openTaskModal()">
+                  New Task
+                </button>
+              </div>
+            </header>
+          </div>
+          <div class="slds-card__body">
+            <div
+              *ngIf="tasks().length === 0"
+              class="slds-p-around_medium slds-text-align_center slds-text-color_weak"
+            >
+              <p class="slds-m-bottom_x-small">No tasks created for this case.</p>
+              <p class="slds-text-body_small slds-m-bottom_small">
+                Add the first task to assign ownership and track progress.
+              </p>
+              <button class="slds-button slds-button_neutral" (click)="openTaskModal()">
+                Create First Task
+              </button>
+            </div>
+            <table
+              *ngIf="tasks().length > 0"
+              class="slds-table slds-table_cell-buffer slds-table_bordered"
+            >
+              <thead>
+                <tr class="slds-line-height_reset">
+                  <th scope="col">Title</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Due</th>
+                  <th scope="col" class="slds-text-align_right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let task of tasks()">
+                  <td>
+                    <div class="slds-text-title_bold">{{ task.title || 'Untitled task' }}</div>
+                    <div class="slds-text-body_small slds-text-color_weak">
+                      {{ task.description || 'No description' }}
+                    </div>
+                  </td>
+                  <td>
+                    <span
+                      class="slds-badge slds-badge_lightest"
+                      [ngClass]="getTaskStatusBadgeClass(task.status)"
+                    >
+                      {{ formatTaskStatus(task.status) }}
+                    </span>
+                  </td>
+                  <td>
+                    <span *ngIf="task.dueAt || task.dueDate; else noDue">{{
+                      task.dueAt || task.dueDate | date: 'mediumDate'
+                    }}</span>
+                    <ng-template #noDue
+                      ><span class="slds-text-color_weak">No due date</span></ng-template
+                    >
+                  </td>
+                  <td class="slds-text-align_right">
+                    <button
+                      class="slds-button slds-button_icon slds-button_icon-border-filled slds-m-right_x-small"
+                      (click)="viewTask(task.id!)"
+                      title="View task details"
+                      aria-label="View task details"
+                    >
+                      <svg class="slds-button__icon" aria-hidden="true">
+                        <use
+                          xlink:href="/assets/icons/utility-sprite/svg/symbols.svg#preview"
+                        ></use>
+                      </svg>
+                      <span class="slds-assistive-text">View</span>
+                    </button>
+                    <button
+                      class="slds-button slds-button_icon slds-button_icon-border-filled"
+                      (click)="deleteTask(task.id!)"
+                      [disabled]="processing()"
+                      title="Delete this task"
+                      aria-label="Delete this task"
+                    >
+                      <svg class="slds-button__icon" aria-hidden="true">
+                        <use xlink:href="/assets/icons/utility-sprite/svg/symbols.svg#delete"></use>
+                      </svg>
+                      <span class="slds-assistive-text">Delete</span>
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Activity Timeline Card -->
+        <div class="slds-card">
+          <div class="slds-card__header slds-grid">
+            <header class="slds-media slds-media_center slds-has-flexi-truncate">
+              <div class="slds-media__body">
+                <h2 class="slds-card__header-title">
+                  <span>Activity Timeline</span>
+                </h2>
+              </div>
+            </header>
+          </div>
+          <div class="slds-card__body">
+            <div
+              *ngIf="!caseData()!.timeline || caseData()!.timeline!.length === 0"
+              class="slds-p-around_medium slds-text-align_center slds-text-color_weak"
+            >
+              <p class="slds-m-bottom_x-small">No activity recorded yet.</p>
+              <p class="slds-text-body_small slds-m-bottom_small">
+                Create a task or edit this case to start the timeline.
+              </p>
+              <button class="slds-button slds-button_neutral" (click)="openTaskModal()">
+                Create Task Activity
+              </button>
+            </div>
+            <ul
+              *ngIf="caseData()!.timeline && caseData()!.timeline!.length > 0"
+              class="slds-timeline"
+            >
+              <li *ngFor="let entry of caseData()!.timeline" class="slds-timeline__item">
+                <span class="slds-assistive-text">{{ entry.eventType }}</span>
+                <div class="slds-media">
+                  <div class="slds-media__figure">
+                    <div class="slds-icon_container slds-icon-standard-task slds-timeline__icon">
+                      <svg class="slds-icon slds-icon_small" aria-hidden="true">
+                        <use xlink:href="/assets/icons/standard-sprite/svg/symbols.svg#event"></use>
+                      </svg>
+                    </div>
+                  </div>
+                  <div class="slds-media__body">
+                    <div class="slds-grid slds-grid_align-spread slds-timeline__trigger">
+                      <div
+                        class="slds-grid slds-grid_vertical-align-center slds-truncate_container_75 slds-truncate_container_50-mediumcol slds-truncate_container_25-largeol"
+                      >
+                        <h3 class="slds-truncate">
+                          <strong>{{ entry.eventType }}</strong>
+                        </h3>
+                      </div>
+                      <div class="slds-timeline__actions slds-timeline__actions_inline">
+                        <p class="slds-timeline__date">{{ entry.createdAt | date: 'short' }}</p>
+                      </div>
+                    </div>
+                    <p class="slds-m-vertical_xxx-small">
+                      {{ entry.description || 'No details available' }}
+                    </p>
+                    <div class="slds-text-body_small slds-text-color_weak">
+                      By: {{ entry.performedByUsername || 'System' }}
+                    </div>
+                  </div>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sidebar (4 of 12 columns) -->
+      <div class="slds-col slds-size_1-of-1 slds-medium-size_4-of-12 slds-p-horizontal_small">
+        <!-- Details Card -->
+        <div class="slds-card slds-m-bottom_medium">
+          <div class="slds-card__header slds-grid">
+            <header class="slds-media slds-media_center slds-has-flexi-truncate">
+              <div class="slds-media__body">
+                <h2 class="slds-card__header-title">
+                  <span>Details</span>
+                </h2>
+              </div>
+            </header>
+          </div>
+          <div class="slds-card__body slds-card__body_inner">
+            <ul class="slds-list_vertical slds-has-dividers_around-space">
+              <li class="slds-item slds-p-vertical_xx-small">
+                <div class="slds-text-title slds-truncate">Case Number</div>
+                <div class="slds-text-body_regular">
+                  {{ caseData()!.code || '#' + caseData()!.id }}
+                </div>
+              </li>
+              <li class="slds-item slds-p-vertical_xx-small">
+                <div class="slds-text-title slds-truncate">Created By</div>
+                <div class="slds-text-body_regular">
+                  {{ caseData()!.createdByUsername || 'System' }}
+                </div>
+              </li>
+              <li class="slds-item slds-p-vertical_xx-small">
+                <div class="slds-text-title slds-truncate">Created At</div>
+                <div class="slds-text-body_regular">
+                  {{ caseData()!.createdAt | date: 'medium' }}
+                </div>
+              </li>
+              <li class="slds-item slds-p-vertical_xx-small">
+                <div class="slds-text-title slds-truncate">Last Updated</div>
+                <div class="slds-text-body_regular">
+                  {{ caseData()!.updatedAt || caseData()!.createdAt | date: 'medium' }}
+                </div>
+              </li>
+              <li class="slds-item slds-p-vertical_xx-small">
+                <div class="slds-text-title slds-truncate">SLA Target</div>
+                <div class="slds-text-body_regular">
+                  {{
+                    caseData()!.slaTargetAt ? (caseData()!.slaTargetAt | date: 'medium') : 'Not set'
+                  }}
+                </div>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Resources Card -->
+        <div class="slds-card slds-m-bottom_medium">
+          <div class="slds-card__header slds-grid">
+            <header class="slds-media slds-media_center slds-has-flexi-truncate">
+              <div class="slds-media__body">
+                <h2 class="slds-card__header-title">
+                  <span>Related Resources</span>
+                </h2>
+              </div>
+            </header>
+          </div>
+          <div class="slds-card__body slds-card__body_inner">
+            <ul class="slds-list_vertical slds-has-dividers_around-space">
+              <li class="slds-item slds-p-vertical_xx-small" *ngIf="caseData()!.driverName">
+                <div class="slds-text-title slds-truncate">Driver</div>
+                <div class="slds-text-body_regular">{{ caseData()!.driverName }}</div>
+              </li>
+              <li class="slds-item slds-p-vertical_xx-small" *ngIf="caseData()!.vehiclePlate">
+                <div class="slds-text-title slds-truncate">Vehicle</div>
+                <div class="slds-text-body_regular">{{ caseData()!.vehiclePlate }}</div>
+              </li>
+              <li
+                class="slds-item slds-p-vertical_xx-small"
+                *ngIf="!caseData()!.driverName && !caseData()!.vehiclePlate"
+              >
+                <div class="slds-text-color_weak slds-text-align_center">No resources linked</div>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Statistics Card -->
+        <div class="slds-card">
+          <div class="slds-card__header slds-grid">
+            <header class="slds-media slds-media_center slds-has-flexi-truncate">
+              <div class="slds-media__body">
+                <h2 class="slds-card__header-title">
+                  <span>Statistics</span>
+                </h2>
+              </div>
+            </header>
+          </div>
+          <div class="slds-card__body slds-card__body_inner">
+            <ul class="slds-list_vertical slds-has-dividers_around-space">
+              <li class="slds-item slds-p-vertical_xx-small">
+                <div class="slds-grid slds-grid_align-spread">
+                  <span class="slds-text-title">Linked Incidents</span>
+                  <span class="slds-text-body_regular">{{
+                    caseData()!.incidents?.length || 0
+                  }}</span>
+                </div>
+              </li>
+              <li class="slds-item slds-p-vertical_xx-small">
+                <div class="slds-grid slds-grid_align-spread">
+                  <span class="slds-text-title">Total Tasks</span>
+                  <span class="slds-text-body_regular">{{ tasks().length }}</span>
+                </div>
+              </li>
+              <li class="slds-item slds-p-vertical_xx-small">
+                <div class="slds-grid slds-grid_align-spread">
+                  <span class="slds-text-title">Completed Tasks</span>
+                  <span class="slds-text-body_regular">{{ completedTasksCount() }}</span>
+                </div>
+              </li>
+              <li class="slds-item slds-p-vertical_xx-small" *ngIf="caseData()!.attachments">
+                <div class="slds-grid slds-grid_align-spread">
+                  <span class="slds-text-title">Attachments</span>
+                  <span class="slds-text-body_regular">{{ caseData()!.attachments!.length }}</span>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Task Creation Modal -->
+  <div *ngIf="showTaskModal" role="dialog" class="slds-modal slds-fade-in-open">
+    <div class="slds-modal__container">
+      <header class="slds-modal__header">
+        <button
+          class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse"
+          title="Close"
+          (click)="closeTaskModal()"
+        >
+          <svg class="slds-button__icon slds-button__icon_large" aria-hidden="true">
+            <use xlink:href="/assets/icons/utility-sprite/svg/symbols.svg#close"></use>
+          </svg>
+          <span class="slds-assistive-text">Close</span>
+        </button>
+        <h2 class="slds-modal__title slds-hyphenate">Create New Task</h2>
+      </header>
+      <div class="slds-modal__content slds-p-around_medium">
+        <div class="slds-form" role="list">
+          <div class="slds-form__item" role="listitem">
+            <div class="slds-form-element slds-form-element_stacked">
+              <label class="slds-form-element__label" for="task-title">
+                <abbr class="slds-required" title="required">* </abbr>Title
+              </label>
+              <div class="slds-form-element__control">
+                <input
+                  type="text"
+                  id="task-title"
+                  class="slds-input"
+                  required
+                  [(ngModel)]="newTask.title"
+                />
+              </div>
+            </div>
+          </div>
+          <div class="slds-form__item" role="listitem">
+            <div class="slds-form-element slds-form-element_stacked">
+              <label class="slds-form-element__label" for="task-description">Description</label>
+              <div class="slds-form-element__control">
+                <textarea
+                  id="task-description"
+                  class="slds-textarea"
+                  rows="3"
+                  [(ngModel)]="newTask.description"
+                ></textarea>
+              </div>
+            </div>
+          </div>
+          <div class="slds-form__item" role="listitem">
+            <div class="slds-form-element slds-form-element_stacked">
+              <label class="slds-form-element__label" for="task-status">Status</label>
+              <div class="slds-form-element__control">
+                <div class="slds-select_container">
+                  <select id="task-status" class="slds-select" [(ngModel)]="newTask.status">
+                    <option [value]="CaseTaskStatus.PENDING">Pending</option>
+                    <option [value]="CaseTaskStatus.IN_PROGRESS">In Progress</option>
+                    <option [value]="CaseTaskStatus.COMPLETED">Completed</option>
+                    <option [value]="CaseTaskStatus.CANCELLED">Cancelled</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <footer class="slds-modal__footer">
+        <button
+          class="slds-button slds-button_neutral"
+          (click)="closeTaskModal()"
+          [disabled]="processing()"
+        >
+          Cancel
+        </button>
+        <button
+          class="slds-button slds-button_brand"
+          (click)="createTask()"
+          [disabled]="processing() || !newTask.title"
+        >
+          {{ processing() ? 'Creating...' : 'Create Task' }}
+        </button>
+      </footer>
+    </div>
+  </div>
+  <div *ngIf="showTaskModal" class="slds-backdrop slds-backdrop_open"></div>
+
+  <!-- Delete Confirmation Modal -->
+  <div *ngIf="showDeleteModal" role="alertdialog" class="slds-modal slds-fade-in-open">
+    <div class="slds-modal__container">
+      <header class="slds-modal__header slds-theme_error slds-theme_alert-texture">
+        <button
+          class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse"
+          title="Close"
+          (click)="showDeleteModal = false"
+        >
+          <svg class="slds-button__icon slds-button__icon_large" aria-hidden="true">
+            <use xlink:href="/assets/icons/utility-sprite/svg/symbols.svg#close"></use>
+          </svg>
+          <span class="slds-assistive-text">Close</span>
+        </button>
+        <h2 class="slds-modal__title">Delete Case</h2>
+      </header>
+      <div class="slds-modal__content slds-p-around_medium">
+        <p>Are you sure you want to delete this case? This action cannot be undone.</p>
+        <p class="slds-m-top_small"><strong>Case:</strong> {{ caseData()!.title }}</p>
+      </div>
+      <footer class="slds-modal__footer slds-theme_default">
+        <button
+          class="slds-button slds-button_neutral"
+          (click)="showDeleteModal = false"
+          [disabled]="processing()"
+        >
+          Cancel
+        </button>
+        <button
+          class="slds-button slds-button_destructive"
+          (click)="deleteCase()"
+          [disabled]="processing()"
+        >
+          {{ processing() ? 'Deleting...' : 'Delete' }}
+        </button>
+      </footer>
+    </div>
+  </div>
+  <div *ngIf="showDeleteModal" class="slds-backdrop slds-backdrop_open"></div>
+</div>

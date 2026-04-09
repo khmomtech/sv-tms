@@ -1,0 +1,396 @@
+<div class="partner-list-container">
+  <!-- Toast banner (light, non-blocking) -->
+  <div *ngIf="toastMessage() as toast" class="toast-banner" role="status" aria-live="polite">
+    {{ toast }}
+  </div>
+  <!-- Header / Filters: light theme, no Material -->
+  <div class="header-card bg-white rounded-lg shadow p-4">
+    <!-- Insights -->
+    <div class="insights-row">
+      <div class="insight">
+        <div class="insight-label">Total</div>
+        <div class="insight-value">{{ filteredPartners().length }}</div>
+      </div>
+      <div class="insight">
+        <div class="insight-label">Active</div>
+        <div class="insight-value text-green-700">{{ filteredActiveCount() }}</div>
+      </div>
+      <div class="insight">
+        <div class="insight-label">Inactive</div>
+        <div class="insight-value text-gray-700">{{ filteredInactiveCount() }}</div>
+      </div>
+      <div class="insight flex-1">
+        <div class="insight-label mb-1">By Type</div>
+        <div class="type-chips">
+          <span
+            *ngFor="let t of partnershipTypes"
+            class="type-chip"
+            [ngClass]="{
+              'type-primary': getPartnershipTypeColor(t) === 'primary',
+              'type-accent': getPartnershipTypeColor(t) === 'accent',
+              'type-default': getPartnershipTypeColor(t) === 'default',
+            }"
+          >
+            {{ getPartnershipTypeLabel(t) }}: {{ typeCounts[t] || 0 }}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2 text-xl font-semibold text-gray-800">
+      <i class="bi bi-buildings text-blue-600"></i>
+      <span>Vendors</span>
+    </div>
+
+    <div class="filters-row mt-4">
+      <!-- Search -->
+      <div class="search-field relative">
+        <input
+          class="w-full px-10 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+          [formControl]="searchControl"
+          type="text"
+          placeholder="Search by name, code, email..."
+        />
+        <i class="bi bi-search absolute left-3 top-2.5 text-gray-400"></i>
+      </div>
+
+      <!-- Status -->
+      <div>
+        <label class="block text-xs text-gray-600 mb-1">Status</label>
+        <select
+          class="px-3 py-2 border border-gray-300 rounded bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+          [formControl]="statusFilter"
+        >
+          <option value="ALL">All Statuses</option>
+          <option value="ACTIVE">Active</option>
+          <option value="INACTIVE">Inactive</option>
+        </select>
+      </div>
+
+      <!-- Partnership Type -->
+      <div>
+        <label class="block text-xs text-gray-600 mb-1">Partnership Type</label>
+        <select
+          class="px-3 py-2 border border-gray-300 rounded bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+          [formControl]="typeFilter"
+        >
+          <option value="ALL">All Types</option>
+          <option *ngFor="let type of partnershipTypes" [value]="type">
+            {{ getPartnershipTypeLabel(type) }}
+          </option>
+        </select>
+      </div>
+
+      <div class="spacer"></div>
+
+      <button
+        type="button"
+        class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded shadow"
+        (click)="openCreateDialog()"
+      >
+        <i class="bi bi-plus-lg"></i>
+        Add Vendor
+      </button>
+    </div>
+  </div>
+
+  <!-- Results Info -->
+  <div class="results-info">
+    <span>{{ filteredPartners().length }} vendors</span>
+  </div>
+
+  <!-- Loading -->
+  <div *ngIf="loading()" class="loading-spinner">
+    <div class="text-gray-500">Loading…</div>
+  </div>
+
+  <!-- Partners Table -->
+  <div *ngIf="!loading()" class="table-card bg-white rounded-lg shadow overflow-auto">
+    <table class="partners-table">
+      <thead>
+        <tr>
+          <th>Code</th>
+          <th>Company Name</th>
+          <th>Type</th>
+          <th>Contact</th>
+          <th>Email</th>
+          <th>Phone</th>
+          <th>Commission</th>
+          <th>Credit Limit</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let partner of pagedPartners()">
+          <td>
+            <strong>{{ partner.companyCode }}</strong>
+          </td>
+          <td>{{ partner.companyName }}</td>
+          <td>
+            <span
+              class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
+              [ngClass]="{
+                'bg-blue-100 text-blue-800':
+                  getPartnershipTypeColor(partner.partnershipType) === 'primary',
+                'bg-green-100 text-green-800':
+                  getPartnershipTypeColor(partner.partnershipType) === 'accent',
+                'bg-gray-100 text-gray-800':
+                  getPartnershipTypeColor(partner.partnershipType) === 'default',
+              }"
+            >
+              {{ getPartnershipTypeLabel(partner.partnershipType) }}
+            </span>
+          </td>
+          <td>{{ partner.contactPerson || '-' }}</td>
+          <td>
+            <a
+              *ngIf="partner.email"
+              [href]="'mailto:' + partner.email"
+              class="text-blue-700 hover:underline"
+              >{{ partner.email }}</a
+            >
+            <span *ngIf="!partner.email">-</span>
+          </td>
+          <td>{{ partner.phone || '-' }}</td>
+          <td>{{ formatPercent(partner.commissionRate) }}</td>
+          <td>{{ formatCurrency(partner.creditLimit) }}</td>
+          <td>
+            <span
+              class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold"
+              [ngClass]="{
+                'bg-green-100 text-green-800': partner.status === 'ACTIVE',
+                'bg-gray-200 text-gray-700': partner.status !== 'ACTIVE',
+              }"
+            >
+              {{ partner.status }}
+            </span>
+          </td>
+          <td>
+            <div class="flex items-center gap-2">
+              <button class="text-blue-600 hover:underline" (click)="viewPartner(partner)">
+                View
+              </button>
+              <button class="text-gray-700 hover:underline" (click)="openEditDialog(partner)">
+                Edit
+              </button>
+              <button
+                *ngIf="partner.status === 'ACTIVE'"
+                class="text-yellow-700 hover:underline"
+                (click)="deactivatePartner(partner)"
+              >
+                Deactivate
+              </button>
+              <button class="text-red-700 hover:underline" (click)="deletePartner(partner)">
+                Delete
+              </button>
+            </div>
+          </td>
+        </tr>
+
+        <tr *ngIf="filteredPartners().length === 0">
+          <td [attr.colspan]="10">
+            <div class="no-data">
+              <i class="bi bi-building text-gray-300 text-5xl"></i>
+              <p>No vendors found</p>
+              <button
+                type="button"
+                class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded"
+                (click)="openCreateDialog()"
+              >
+                Add First Vendor
+              </button>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Footer pagination -->
+  <div
+    class="pagination-footer bg-gray-50 border border-gray-200 rounded-lg mt-3 p-3 flex items-center gap-3"
+  >
+    <div class="flex items-center gap-2">
+      <span>Show:</span>
+      <select class="select" (change)="onPageSizeChange($any($event.target).value)">
+        <option *ngFor="let sz of pageSizeOptions" [value]="sz">{{ sz }}</option>
+      </select>
+      <span>records per page</span>
+    </div>
+
+    <div class="spacer"></div>
+
+    <div class="text-gray-700">
+      Showing {{ showingFrom() }} - {{ showingTo() }} of {{ totalRecords() }}
+    </div>
+
+    <button
+      *ngIf="totalPages() > 1"
+      type="button"
+      class="page-btn"
+      [disabled]="pageIndex() <= 1"
+      (click)="previousPage()"
+      aria-label="Previous page"
+      title="Previous page"
+    >
+      <i class="bi bi-chevron-left" aria-hidden="true"></i>
+      <span class="sr-only">Previous</span>
+    </button>
+    <div class="page-indicator">Page {{ pageIndex() }} of {{ totalPages() }}</div>
+    <div class="goto flex items-center gap-2">
+      <span>Go to page:</span>
+      <input #gotoInput type="number" min="1" [max]="totalPages()" class="goto-input" />
+      <button type="button" class="go-btn" (click)="goToPageFrom(gotoInput.value)">Go</button>
+    </div>
+    <button
+      *ngIf="totalPages() > 1"
+      type="button"
+      class="page-btn"
+      [disabled]="pageIndex() >= totalPages()"
+      (click)="nextPage()"
+      aria-label="Next page"
+      title="Next page"
+    >
+      <span class="sr-only">Next</span>
+      <i class="bi bi-chevron-right" aria-hidden="true"></i>
+    </button>
+  </div>
+</div>
+
+<!-- Inline Modal (No Material) -->
+<div *ngIf="showForm()" class="modal-backdrop" role="dialog" aria-modal="true">
+  <div class="modal-card" role="document">
+    <div class="modal-header">
+      <h2 class="modal-title">{{ formMode === 'create' ? 'Create Vendor' : 'Edit Vendor' }}</h2>
+      <button type="button" class="btn-icon" aria-label="Close" (click)="closeForm()">×</button>
+    </div>
+
+    <form class="modal-body" [formGroup]="form" (ngSubmit)="submitForm()">
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="companyCode">Company Code</label>
+          <input
+            id="companyCode"
+            type="text"
+            formControlName="companyCode"
+            placeholder="Auto-generated"
+            readonly
+          />
+        </div>
+
+        <div class="form-field">
+          <label for="companyName">Company Name<span class="req">*</span></label>
+          <input
+            id="companyName"
+            type="text"
+            formControlName="companyName"
+            placeholder="Acme Logistics"
+          />
+          <div
+            class="error"
+            *ngIf="form.get('companyName')?.touched && form.get('companyName')?.invalid"
+          >
+            Company name is required
+          </div>
+        </div>
+
+        <div class="form-field">
+          <label for="partnershipType">Partnership Type<span class="req">*</span></label>
+          <select id="partnershipType" formControlName="partnershipType">
+            <option *ngFor="let t of partnershipTypes" [value]="t">
+              {{ getPartnershipTypeLabel(t) }}
+            </option>
+          </select>
+        </div>
+
+        <div class="form-field">
+          <label for="status">Status<span class="req">*</span></label>
+          <select id="status" formControlName="status">
+            <option value="ACTIVE">Active</option>
+            <option value="INACTIVE">Inactive</option>
+          </select>
+        </div>
+
+        <div class="form-field">
+          <label for="contactPerson">Contact Person</label>
+          <input
+            id="contactPerson"
+            type="text"
+            formControlName="contactPerson"
+            placeholder="John Doe"
+          />
+        </div>
+
+        <div class="form-field">
+          <label for="email">Email</label>
+          <input
+            id="email"
+            type="email"
+            formControlName="email"
+            placeholder="contact@company.com"
+          />
+        </div>
+
+        <div class="form-field">
+          <label for="phone">Phone</label>
+          <input id="phone" type="tel" formControlName="phone" placeholder="+1 555 123 4567" />
+        </div>
+
+        <div class="form-field full">
+          <label for="address">Address</label>
+          <input
+            id="address"
+            type="text"
+            formControlName="address"
+            placeholder="Street, City, Country"
+          />
+        </div>
+
+        <div class="form-field">
+          <label for="businessLicense">Business License</label>
+          <input
+            id="businessLicense"
+            type="text"
+            formControlName="businessLicense"
+            placeholder="BL-XXXX"
+          />
+        </div>
+
+        <div class="form-field">
+          <label for="commissionRate">Commission Rate (%)</label>
+          <input
+            id="commissionRate"
+            type="number"
+            min="0"
+            max="100"
+            step="0.1"
+            formControlName="commissionRate"
+            placeholder="5"
+          />
+        </div>
+
+        <div class="form-field">
+          <label for="creditLimit">Credit Limit</label>
+          <input
+            id="creditLimit"
+            type="number"
+            min="0"
+            step="1"
+            formControlName="creditLimit"
+            placeholder="10000"
+          />
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" (click)="closeForm()">Cancel</button>
+        <button type="submit" class="btn btn-primary" [disabled]="form.invalid || saving()">
+          <span *ngIf="saving()" class="spinner"></span>
+          Save
+        </button>
+      </div>
+    </form>
+  </div>
+  <div class="modal-scrim" (click)="closeForm()" aria-hidden="true"></div>
+</div>

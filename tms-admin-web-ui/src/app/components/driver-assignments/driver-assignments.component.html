@@ -1,0 +1,45 @@
+<h2>Driver Assignments</h2>
+
+<!-- Assign Driver Form -->
+<div>
+  <label for="driverId">Driver ID:</label>
+  <input id="driverId" type="number" [(ngModel)]="newDriverId" placeholder="Enter Driver ID" />
+
+  <label for="vehicleId">Vehicle ID:</label>
+  <input id="vehicleId" type="number" [(ngModel)]="newVehicleId" placeholder="Enter Vehicle ID" />
+
+  <button (click)="assignDriver()">Assign Driver</button>
+</div>
+
+<!-- Driver Assignments Table -->
+<table border="1">
+  <tr>
+    <th>ID</th>
+    <th>Driver</th>
+    <th>Vehicle</th>
+    <th>Assigned At</th>
+    <th>Status</th>
+    <th>Actions</th>
+  </tr>
+  <tr *ngFor="let assignment of assignments">
+    <td>{{ assignment.id }}</td>
+    <td>{{ assignment.driver.name }}</td>
+    <td>{{ assignment.vehicle.licensePlate }}</td>
+    <td>{{ assignment.assignedAt }}</td>
+    <td>{{ assignment.status }}</td>
+    <td>
+      <button
+        (click)="completeAssignment(assignment.id)"
+        [disabled]="assignment.status !== 'ASSIGNED'"
+      >
+        Complete
+      </button>
+      <button
+        (click)="cancelAssignment(assignment.id)"
+        [disabled]="assignment.status !== 'ASSIGNED'"
+      >
+        Cancel
+      </button>
+    </td>
+  </tr>
+</table>

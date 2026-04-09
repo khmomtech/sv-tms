@@ -1,0 +1,101 @@
+<div class="flex h-screen overflow-hidden map-wrapper">
+  <!-- Sidebar (Filter & List) -->
+  <div class="sidebar w-[320px] bg-gray-100 p-4 overflow-y-auto">
+    <button (click)="toggleSidebar()" class="float-right mb-4 text-sm text-gray-600">
+      {{ sidebarCollapsed ? '▶' : '◀' }}
+    </button>
+
+    <div *ngIf="!sidebarCollapsed">
+      <h3 class="mb-2 text-lg font-bold">Dispatches</h3>
+
+      <input
+        type="text"
+        [(ngModel)]="searchQuery"
+        (input)="searchDispatches()"
+        class="w-full px-3 py-2 mb-3 border rounded"
+        placeholder="Search route code"
+      />
+
+      <select
+        [(ngModel)]="selectedStatus"
+        (change)="filterDispatches()"
+        class="w-full px-2 py-1 mb-3 border rounded"
+      >
+        <option value="All">All</option>
+        <option *ngFor="let status of dispatchStatusKeys" [value]="status">{{ status }}</option>
+      </select>
+
+      <div
+        *ngFor="let dispatch of filteredDispatches"
+        (click)="selectDispatch(dispatch)"
+        class="p-3 mb-2 bg-white rounded shadow cursor-pointer hover:shadow-md"
+      >
+        <div class="text-sm text-gray-700">
+          <strong>{{ dispatch.routeCode }}</strong
+          ><br />
+          {{ dispatch.pickupLocation }} → {{ dispatch.dropoffLocation }}<br />
+          Status:
+          <span
+            class="font-semibold"
+            [ngClass]="{
+              'text-green-600': dispatch.status === 'DELIVERED',
+              'text-blue-600': dispatch.status === 'IN_TRANSIT',
+              'text-yellow-600': dispatch.status === 'LOADED',
+            }"
+          >
+            {{ dispatch.status }} </span
+          ><br />
+          ETA: {{ dispatch.estimatedArrival | date: 'short' }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Map -->
+  <div class="relative flex-grow">
+    <google-map [height]="'100%'" [width]="'100%'" [center]="mapCenter" [zoom]="mapZoom">
+      <!-- Pickup Markers -->
+      <map-marker
+        *ngFor="let d of filteredDispatches"
+        [position]="{ lat: d.pickupLat ?? 0, lng: d.pickupLng ?? 0 }"
+        [label]="d.routeCode ?? ''"
+        [title]="'Pickup: ' + (d.pickupLocation ?? 'N/A')"
+        (mapClick)="selectDispatch(d)"
+      >
+        <map-info-window *ngIf="selectedDispatch?.id === d.id">
+          <div class="text-sm">
+            <div class="font-semibold">{{ d.routeCode }}</div>
+            <div>
+              Status: <strong>{{ d.status }}</strong>
+            </div>
+            <div>Driver: {{ d.driverName }}</div>
+            <div>Vehicle: {{ d.licensePlate }}</div>
+            <div>From: {{ d.pickupLocation }}</div>
+            <div>To: {{ d.dropoffLocation }}</div>
+            <div>ETA: {{ d.estimatedArrival | date: 'short' }}</div>
+          </div>
+        </map-info-window>
+      </map-marker>
+
+      <!-- Dropoff Markers -->
+      <map-marker
+        *ngFor="let d of filteredDispatches"
+        [position]="{ lat: d.dropoffLat ?? 0, lng: d.dropoffLng ?? 0 }"
+        [icon]="dropoffIcon"
+        [title]="'Dropoff: ' + (d.dropoffLocation ?? 'N/A')"
+        [label]="d.routeCode ?? ''"
+      ></map-marker>
+
+      <!-- Polylines -->
+      <map-polyline
+        *ngFor="let path of polylines"
+        [path]="path"
+        [options]="{
+          strokeColor: '#EF4444',
+          strokeOpacity: 0.8,
+          strokeWeight: 3,
+        }"
+      ></map-polyline>
+    </google-map>
+  </div>
+</div>

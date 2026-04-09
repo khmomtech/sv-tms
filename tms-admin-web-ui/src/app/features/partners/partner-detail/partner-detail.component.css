@@ -1,0 +1,147 @@
+.detail-wrap {
+  padding: 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+.loading,
+.error {
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+.loading {
+  background: #eff6ff;
+  color: #1e3a8a;
+}
+.error {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
+}
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e7eb;
+}
+.title {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.title h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+}
+.meta {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  color: #475569;
+}
+.code {
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+    monospace;
+}
+.badge {
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 9999px;
+}
+.badge-green {
+  background: #dcfce7;
+  color: #166534;
+}
+.badge-gray {
+  background: #f3f4f6;
+  color: #374151;
+}
+.actions .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #2563eb;
+  color: #fff;
+  border-radius: 8px;
+  padding: 8px 12px;
+  text-decoration: none;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.actions .btn:hover {
+  background: #1d4ed8;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  padding: 16px 20px;
+}
+.section {
+  border: 1px solid #eef2f7;
+  border-radius: 10px;
+  padding: 12px;
+}
+.section-title {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 600;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+}
+.row {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 12px;
+  padding: 6px 0;
+  align-items: center;
+}
+.label {
+  color: #475569;
+  font-size: 13px;
+}
+.value {
+  color: #0f172a;
+  font-weight: 500;
+}
+.type-chip {
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 9999px;
+  border: 1px solid transparent;
+}
+.type-primary {
+  background: #dbeafe;
+  color: #1e3a8a;
+  border-color: #bfdbfe;
+}
+.type-accent {
+  background: #dcfce7;
+  color: #166534;
+  border-color: #bbf7d0;
+}
+.type-default {
+  background: #f3f4f6;
+  color: #374151;
+  border-color: #e5e7eb;
+}
+
+@media (max-width: 768px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+  .row {
+    grid-template-columns: 1fr;
+  }
+}

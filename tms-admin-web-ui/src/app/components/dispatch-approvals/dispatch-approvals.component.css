@@ -1,0 +1,58 @@
+.page {
+  padding: 16px;
+}
+
+.controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.controls input {
+  padding: 6px 8px;
+  border: 1px solid #d0d5dd;
+  border-radius: 6px;
+  min-width: 140px;
+}
+
+.controls button {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid #d0d5dd;
+  background: #fff;
+}
+
+.panel {
+  margin-top: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px;
+  background: #fff;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+thead th {
+  text-align: left;
+  font-size: 12px;
+  color: #6b7280;
+  padding: 8px 6px;
+}
+
+tbody td {
+  padding: 8px 6px;
+  border-top: 1px solid #f3f4f6;
+}
+
+button.danger {
+  color: #b42318;
+}
+
+.empty {
+  color: #6b7280;
+  font-size: 13px;
+}

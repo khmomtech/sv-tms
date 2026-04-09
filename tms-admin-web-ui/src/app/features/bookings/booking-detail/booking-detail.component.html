@@ -1,0 +1,272 @@
+<div class="min-h-screen bg-slate-50">
+  <!-- Header -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-10">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <button
+          (click)="goBack()"
+          class="h-9 w-9 rounded-xl border border-slate-200 hover:bg-slate-50 flex items-center justify-center"
+        >
+          ←
+        </button>
+        <div>
+          <div class="text-xs uppercase tracking-[0.3em] text-slate-500">Booking Details</div>
+          <div class="font-extrabold leading-tight" *ngIf="booking">
+            {{ booking.bookingReference }}
+          </div>
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <button
+          *ngIf="booking && isConfirmable"
+          [disabled]="actionBusy.confirm"
+          (click)="confirmBooking()"
+          class="rounded-xl bg-blue-600 text-white px-4 py-2 text-sm font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Confirm Booking
+        </button>
+        <button
+          *ngIf="booking && isConfirmable"
+          (click)="editBooking()"
+          class="rounded-xl bg-orange-600 text-white px-4 py-2 text-sm font-semibold hover:opacity-90"
+        >
+          Edit
+        </button>
+        <button
+          *ngIf="booking && isConvertible"
+          [disabled]="actionBusy.convert"
+          (click)="convertToOrder()"
+          class="rounded-xl bg-emerald-600 text-white px-4 py-2 text-sm font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Convert to Order
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Loading -->
+  <div *ngIf="loading" class="max-w-7xl mx-auto px-4 py-8 text-center">
+    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto"></div>
+    <p class="mt-4 text-slate-600">Loading booking details...</p>
+  </div>
+
+  <!-- Error -->
+  <div *ngIf="error && !loading" class="max-w-7xl mx-auto px-4 py-8">
+    <div class="bg-red-50 border border-red-200 rounded-2xl p-4 text-center">
+      <p class="text-red-700">{{ error }}</p>
+      <button (click)="goBack()" class="mt-2 text-red-600 font-semibold hover:underline">
+        Go Back
+      </button>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <main *ngIf="booking && !loading" class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+    <!-- Status Card -->
+    <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-2xl font-bold mb-2">{{ booking.bookingReference }}</h2>
+          <span
+            class="inline-flex items-center rounded-full px-4 py-2 text-sm font-semibold"
+            [ngClass]="[getStatusColor(booking.status).bg, getStatusColor(booking.status).text]"
+          >
+            {{ getStatusLabel(booking.status) }}
+          </span>
+        </div>
+        <div class="relative">
+          <button
+            (click)="toggleActionsMenu()"
+            class="px-4 py-2 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 shadow-sm"
+          >
+            Actions ▾
+          </button>
+          <div
+            *ngIf="actionsMenuOpen"
+            class="absolute right-0 mt-2 w-48 rounded-xl border border-slate-200 bg-white shadow-lg z-20"
+          >
+            <button
+              *ngIf="isConfirmable"
+              [disabled]="actionBusy.confirm"
+              (click)="confirmBooking(); closeActionsMenu()"
+              class="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Confirm Booking
+            </button>
+            <button
+              *ngIf="isConvertible"
+              [disabled]="actionBusy.convert"
+              (click)="convertToOrder(); closeActionsMenu()"
+              class="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Convert to Order
+            </button>
+            <button
+              *ngIf="isCancelable"
+              [disabled]="actionBusy.cancel"
+              (click)="cancelBooking(); closeActionsMenu()"
+              class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Cancel Booking
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Customer Information -->
+    <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+      <h3 class="text-lg font-bold mb-4">Customer Information</h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <p class="text-sm text-slate-500">Customer Name</p>
+          <p class="font-semibold">{{ booking.customerName }}</p>
+        </div>
+        <div>
+          <p class="text-sm text-slate-500">Contact Phone</p>
+          <p class="font-semibold">{{ booking.customerPhone || 'N/A' }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Route Information -->
+    <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+      <h3 class="text-lg font-bold mb-4">Route Information</h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Pickup -->
+        <div class="border border-slate-200 rounded-xl p-4">
+          <h4 class="font-semibold text-emerald-600 mb-2">📍 Pickup Location</h4>
+          <p class="font-medium">{{ booking.pickupAddress.addressLine }}</p>
+          <p class="text-sm text-slate-600 mt-1" *ngIf="booking.pickupAddress.city">
+            {{ booking.pickupAddress.city }}
+            <span *ngIf="booking.pickupAddress.province"
+              >, {{ booking.pickupAddress.province }}</span
+            >
+          </p>
+          <div class="mt-3 text-sm" *ngIf="booking.pickupAddress.contactName">
+            <p class="text-slate-500">Contact</p>
+            <p class="font-medium">{{ booking.pickupAddress.contactName }}</p>
+            <p class="text-slate-600" *ngIf="booking.pickupAddress.contactPhone">
+              {{ booking.pickupAddress.contactPhone }}
+            </p>
+          </div>
+          <p class="text-sm text-slate-500 mt-2">
+            <strong>Pickup Date:</strong> {{ formatDate(booking.pickupDate) }}
+          </p>
+        </div>
+
+        <!-- Delivery -->
+        <div class="border border-slate-200 rounded-xl p-4">
+          <h4 class="font-semibold text-orange-600 mb-2">📦 Delivery Location</h4>
+          <p class="font-medium">{{ booking.deliveryAddress.addressLine }}</p>
+          <p class="text-sm text-slate-600 mt-1" *ngIf="booking.deliveryAddress.city">
+            {{ booking.deliveryAddress.city }}
+            <span *ngIf="booking.deliveryAddress.province">
+              , {{ booking.deliveryAddress.province }}
+            </span>
+          </p>
+          <div class="mt-3 text-sm" *ngIf="booking.deliveryAddress.contactName">
+            <p class="text-slate-500">Contact</p>
+            <p class="font-medium">{{ booking.deliveryAddress.contactName }}</p>
+            <p class="text-slate-600" *ngIf="booking.deliveryAddress.contactPhone">
+              {{ booking.deliveryAddress.contactPhone }}
+            </p>
+          </div>
+          <p class="text-sm text-slate-500 mt-2" *ngIf="booking.deliveryDate">
+            <strong>Expected Delivery:</strong> {{ formatDate(booking.deliveryDate) }}
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Service Details -->
+    <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+      <h3 class="text-lg font-bold mb-4">Service Details</h3>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div>
+          <p class="text-sm text-slate-500">Service Type</p>
+          <p class="font-semibold">{{ booking.serviceType }}</p>
+        </div>
+        <div>
+          <p class="text-sm text-slate-500">Payment Type</p>
+          <p class="font-semibold">{{ booking.paymentType }}</p>
+        </div>
+        <div *ngIf="booking.truckType">
+          <p class="text-sm text-slate-500">Truck Type</p>
+          <p class="font-semibold">{{ booking.truckType }}</p>
+        </div>
+        <div *ngIf="booking.estimatedCost">
+          <p class="text-sm text-slate-500">Estimated Cost</p>
+          <p class="font-semibold">${{ booking.estimatedCost.toFixed(2) }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Packages -->
+    <div
+      *ngIf="booking.packages && booking.packages.length > 0"
+      class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6"
+    >
+      <h3 class="text-lg font-bold mb-4">Packages</h3>
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead class="bg-slate-50">
+            <tr>
+              <th class="px-4 py-2 text-left font-semibold">Item Type</th>
+              <th class="px-4 py-2 text-left font-semibold">Quantity</th>
+              <th class="px-4 py-2 text-left font-semibold">Weight (kg)</th>
+              <th class="px-4 py-2 text-left font-semibold">Volume (cbm)</th>
+              <th class="px-4 py-2 text-left font-semibold">COD</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let pkg of booking.packages" class="border-t border-slate-100">
+              <td class="px-4 py-2">{{ pkg.itemType }}</td>
+              <td class="px-4 py-2">{{ pkg.quantity }}</td>
+              <td class="px-4 py-2">{{ pkg.weightKg || 'N/A' }}</td>
+              <td class="px-4 py-2">{{ pkg.volumeCbm || 'N/A' }}</td>
+              <td class="px-4 py-2">{{ pkg.cod ? '$' + pkg.cod.toFixed(2) : 'N/A' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Notes -->
+    <div
+      *ngIf="booking.notes || booking.specialHandlingNotes"
+      class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6"
+    >
+      <h3 class="text-lg font-bold mb-4">Additional Information</h3>
+      <div class="space-y-3">
+        <div *ngIf="booking.notes">
+          <p class="text-sm text-slate-500">Notes</p>
+          <p class="mt-1">{{ booking.notes }}</p>
+        </div>
+        <div *ngIf="booking.specialHandlingNotes">
+          <p class="text-sm text-slate-500">Special Handling</p>
+          <p class="mt-1">{{ booking.specialHandlingNotes }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Timestamps -->
+    <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+      <h3 class="text-lg font-bold mb-4">Tracking Information</h3>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+        <div *ngIf="booking.createdAt">
+          <p class="text-slate-500">Created At</p>
+          <p class="font-medium">{{ formatDate(booking.createdAt) }}</p>
+        </div>
+        <div *ngIf="booking.updatedAt">
+          <p class="text-slate-500">Last Updated</p>
+          <p class="font-medium">{{ formatDate(booking.updatedAt) }}</p>
+        </div>
+        <div *ngIf="booking.orderReference">
+          <p class="text-slate-500">Converted to Order</p>
+          <p class="font-medium">{{ booking.orderReference }}</p>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>

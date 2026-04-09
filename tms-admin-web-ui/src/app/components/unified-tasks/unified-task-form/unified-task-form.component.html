@@ -1,0 +1,128 @@
+<div class="page">
+  <div class="hero">
+    <div>
+      <div class="eyebrow">Task Management</div>
+      <h1>{{ isEdit() ? 'Update Task' : 'Create Task' }}</h1>
+      <p class="subtitle">
+        {{
+          isEdit()
+            ? 'Adjust details and keep assignees aligned'
+            : 'Create a task and link it to incidents, vehicles, or other entities'
+        }}
+      </p>
+    </div>
+  </div>
+
+  <div class="shell" *ngIf="!loading(); else loadingTpl">
+    <h2 class="form-title">{{ isEdit() ? 'Edit Task' : 'New Task' }}</h2>
+    <p class="form-subtitle">Capture task details and link to related entities.</p>
+
+    <form [formGroup]="form" (ngSubmit)="submit()">
+      <div class="field-stack">
+        <label class="form-label">Title <span class="text-danger">*</span></label>
+        <input
+          type="text"
+          class="form-control control"
+          formControlName="title"
+          placeholder="Task title"
+        />
+      </div>
+
+      <div class="grid two-col">
+        <div class="field-stack">
+          <label class="form-label">Priority</label>
+          <select class="form-select control" formControlName="priority">
+            <option *ngFor="let p of priorities" [value]="p">{{ p }}</option>
+          </select>
+        </div>
+        <div class="field-stack">
+          <label class="form-label">Status</label>
+          <select class="form-select control" formControlName="status">
+            <option *ngFor="let s of statuses" [value]="s">{{ s }}</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid two-col">
+        <div class="field-stack">
+          <label class="form-label">Due Date</label>
+          <input type="datetime-local" class="form-control control" formControlName="dueDate" />
+        </div>
+        <div class="field-stack">
+          <label class="form-label">Estimated Time (minutes)</label>
+          <input
+            type="number"
+            class="form-control control"
+            formControlName="estimatedMinutes"
+            min="0"
+            placeholder="e.g., 120"
+          />
+        </div>
+      </div>
+
+      <div class="grid two-col">
+        <div class="field-stack">
+          <label class="form-label">Relation Type</label>
+          <ng-select
+            class="control"
+            [items]="relationTypeOptions"
+            bindLabel="label"
+            bindValue="value"
+            placeholder="Select relation type"
+            formControlName="relationType"
+            [clearable]="false"
+          ></ng-select>
+        </div>
+        <div class="field-stack">
+          <label class="form-label">Related Item</label>
+          <ng-select
+            class="control"
+            [items]="relationOptions()"
+            bindLabel="title"
+            bindValue="id"
+            [typeahead]="relationSearch$"
+            [loading]="relationLoading()"
+            placeholder="Select and begin typing"
+            formControlName="relationId"
+            (change)="selectRelationById($event)"
+            [clearable]="true"
+          >
+            <ng-template ng-label-tmp let-item="item">
+              <span>{{ item?.title || item?.code || 'ID ' + (item?.id || '') }}</span>
+            </ng-template>
+            <ng-template ng-option-tmp let-item="item">
+              <div class="d-flex flex-column">
+                <span class="fw-semibold">{{ item.title }}</span>
+                <small class="text-muted">{{ item.code || item.relationType || 'Item' }}</small>
+              </div>
+            </ng-template>
+          </ng-select>
+        </div>
+      </div>
+
+      <div class="field-stack">
+        <label class="form-label">Description</label>
+        <textarea
+          class="form-control control"
+          rows="4"
+          formControlName="description"
+          placeholder="Add context, acceptance criteria, or steps to reproduce"
+        ></textarea>
+      </div>
+
+      <div class="footer-actions">
+        <button type="button" class="btn ghost" (click)="cancel()" [disabled]="saving()">
+          Cancel
+        </button>
+        <button type="submit" class="btn primary" [disabled]="saving() || form.invalid">
+          <span *ngIf="saving()" class="spinner-border spinner-border-sm me-2"></span>
+          {{ isEdit() ? 'Save Task' : 'Submit Task' }}
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <ng-template #loadingTpl>
+    <div class="text-center py-4 text-muted">Loading...</div>
+  </ng-template>
+</div>

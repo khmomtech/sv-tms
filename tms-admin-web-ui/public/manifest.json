@@ -1,0 +1,19 @@
+{
+  "name": "SV-TMS Dispatcher Dashboard",
+  "short_name": "SV-TMS",
+  "description": "Transportation Management System - Dispatcher Dashboard",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1e40af",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "any",
+      "type": "image/x-icon"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "lang": "en-US"
+}

@@ -1,0 +1,93 @@
+<div class="p-6 space-y-4 max-w-6xl mx-auto">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <p class="text-xs uppercase text-gray-500 tracking-wide">Factory Loading</p>
+      <h2 class="text-2xl font-bold text-gray-900">Queue Board</h2>
+      <p class="text-sm text-gray-600">Manage warehouse queue and loading calls</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <select
+        [(ngModel)]="selectedWarehouse"
+        (ngModelChange)="loadQueue()"
+        class="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+      >
+        <option *ngFor="let w of warehouses" [ngValue]="w">{{ w }}</option>
+      </select>
+      <button
+        (click)="loadQueue()"
+        class="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+      >
+        Refresh
+      </button>
+    </div>
+  </div>
+
+  <div *ngIf="loading" class="p-6 text-center text-gray-500 border rounded-lg">
+    Loading queue...
+  </div>
+
+  <div
+    *ngIf="!loading && queue.length === 0"
+    class="p-6 text-center text-gray-500 border rounded-lg"
+  >
+    No trucks in queue for {{ selectedWarehouse }}.
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" *ngIf="!loading">
+    <div *ngFor="let entry of queue" class="p-4 border rounded-lg shadow-sm bg-white space-y-2">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-xs uppercase text-gray-500">Dispatch</p>
+          <a
+            [routerLink]="['/dispatch', entry.dispatchId]"
+            class="text-lg font-semibold text-blue-700 hover:underline"
+          >
+            #{{ entry.dispatchId }} {{ entry.routeCode ? '(' + entry.routeCode + ')' : '' }}
+          </a>
+        </div>
+        <span
+          class="px-2 py-1 text-xs font-semibold rounded-full"
+          [ngClass]="{
+            'bg-yellow-100 text-yellow-800': entry.status === 'WAITING',
+            'bg-indigo-100 text-indigo-800': entry.status === 'CALLED',
+            'bg-orange-100 text-orange-800': entry.status === 'LOADING',
+            'bg-green-100 text-green-800': entry.status === 'LOADED',
+          }"
+        >
+          {{ entry.status }}
+        </span>
+      </div>
+
+      <div class="text-sm text-gray-700 space-y-1">
+        <div>Queue: #{{ entry.queuePosition || '-' }} • Warehouse {{ entry.warehouseCode }}</div>
+        <div>Bay: {{ entry.bay || 'Not assigned' }}</div>
+        <div *ngIf="entry.calledAt">Called at: {{ entry.calledAt | date: 'short' }}</div>
+        <div *ngIf="entry.loadingStartedAt">
+          Loading: {{ entry.loadingStartedAt | date: 'short' }}
+        </div>
+      </div>
+
+      <div class="flex gap-2 pt-2">
+        <button
+          class="px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+          (click)="callToBay(entry, entry.bay || '')"
+        >
+          Call
+        </button>
+        <button
+          class="px-3 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700"
+          [disabled]="entry.status === 'LOADED'"
+          (click)="startLoading(entry)"
+        >
+          Start Loading
+        </button>
+        <a
+          [routerLink]="['/dispatch/loading-session', entry.dispatchId]"
+          class="px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100"
+        >
+          Manage
+        </a>
+      </div>
+    </div>
+  </div>
+</div>

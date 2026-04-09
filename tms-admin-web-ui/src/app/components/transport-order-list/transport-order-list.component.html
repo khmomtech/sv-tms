@@ -1,0 +1,417 @@
+<div class="flex-wrap p-6 mx-auto">
+  <div class="container p-6 mx-auto bg-white rounded-lg">
+    <!-- Error Message -->
+    <div
+      *ngIf="errorMessage"
+      class="mb-4 p-4 bg-red-100 text-red-700 rounded-lg flex items-center justify-between"
+      role="alert"
+      aria-live="assertive"
+    >
+      <span>{{ errorMessage }}</span>
+      <button
+        (click)="errorMessage = null"
+        class="ml-2 font-bold hover:text-red-900"
+        aria-label="Close error message"
+      >
+        ✕
+      </button>
+    </div>
+
+    <!-- Title and Add Button -->
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-3xl font-bold">{{ pageTitle || 'Shipment Order' }}</h2>
+      <button
+        *ngIf="!hideAddButton"
+        class="flex items-center px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+        (click)="navigateToCreateOrder()"
+      >
+        <mat-icon class="mr-2">add</mat-icon>
+        Add
+      </button>
+    </div>
+
+    <!-- Filter Toggle -->
+    <button
+      *ngIf="!hideFilterToggle"
+      (click)="toggleFilters()"
+      class="mb-4 text-blue-600 hover:underline"
+    >
+      {{ showFilters ? 'Hide Filters' : 'Show Filters' }}
+    </button>
+
+    <!-- Filters Panel -->
+    <div
+      *ngIf="showFilters && !hideFilterToggle"
+      class="flex flex-wrap items-center gap-4 p-4 mb-4 rounded-lg shadow bg-gray-50"
+    >
+      <div>
+        <label class="text-sm font-medium">From:</label>
+        <input
+          type="date"
+          [(ngModel)]="fromDate"
+          (ngModelChange)="onDateChange()"
+          class="p-2 border rounded-lg"
+        />
+      </div>
+      <div>
+        <label class="text-sm font-medium">To:</label>
+        <input
+          type="date"
+          [(ngModel)]="toDate"
+          (ngModelChange)="onDateChange()"
+          class="p-2 border rounded-lg"
+        />
+      </div>
+      <div>
+        <label class="text-sm font-medium">Status:</label>
+        <select
+          [(ngModel)]="statusFilter"
+          (ngModelChange)="applyFilters()"
+          class="p-2 border rounded-lg"
+        >
+          <option value="">All</option>
+          <option *ngFor="let status of statusOptions" [value]="status">{{ status }}</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-sm font-medium">Sort:</label>
+        <select
+          [(ngModel)]="sortOrder"
+          (ngModelChange)="sortOrders()"
+          class="p-2 border rounded-lg"
+        >
+          <option value="desc">Newest First</option>
+          <option value="asc">Oldest First</option>
+        </select>
+      </div>
+      <div class="flex items-center gap-2">
+        <input
+          type="text"
+          [(ngModel)]="searchQuery"
+          (input)="onSearchInputChange()"
+          placeholder="Search orders..."
+          class="p-2 border rounded-lg"
+        />
+        <button
+          (click)="clearFilters()"
+          class="px-4 py-2 text-white bg-gray-500 rounded-lg hover:bg-gray-600"
+        >
+          Clear
+        </button>
+      </div>
+    </div>
+
+    <!-- Loading -->
+    <div *ngIf="isLoading" class="py-4 text-center">
+      <span class="font-medium text-blue-600">Loading orders...</span>
+    </div>
+
+    <!-- Orders Table Wrapper (horizontal scroll only) -->
+    <div class="overflow-x-auto">
+      <table class="w-full min-w-[1100px] bg-white rounded-lg shadow-lg" *ngIf="!isLoading">
+        <thead class="text-white bg-blue-600">
+          <tr>
+            <th class="p-3 whitespace-nowrap">No</th>
+            <th class="p-3 whitespace-nowrap">Order Date</th>
+            <th class="p-3 whitespace-nowrap">Delivery Date</th>
+            <th class="p-3 whitespace-nowrap">Customer</th>
+            <th class="p-3 whitespace-nowrap">From</th>
+            <th class="p-3 whitespace-nowrap">To</th>
+            <th class="p-3 whitespace-nowrap">Status</th>
+            <th class="p-3 whitespace-nowrap">Origin</th>
+            <th class="p-3 whitespace-nowrap">Requires Driver</th>
+            <th class="p-3 whitespace-nowrap">Actions</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <tr
+            *ngFor="let order of orders; let i = index; trackBy: trackByOrderId"
+            class="border-b hover:bg-gray-100"
+          >
+            <!-- No (or ID link if you prefer ID as first column) -->
+            <td class="p-3 text-center whitespace-nowrap">
+              <a
+                class="text-blue-600 underline hover:text-blue-800"
+                [href]="'/orders/' + order.id"
+                target="_blank"
+                rel="noopener noreferrer"
+                >{{ currentPage * pageSize + i + 1 }}</a
+              >
+            </td>
+
+            <!-- Dates -->
+            <td class="p-3 text-center whitespace-nowrap">
+              {{ order.orderDate ? (order.orderDate | date: 'dd-MMM-yyyy') : '-' }}
+            </td>
+            <td class="p-3 text-center whitespace-nowrap">
+              {{ order.deliveryDate ? (order.deliveryDate | date: 'dd-MMM-yyyy') : '-' }}
+            </td>
+
+            <!-- Customer -->
+            <td class="p-3 text-center whitespace-nowrap">
+              <a
+                class="text-blue-600 underline hover:text-blue-800"
+                [href]="'/customers/' + order.customerId"
+                target="_blank"
+                rel="noopener noreferrer"
+                >{{ order.customerName }}</a
+              >
+            </td>
+
+            <!-- From (Pickup) -->
+            <td class="p-3 text-center whitespace-nowrap">
+              <ng-container *ngIf="getPickupStops(order) as pickups">
+                <ng-container *ngFor="let stop of pickups; let idx = index; trackBy: trackByStop">
+                  <ng-container *ngIf="stop.address as addr">
+                    <a
+                      *ngIf="addr.latitude && addr.longitude"
+                      [href]="
+                        'https://www.google.com/maps/search/?api=1&query=' +
+                        addr.latitude +
+                        ',' +
+                        addr.longitude
+                      "
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="text-green-700 underline hover:text-green-900"
+                      [attr.title]="addr.name || addr.latitude + ', ' + addr.longitude"
+                      [attr.aria-label]="
+                        'Open pickup in Google Maps: ' +
+                        (addr.name || addr.latitude + ', ' + addr.longitude)
+                      "
+                    >
+                      {{
+                        addr.name ||
+                          '(' +
+                            (addr.latitude | number: '1.5-5') +
+                            ', ' +
+                            (addr.longitude | number: '1.5-5') +
+                            ')'
+                      }}
+                    </a>
+                    <span *ngIf="!addr.latitude || !addr.longitude">{{ addr.name || '-' }}</span>
+                  </ng-container>
+                  <span *ngIf="idx < pickups.length - 1">, </span>
+                </ng-container>
+              </ng-container>
+            </td>
+
+            <!-- To (Drop) -->
+            <td class="p-3 text-center whitespace-nowrap">
+              <ng-container *ngIf="getDropStops(order) as drops">
+                <ng-container *ngFor="let stop of drops; let idx = index; trackBy: trackByStop">
+                  <ng-container *ngIf="stop.address as addr">
+                    <a
+                      *ngIf="addr.latitude && addr.longitude"
+                      [href]="
+                        'https://www.google.com/maps/search/?api=1&query=' +
+                        addr.latitude +
+                        ',' +
+                        addr.longitude
+                      "
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="text-blue-700 underline hover:text-blue-900"
+                      [attr.title]="addr.name || addr.latitude + ', ' + addr.longitude"
+                      [attr.aria-label]="
+                        'Open dropoff in Google Maps: ' +
+                        (addr.name || addr.latitude + ', ' + addr.longitude)
+                      "
+                    >
+                      {{
+                        addr.name ||
+                          '(' +
+                            (addr.latitude | number: '1.5-5') +
+                            ', ' +
+                            (addr.longitude | number: '1.5-5') +
+                            ')'
+                      }}
+                    </a>
+                    <span *ngIf="!addr.latitude || !addr.longitude">{{ addr.name || '-' }}</span>
+                  </ng-container>
+                  <span *ngIf="idx < drops.length - 1">, </span>
+                </ng-container>
+              </ng-container>
+            </td>
+
+            <!-- Status (badge) -->
+            <td class="p-3 text-center whitespace-nowrap">
+              <span
+                class="status-badge"
+                [ngClass]="getStatusBadgeClass(order.status)"
+                role="status"
+                [attr.aria-label]="'Order status: ' + formatStatusDisplay(order.status)"
+              >
+                {{ formatStatusDisplay(order.status) }}
+              </span>
+            </td>
+
+            <!-- Origin -->
+            <td class="p-3 text-center whitespace-nowrap">{{ order.origin || '-' }}</td>
+
+            <!-- Requires Driver -->
+            <td class="p-3 text-center whitespace-nowrap">
+              <span *ngIf="order.requiresDriver; else noDriver" class="text-sm text-green-700"
+                >Yes</span
+              >
+              <ng-template #noDriver><span class="text-sm text-yellow-700">No</span></ng-template>
+            </td>
+
+            <!-- Actions -->
+            <td class="relative p-3 whitespace-nowrap">
+              <button
+                (click)="toggleDropdown(order.id)"
+                (keydown.enter)="toggleDropdown(order.id)"
+                (keydown.space)="toggleDropdown(order.id)"
+                aria-label="Order actions menu"
+                [attr.aria-expanded]="dropdownOpen === order.id"
+                aria-haspopup="menu"
+                class="px-2 py-1 bg-gray-200 rounded-lg hover:bg-gray-300"
+              >
+                <i class="fas fa-ellipsis-v" aria-hidden="true"></i>
+              </button>
+
+              <div
+                *ngIf="dropdownOpen === order.id"
+                role="menu"
+                aria-label="Order actions"
+                class="absolute right-0 z-50 w-48 bg-white border border-gray-200 rounded-lg shadow-lg"
+              >
+                <a
+                  role="menuitem"
+                  tabindex="0"
+                  [href]="'/orders/' + order.id"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="flex items-center w-full px-4 py-2 text-gray-700 hover:bg-gray-100"
+                >
+                  <i class="mr-2 fas fa-eye" aria-hidden="true"></i> View
+                </a>
+                <a
+                  role="menuitem"
+                  tabindex="0"
+                  [href]="'/orders/' + order.id + '/edit'"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="flex items-center w-full px-4 py-2 text-gray-700 hover:bg-gray-100"
+                >
+                  <i class="mr-2 fas fa-edit" aria-hidden="true"></i> Edit
+                </a>
+                <button
+                  *ngIf="order.status === 'PENDING'"
+                  (click)="onApprove(order.id)"
+                  role="menuitem"
+                  [disabled]="isActionInProgress(order.id)"
+                  class="flex items-center w-full px-4 py-2 text-green-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <i
+                    class="mr-2 fas fa-check"
+                    [class.animate-spin]="isActionInProgress(order.id)"
+                    aria-hidden="true"
+                  ></i>
+                  {{ isActionInProgress(order.id) ? 'Processing...' : 'Approve' }}
+                </button>
+                <button
+                  *ngIf="order.status === 'PENDING'"
+                  (click)="onReject(order.id)"
+                  role="menuitem"
+                  [disabled]="isActionInProgress(order.id)"
+                  class="flex items-center w-full px-4 py-2 text-red-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <i
+                    class="mr-2 fas fa-times-circle"
+                    [class.animate-spin]="isActionInProgress(order.id)"
+                    aria-hidden="true"
+                  ></i>
+                  {{ isActionInProgress(order.id) ? 'Processing...' : 'Reject' }}
+                </button>
+                <button
+                  (click)="dispatchOrder(order.id!)"
+                  role="menuitem"
+                  [disabled]="isActionInProgress(order.id)"
+                  class="flex items-center w-full px-4 py-2 text-purple-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <i
+                    class="mr-2 fas fa-truck"
+                    [class.animate-spin]="isActionInProgress(order.id)"
+                    aria-hidden="true"
+                  ></i>
+                  {{ isActionInProgress(order.id) ? 'Processing...' : 'Dispatch' }}
+                </button>
+                <button
+                  (click)="loadOrder(order.id!)"
+                  role="menuitem"
+                  [disabled]="isActionInProgress(order.id)"
+                  class="flex items-center w-full px-4 py-2 text-green-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <i
+                    class="mr-2 fas fa-box-open"
+                    [class.animate-spin]="isActionInProgress(order.id)"
+                    aria-hidden="true"
+                  ></i>
+                  {{ isActionInProgress(order.id) ? 'Processing...' : 'Load' }}
+                </button>
+                <button
+                  (click)="markAsCompleted(order.id!)"
+                  role="menuitem"
+                  [disabled]="isActionInProgress(order.id)"
+                  class="flex items-center w-full px-4 py-2 text-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <i
+                    class="mr-2 fas fa-check-circle"
+                    [class.animate-spin]="isActionInProgress(order.id)"
+                    aria-hidden="true"
+                  ></i>
+                  {{ isActionInProgress(order.id) ? 'Processing...' : 'Complete' }}
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Empty state: show when no orders returned and not loading -->
+    <div *ngIf="!isLoading && (!orders || orders.length === 0)" class="empty-state p-8 text-center">
+      <div class="empty-icon mb-4">📦</div>
+      <h3 class="text-lg font-semibold mb-2">No orders found</h3>
+      <p class="text-sm text-gray-600 mb-4">Try adjusting filters or create a new order.</p>
+      <div>
+        <button
+          (click)="navigateToCreateOrder()"
+          class="px-4 py-2 bg-green-600 text-white rounded-lg"
+        >
+          Create Order
+        </button>
+      </div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="flex items-center justify-center gap-2 mt-6" *ngIf="totalPages > 1">
+      <button
+        *ngFor="let page of pages"
+        class="px-3 py-1 border rounded-lg"
+        [ngClass]="{
+          'bg-blue-600 text-white': page === currentPage,
+          'bg-white text-gray-800': page !== currentPage,
+        }"
+        [disabled]="page === currentPage"
+        (click)="goToPage(page)"
+      >
+        {{ page + 1 }}
+      </button>
+    </div>
+
+    <!-- projected footer (rows/paging) from parent pages -->
+    <ng-content select="[list-footer]"></ng-content>
+
+    <!-- Edit Modal - Using Standalone Component -->
+    <app-transport-order-edit-modal
+      *ngIf="isModalOpen && selectedOrder"
+      [order]="selectedOrder"
+      (onSave)="onModalSave($any($event))"
+      (onClose)="closeModal()"
+    ></app-transport-order-edit-modal>
+  </div>
+</div>

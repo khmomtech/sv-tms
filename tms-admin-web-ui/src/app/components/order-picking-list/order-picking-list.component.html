@@ -1,0 +1,116 @@
+<div class="container">
+  <!-- Loading State -->
+  <div *ngIf="loading()" class="loading-state">
+    <p>Loading picking list…</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="!loading() && error()" class="error-state">
+    <p>{{ error() }}</p>
+  </div>
+
+  <!-- Main Content -->
+  <div *ngIf="!loading() && !error() && order()">
+    <!-- Page Header -->
+    <div class="page-header">
+      <div class="header-info">
+        <h2>Picking List</h2>
+        <p class="header-meta">Order #{{ order()?.orderReference || orderId }}</p>
+        <p class="header-meta">
+          {{ order()?.customerName || '—' }} · {{ order()?.deliveryDate | date: 'dd/MM/yyyy' }}
+        </p>
+      </div>
+      <div class="header-actions">
+        <button class="btn-secondary" (click)="goBack()">← Back</button>
+        <button class="btn-primary" (click)="exportPdf()" [disabled]="exporting()">
+          {{ exporting() ? '⏳ Exporting...' : '📥 Export PDF' }}
+        </button>
+        <button class="btn-primary" (click)="print()">🖨 Print</button>
+      </div>
+    </div>
+
+    <!-- Form G6 - Physical Form Layout -->
+    <div class="form-container" #formContainer>
+      <!-- Top Document References -->
+      <div class="doc-references">
+        <div class="doc-left">
+          <div class="doc-code">KHB-LOG-WAR-023</div>
+          <div class="doc-effective">Effective: 26.10.2017</div>
+        </div>
+        <div class="doc-right">
+          <div class="khmer-label">លេខឯកសារ:</div>
+          <div class="khmer-header">ទម្រង់បញ្ជីរាប់ចំណុះលទ្ធផលសម្រេច</div>
+        </div>
+      </div>
+
+      <!-- Form Title Section -->
+      <div class="form-title-section">
+        <div class="section-label">ឃ្លាំង: PS</div>
+        <h1 class="form-title">Finished Product Count Form</h1>
+        <div class="form-date-truck">
+          <span
+            ><strong>Date:</strong> {{ order()?.deliveryDate | date: 'dd-MM-yyyy' }} /
+            <strong>Truck:</strong> {{ assignedTruck() }}</span
+          >
+        </div>
+      </div>
+
+      <!-- Distributor Info Row -->
+      <div class="distributor-info">
+        <div class="dist-left">
+          <span>Distributor<strong>ដេប៉ូ</strong> : PNP6</span>
+        </div>
+        <div class="dist-right">
+          <span><strong>Submitted by:</strong></span>
+        </div>
+      </div>
+
+      <!-- Items Table -->
+      <table class="items-table">
+        <thead>
+          <tr class="header-row">
+            <th class="col-material">ឈ្មោះមុខទំនិញ</th>
+            <th class="col-qty">ចំនួន</th>
+            <th class="col-timein">Time In (ម៉ោង)</th>
+            <th class="col-counting">Time Out (ម៉ោង)</th>
+          </tr>
+          <tr class="header-row">
+            <th class="col-material">Material Description</th>
+            <th class="col-qty">Quantity</th>
+            <th class="col-counting-sub" colspan="2">Counting(ការរាប់ឡើងវិញ) Pallet</th>
+          </tr>
+          <tr class="header-row-sub"></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let row of rows(); let i = index" class="table-row">
+            <td class="col-material">{{ row?.itemName || row?.itemCode || '' }}</td>
+            <td class="col-qty">{{ row?.quantity || '' }}</td>
+            <td class="col-counting" colspan="2"></td>
+          </tr>
+          <tr class="total-row">
+            <td class="col-material"><strong>Total Pallet</strong></td>
+            <td class="col-qty">
+              <strong>{{ totalPallets() }}</strong>
+            </td>
+            <td class="col-counting" colspan="2"></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Form Footer - Signature Lines -->
+      <div class="form-footer">
+        <div class="sig-group">
+          <div class="sig-item">
+            <div class="sig-line"></div>
+          </div>
+          <div class="sig-item">
+            <div class="sig-line"></div>
+          </div>
+          <div class="sig-item">
+            <div class="sig-line"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

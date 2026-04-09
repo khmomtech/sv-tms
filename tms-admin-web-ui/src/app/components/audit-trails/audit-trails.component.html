@@ -1,0 +1,134 @@
+<div class="container-fluid">
+  <h2 class="mb-4">Audit Trails</h2>
+
+  <!-- Error Message -->
+  <div *ngIf="error" class="alert alert-danger alert-dismissible fade show" role="alert">
+    {{ error }}
+    <button
+      type="button"
+      class="btn-close"
+      data-bs-dismiss="alert"
+      aria-label="Close"
+      (click)="error = null"
+    ></button>
+  </div>
+
+  <!-- Loading Indicator -->
+  <div *ngIf="loading" class="text-center">
+    <div class="spinner-border" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+  </div>
+
+  <!-- Filter Section -->
+  <div class="mb-4 card">
+    <div class="card-header">
+      <h5 class="mb-0">Filter Audit Trails</h5>
+    </div>
+    <div class="card-body">
+      <form (ngSubmit)="applyFilters()" #filterForm="ngForm">
+        <div class="row">
+          <div class="mb-3 col-md-3">
+            <label for="usernameFilter" class="form-label">Username</label>
+            <input
+              type="text"
+              class="form-control"
+              id="usernameFilter"
+              [(ngModel)]="filter.username"
+              name="username"
+            />
+          </div>
+          <div class="mb-3 col-md-3">
+            <label for="actionFilter" class="form-label">Action</label>
+            <input
+              type="text"
+              class="form-control"
+              id="actionFilter"
+              [(ngModel)]="filter.action"
+              name="action"
+            />
+          </div>
+          <div class="mb-3 col-md-3">
+            <label for="resourceTypeFilter" class="form-label">Resource Type</label>
+            <input
+              type="text"
+              class="form-control"
+              id="resourceTypeFilter"
+              [(ngModel)]="filter.resourceType"
+              name="resourceType"
+            />
+          </div>
+          <div class="mb-3 col-md-3">
+            <label class="form-label">Date Range</label>
+            <div class="input-group">
+              <input
+                type="date"
+                class="form-control"
+                [(ngModel)]="filter.startDate"
+                name="startDate"
+              />
+              <span class="input-group-text">to</span>
+              <input type="date" class="form-control" [(ngModel)]="filter.endDate" name="endDate" />
+            </div>
+          </div>
+        </div>
+        <div class="d-flex justify-content-end">
+          <button type="button" class="btn btn-secondary me-2" (click)="clearFilters()">
+            Clear Filters
+          </button>
+          <button type="submit" class="btn btn-primary" [disabled]="loading">
+            <span
+              *ngIf="loading"
+              class="spinner-border spinner-border-sm me-1"
+              role="status"
+              aria-hidden="true"
+            ></span>
+            Apply Filters
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Audit Trails List -->
+  <div class="card">
+    <div class="card-header">
+      <h5 class="mb-0">Audit Trails List</h5>
+      <div class="small text-muted">
+        Showing {{ filteredAuditTrails.length }} of {{ auditTrails.length }} records
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-striped table-hover">
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>Username</th>
+              <th>Action</th>
+              <th>Resource Type</th>
+              <th>Resource Name</th>
+              <th>Details</th>
+              <th>IP Address</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let trail of filteredAuditTrails">
+              <td>{{ formatDate(trail.timestamp) }}</td>
+              <td>{{ trail.username }}</td>
+              <td>{{ trail.action }}</td>
+              <td>{{ trail.resourceType }}</td>
+              <td>{{ trail.resourceName }}</td>
+              <td>
+                <span [title]="trail.details">
+                  {{ formatDetails(trail.details) }}
+                </span>
+              </td>
+              <td>{{ trail.ipAddress }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

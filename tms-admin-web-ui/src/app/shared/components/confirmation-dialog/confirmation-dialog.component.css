@@ -1,0 +1,36 @@
+/* Confirmation Dialog Styles */
+
+:host {
+  display: block;
+}
+
+/* Dialog title with icon alignment */
+h2[mat-dialog-title] {
+  margin: 0 0 1rem;
+  font-weight: 600;
+  font-size: 1.25rem;
+}
+
+/* Dialog content spacing */
+mat-dialog-content {
+  min-width: 350px;
+  max-width: 500px;
+}
+
+/* Dialog actions spacing */
+mat-dialog-actions {
+  padding: 1rem 0 0;
+  margin: 0;
+}
+
+/* Button hover effects */
+button[mat-stroked-button]:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  button[mat-stroked-button]:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+  }
+}

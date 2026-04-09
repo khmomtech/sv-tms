@@ -1,0 +1,118 @@
+<div class="container">
+  <h2>Trip Pre-Plan Form</h2>
+
+  <!-- Filter Controls -->
+  <div class="filters">
+    <label>
+      Upload Date:
+      <input type="date" [(ngModel)]="uploadDate" (change)="loadData()" />
+    </label>
+    <label>
+      Zone:
+      <select [(ngModel)]="selectedZone" (change)="loadData()">
+        <option value="">All Zones</option>
+        <option *ngFor="let z of zones" [value]="z">{{ z }}</option>
+      </select>
+    </label>
+    <label>
+      Distributor:
+      <input
+        type="text"
+        [(ngModel)]="distributorSearch"
+        (input)="loadData()"
+        placeholder="Search..."
+      />
+    </label>
+    <button (click)="toggleEditMode()">
+      {{ editMode ? ' View Mode' : '✏️ Edit Mode' }}
+    </button>
+  </div>
+
+  <!-- Trip Table -->
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th rowspan="2">Distributor</th>
+          <th rowspan="2">Ship<br />To Party</th>
+          <th colspan="4">Pallet Truck</th>
+          <th rowspan="2">POSM</th>
+          <th rowspan="2">Total<br />Pallet (DB)</th>
+          <th rowspan="2">Planned<br />Pallet</th>
+          <th rowspan="2">Remain<br />Pallet</th>
+          <th colspan="20">Trip</th>
+        </tr>
+        <tr>
+          <th>8</th>
+          <th>10</th>
+          <th>11</th>
+          <th>22</th>
+          <th *ngFor="let t of trips">T{{ t }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let row of data">
+          <td>
+            <ng-container *ngIf="editMode; else viewDistributor">
+              <input [(ngModel)]="row.distributor" />
+            </ng-container>
+            <ng-template #viewDistributor>{{ row.distributor }}</ng-template>
+          </td>
+          <td>
+            <ng-container *ngIf="editMode; else viewShipTo">
+              <input [(ngModel)]="row.shipTo" />
+            </ng-container>
+            <ng-template #viewShipTo>{{ row.shipTo }}</ng-template>
+          </td>
+
+          <td>
+            <input type="number" [(ngModel)]="row.truck8" *ngIf="editMode" /><span
+              *ngIf="!editMode"
+              >{{ row.truck8 }}</span
+            >
+          </td>
+          <td>
+            <input type="number" [(ngModel)]="row.truck10" *ngIf="editMode" /><span
+              *ngIf="!editMode"
+              >{{ row.truck10 }}</span
+            >
+          </td>
+          <td>
+            <input type="number" [(ngModel)]="row.truck11" *ngIf="editMode" /><span
+              *ngIf="!editMode"
+              >{{ row.truck11 }}</span
+            >
+          </td>
+          <td>
+            <input type="number" [(ngModel)]="row.truck22" *ngIf="editMode" /><span
+              *ngIf="!editMode"
+              >{{ row.truck22 }}</span
+            >
+          </td>
+          <td>
+            <input [(ngModel)]="row.posm" *ngIf="editMode" /><span *ngIf="!editMode">{{
+              row.posm
+            }}</span>
+          </td>
+          <td>{{ row.totalPallet }}</td>
+          <td>{{ row.plannedPallet }}</td>
+          <td>{{ row.remainPallet }}</td>
+
+          <td *ngFor="let t of trips">
+            <ng-container *ngIf="editMode; else viewTrip">
+              <input
+                type="number"
+                [(ngModel)]="row.trips['trip' + t]"
+                (input)="calculateTotalPallet(row)"
+              />
+            </ng-container>
+            <ng-template #viewTrip>{{ row.trips['trip' + t] || 0 }}</ng-template>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <br />
+  <button *ngIf="editMode" class="save-button" (click)="save()">💾 Save Pre-Plan</button>
+</div>

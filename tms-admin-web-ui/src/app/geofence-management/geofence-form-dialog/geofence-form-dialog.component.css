@@ -1,0 +1,42 @@
+/* ── Dialog container sizing ── */
+:host {
+  display: block;
+  min-width: 500px;
+  max-width: 600px;
+}
+
+/* ── Light background for the entire dialog surface ── */
+:host ::ng-deep .mat-mdc-dialog-surface {
+  background-color: #f8fafc !important; /* slate-50 */
+}
+
+/* ── Override Material dialog padding so Tailwind controls spacing ── */
+:host ::ng-deep .mat-mdc-dialog-content {
+  padding: 0 !important;
+  background-color: transparent !important;
+}
+
+:host ::ng-deep .mat-mdc-dialog-actions {
+  padding: 0 !important;
+  min-height: unset !important;
+  background-color: #ffffff;
+}
+
+/* ── Number input: hide browser arrows for cleaner look ── */
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type='number'] {
+  -moz-appearance: textfield;
+}
+
+/* ── Mobile responsive ── */
+@media (max-width: 600px) {
+  :host {
+    min-width: unset;
+    width: 100%;
+  }
+}

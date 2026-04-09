@@ -1,0 +1,143 @@
+/*  Container and form layout */
+.container {
+  padding: 1rem;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+form {
+  margin-bottom: 1.5rem;
+}
+
+/* 📋 Table enhancements */
+.table {
+  font-size: 14px;
+  border-collapse: collapse;
+  width: 100%;
+  white-space: nowrap;
+  overflow-x: auto;
+  display: block;
+}
+
+.table th,
+.table td {
+  padding: 8px 12px;
+  vertical-align: middle;
+  text-align: left;
+  border: 1px solid #dee2e6;
+}
+
+.table th {
+  background-color: #f8f9fa;
+  font-weight: 600;
+  color: #333;
+}
+
+.table td {
+  color: #212529;
+}
+
+/* 🔵 Highlight 'Trip No' field */
+.table td:nth-child(2) {
+  font-weight: bold;
+  color: #0d6efd;
+}
+
+/* 🦓 Zebra striping for rows */
+.table tbody tr:nth-child(even) {
+  background-color: #f2f2f2;
+}
+
+/* 📱 Responsive scrolling */
+.table-responsive {
+  overflow-x: auto;
+}
+
+/*  Pagination controls */
+.pagination {
+  margin-top: 1rem;
+}
+
+.page-item .page-link {
+  padding: 6px 12px;
+  border: 1px solid #dee2e6;
+  color: #0d6efd;
+  background-color: #fff;
+  transition: all 0.2s ease;
+}
+
+.page-item .page-link:hover {
+  background-color: #0d6efd;
+  color: white;
+}
+
+.page-item.disabled .page-link {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* ⚠️ Alerts */
+.alert-info {
+  background-color: #e7f3ff;
+  color: #0c5460;
+  padding: 0.75rem 1rem;
+  border-radius: 4px;
+}
+
+.alert-danger {
+  background-color: #f8d7da;
+  color: #721c24;
+  padding: 0.75rem 1rem;
+  border-radius: 4px;
+}
+
+/* 🎨 Bootstrap contextual table classes */
+.table-primary {
+  background-color: #e3f2fd !important;
+}
+.table-secondary {
+  background-color: #f1f3f5 !important;
+}
+.table-success {
+  background-color: #d4edda !important;
+}
+.table-danger {
+  background-color: #f8d7da !important;
+}
+.table-warning {
+  background-color: #fff3cd !important;
+}
+.table-info {
+  background-color: #d1ecf1 !important;
+}
+.table-light {
+  background-color: #fefefe !important;
+}
+.table-dark {
+  background-color: #d6d8d9 !important;
+  color: #000;
+}
+
+.card-body {
+  background-color: #ffffff;
+  /* border: 1px solid #dee2e6; */
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  height: 100%;
+}
+.card-body label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #6c757d;
+}
+.card-body input[type='number'] {
+  font-size: 0.9rem;
+  padding: 6px 10px;
+}
+
+input[type='number'] {
+  font-size: 0.9rem;
+  padding: 6px 10px;
+
+  border: 1px solid #ccc;
+}

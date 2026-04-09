@@ -1,0 +1,131 @@
+<p>vehicle-document-list works!</p>
+<div class="p-6">
+  <div class="mb-6 flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">Vehicle Documents</h1>
+      <p class="text-gray-600">Report list with date filters</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <button class="px-4 py-2 border rounded-lg text-sm" type="button" (click)="resetFilters()">
+        Reset
+      </button>
+      <button
+        class="px-4 py-2 bg-blue-600 text-white rounded-lg"
+        type="button"
+        (click)="applyFilters()"
+      >
+        Apply
+      </button>
+    </div>
+  </div>
+
+  <div *ngIf="error" class="mb-4 p-3 rounded border border-red-200 bg-red-50 text-red-700">
+    {{ error }}
+  </div>
+
+  <div class="bg-white rounded-lg border p-4 mb-4">
+    <div class="grid grid-cols-1 md:grid-cols-6 gap-3">
+      <div class="md:col-span-2">
+        <label class="block text-xs font-medium text-gray-600 mb-1">Search</label>
+        <input
+          class="border rounded px-3 py-2 w-full"
+          [(ngModel)]="filters.search"
+          placeholder="Plate, doc number, notes"
+        />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 mb-1">Date Field</label>
+        <select class="border rounded px-3 py-2 w-full" [(ngModel)]="filters.dateField">
+          <option value="created">Created</option>
+          <option value="issue">Issue Date</option>
+          <option value="expiry">Expiry Date</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 mb-1">From</label>
+        <input type="date" class="border rounded px-3 py-2 w-full" [(ngModel)]="filters.from" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 mb-1">To</label>
+        <input type="date" class="border rounded px-3 py-2 w-full" [(ngModel)]="filters.to" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 mb-1">Vehicle</label>
+        <select class="border rounded px-3 py-2 w-full" [(ngModel)]="filters.vehicleId">
+          <option [ngValue]="null">All Vehicles</option>
+          <option *ngFor="let v of vehicles" [ngValue]="v.id">{{ v.licensePlate }}</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-600 mb-1">Type</label>
+        <input
+          class="border rounded px-3 py-2 w-full"
+          [(ngModel)]="filters.documentType"
+          placeholder="e.g. REGISTRATION"
+        />
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-lg border overflow-x-auto">
+    <table class="min-w-full text-sm">
+      <thead class="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
+        <tr>
+          <th class="px-4 py-3 text-left">Vehicle</th>
+          <th class="px-4 py-3 text-left">Type</th>
+          <th class="px-4 py-3 text-left">Doc #</th>
+          <th class="px-4 py-3 text-left">Issue</th>
+          <th class="px-4 py-3 text-left">Expiry</th>
+          <th class="px-4 py-3 text-left">Status</th>
+          <th class="px-4 py-3 text-left">Updated</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngIf="loading">
+          <td colspan="7" class="px-4 py-6 text-center text-sm text-gray-500">
+            Loading documents…
+          </td>
+        </tr>
+        <tr *ngIf="!loading && documents.length === 0">
+          <td colspan="7" class="px-4 py-6 text-center text-sm text-gray-500">
+            No documents found.
+          </td>
+        </tr>
+        <tr *ngFor="let doc of documents" class="border-t text-gray-700">
+          <td class="px-4 py-3">
+            <div class="font-medium">{{ doc.licensePlate || '—' }}</div>
+            <div class="text-xs text-gray-500">
+              {{ doc.vehicleName || ('Vehicle ' + doc.vehicleId) }}
+            </div>
+          </td>
+          <td class="px-4 py-3">{{ doc.documentType || '—' }}</td>
+          <td class="px-4 py-3">{{ doc.docNumber || doc.documentNumber || doc.id }}</td>
+          <td class="px-4 py-3">{{ formatDate(doc.issueDate) }}</td>
+          <td class="px-4 py-3">{{ formatDate(doc.expiryDate) }}</td>
+          <td class="px-4 py-3">
+            <span class="px-2 py-1 text-xs rounded border" [ngClass]="statusClass(doc)">
+              {{ statusLabel(doc) }}
+            </span>
+          </td>
+          <td class="px-4 py-3">{{ formatDate(doc.updatedAt) }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="flex items-center justify-between mt-3 text-sm text-gray-600">
+    <div>Page {{ page + 1 }} of {{ totalPages }} · {{ totalElements }} results</div>
+    <div class="flex items-center gap-2">
+      <button class="px-3 py-1 border rounded" (click)="prevPage()" [disabled]="page <= 0">
+        Prev
+      </button>
+      <button
+        class="px-3 py-1 border rounded"
+        (click)="nextPage()"
+        [disabled]="page + 1 >= totalPages"
+      >
+        Next
+      </button>
+    </div>
+  </div>
+</div>

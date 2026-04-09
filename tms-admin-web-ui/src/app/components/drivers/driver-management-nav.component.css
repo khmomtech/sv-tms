@@ -1,0 +1,121 @@
+/* Driver Management Navigation Styles */
+
+.driver-management-nav {
+  width: 320px;
+  min-height: 100vh;
+}
+
+/* Smooth animations */
+.driver-management-nav * {
+  transition: all 0.2s ease-in-out;
+}
+
+/* Category hover effects */
+.driver-management-nav .category-header:hover {
+  background-color: #f9fafb;
+}
+
+/* Navigation item hover effects */
+.driver-management-nav a:hover {
+  background-color: #f9fafb;
+  border-left-color: #d1d5db;
+}
+
+/* Active navigation item */
+.driver-management-nav a.router-link-active {
+  background-color: #eff6ff;
+  border-left-color: #2563eb;
+  border-right-color: #2563eb;
+}
+
+.driver-management-nav a.router-link-active .group:hover svg {
+  color: #2563eb;
+}
+
+/* Badge styles */
+.driver-management-nav .badge {
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* Search input focus */
+.driver-management-nav input:focus {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Category collapse animation */
+.driver-management-nav .category-items {
+  transition: max-height 0.3s ease-in-out;
+}
+
+/* Icon animations */
+.driver-management-nav svg {
+  transition: transform 0.2s ease-in-out;
+}
+
+.driver-management-nav .rotate-180 {
+  transform: rotate(180deg);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .driver-management-nav {
+    width: 280px;
+  }
+
+  .driver-management-nav .category-header {
+    padding: 0.75rem;
+  }
+
+  .driver-management-nav a {
+    padding: 0.75rem;
+    margin-left: 1rem;
+  }
+}
+
+/* Dark mode support (if needed) */
+@media (prefers-color-scheme: dark) {
+  .driver-management-nav {
+    background-color: #1f2937;
+    border-color: #374151;
+  }
+
+  .driver-management-nav .category-header:hover {
+    background-color: #374151;
+  }
+
+  .driver-management-nav a:hover {
+    background-color: #374151;
+  }
+
+  .driver-management-nav a.router-link-active {
+    background-color: #1e3a8a;
+  }
+}
+
+/* Custom scrollbar */
+.driver-management-nav::-webkit-scrollbar {
+  width: 6px;
+}
+
+.driver-management-nav::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+.driver-management-nav::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.driver-management-nav::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}

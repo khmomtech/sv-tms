@@ -1,0 +1,626 @@
+<div class="p-6 bg-gray-50 min-h-screen">
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-3xl font-bold text-gray-800">Banner Management</h1>
+      <p class="text-gray-600 mt-1">Manage carousel banners and announcements for driver app</p>
+    </div>
+    <button
+      *ngIf="!showForm"
+      (click)="showCreateForm()"
+      class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-md"
+    >
+      ➕ Create New Banner
+    </button>
+  </div>
+
+  <!-- Filter -->
+  <div *ngIf="!showForm" class="mb-6 bg-white p-4 rounded-lg shadow-sm">
+    <label class="block text-sm font-medium text-gray-700 mb-2">Filter by Category</label>
+    <select
+      [(ngModel)]="selectedCategory"
+      (change)="onFilterChange()"
+      class="w-full md:w-64 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+    >
+      <option *ngFor="let cat of categories" [value]="cat === 'all' ? '' : cat">
+        {{ cat | titlecase }}
+      </option>
+    </select>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="isLoading && !showForm" class="text-center py-12">
+    <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+    <p class="mt-4 text-gray-600">Loading banners...</p>
+  </div>
+
+  <!-- Banner Table -->
+  <div *ngIf="!showForm && !isLoading" class="bg-white rounded-lg shadow-md overflow-x-auto">
+    <table class="min-w-full divide-y divide-gray-200">
+      <thead class="bg-gray-50">
+        <tr>
+          <th
+            scope="col"
+            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+          >
+            Image
+          </th>
+          <th
+            scope="col"
+            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+          >
+            Title
+          </th>
+          <th
+            scope="col"
+            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+          >
+            Category
+          </th>
+          <th
+            scope="col"
+            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+          >
+            Status
+          </th>
+          <th
+            scope="col"
+            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+          >
+            Order
+          </th>
+          <th
+            scope="col"
+            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+          >
+            Dates
+          </th>
+          <th
+            scope="col"
+            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+          >
+            Stats
+          </th>
+          <th scope="col" class="relative px-6 py-3">
+            <span class="sr-only">Actions</span>
+          </th>
+        </tr>
+      </thead>
+      <tbody class="bg-white divide-y divide-gray-200">
+        <tr *ngFor="let banner of filteredBanners" class="hover:bg-gray-50 transition">
+          <td class="px-6 py-4 whitespace-nowrap">
+            <img
+              [src]="getImageUrl(banner.imageUrl)"
+              [alt]="banner.title || 'Banner Image'"
+              class="w-24 h-12 object-cover rounded-md shadow-sm"
+              decoding="async"
+              loading="lazy"
+              (error)="onImageError($event)"
+            />
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap">
+            <div class="text-sm font-medium text-gray-900">{{ banner.title }}</div>
+            <div class="text-sm text-gray-500">{{ banner.titleKh }}</div>
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap">
+            <span
+              class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800"
+            >
+              {{ banner.category }}
+            </span>
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap">
+            <span
+              class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
+              [class.bg-green-100]="banner.active"
+              [class.text-green-800]="banner.active"
+              [class.bg-red-100]="!banner.active"
+              [class.text-red-800]="!banner.active"
+            >
+              {{ banner.active ? 'Active' : 'Inactive' }}
+            </span>
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+            {{ banner.displayOrder }}
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+            <div>Start: {{ formatDisplayDate(banner.startDate) }}</div>
+            <div>End: {{ formatDisplayDate(banner.endDate) }}</div>
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+            <div>V: {{ banner.viewCount || 0 }} | C: {{ banner.clickCount || 0 }}</div>
+            <div>
+              CTR:
+              {{
+                (banner.viewCount || 0) > 0
+                  ? (((banner.clickCount || 0) / (banner.viewCount || 1)) * 100).toFixed(1) + '%'
+                  : '0%'
+              }}
+            </div>
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+            <div class="flex items-center gap-2">
+              <button
+                (click)="editBanner(banner)"
+                class="text-indigo-600 hover:text-indigo-900"
+                title="Edit"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-5 w-5"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z"
+                  />
+                  <path
+                    fill-rule="evenodd"
+                    d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+              </button>
+              <button
+                (click)="toggleActive(banner)"
+                class="hover:text-gray-900"
+                [title]="banner.active ? 'Deactivate' : 'Activate'"
+                [class.text-gray-400]="banner.active"
+                [class.text-green-600]="!banner.active"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-5 w-5"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fill-rule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+              </button>
+              <button
+                (click)="deleteBanner(banner)"
+                class="text-red-600 hover:text-red-900"
+                title="Delete"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-5 w-5"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fill-rule="evenodd"
+                    d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+              </button>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Empty State -->
+    <div *ngIf="filteredBanners.length === 0" class="text-center py-12">
+      <p class="text-gray-500 text-lg">No banners found for the selected category.</p>
+    </div>
+  </div>
+
+  <!-- Create/Edit Form -->
+  <div *ngIf="showForm" class="bg-white rounded-lg shadow-md p-6 max-w-4xl mx-auto">
+    <h2 class="text-2xl font-bold text-gray-800 mb-6">
+      {{ isEditing ? 'Edit Banner' : 'Create New Banner' }}
+    </h2>
+
+    <!-- Success/Error Messages -->
+    <div
+      *ngIf="successMessage"
+      class="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg flex items-center gap-2"
+    >
+      <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+        <path
+          fill-rule="evenodd"
+          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+          clip-rule="evenodd"
+        />
+      </svg>
+      {{ successMessage }}
+    </div>
+
+    <div
+      *ngIf="errorMessage"
+      class="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg flex items-center gap-2"
+    >
+      <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+        <path
+          fill-rule="evenodd"
+          d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+          clip-rule="evenodd"
+        />
+      </svg>
+      {{ errorMessage }}
+    </div>
+
+    <form (ngSubmit)="saveBanner()">
+      <!-- Title (English) -->
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-2">Title (English) *</label>
+        <input
+          type="text"
+          [(ngModel)]="bannerForm.title"
+          name="title"
+          required
+          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          placeholder="Welcome Driver!"
+        />
+      </div>
+
+      <!-- Title (Khmer) -->
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-2">Title (Khmer)</label>
+        <input
+          type="text"
+          [(ngModel)]="bannerForm.titleKh"
+          name="titleKh"
+          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          placeholder="សូមស្វាគមន៍ជំនិញបើកបរ!"
+        />
+      </div>
+
+      <!-- Subtitle (English) -->
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-2">Subtitle (English)</label>
+        <textarea
+          [(ngModel)]="bannerForm.subtitle"
+          name="subtitle"
+          rows="2"
+          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          placeholder="Ready to make deliveries today"
+        ></textarea>
+      </div>
+
+      <!-- Subtitle (Khmer) -->
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-2">Subtitle (Khmer)</label>
+        <textarea
+          [(ngModel)]="bannerForm.subtitleKh"
+          name="subtitleKh"
+          rows="2"
+          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          placeholder="រួសរាន់ក្នុងការដឹកជញ្ជូនថ្ងៃនេះ"
+        ></textarea>
+      </div>
+
+      <!-- Enhanced Image Upload Section -->
+      <div class="mb-6">
+        <label class="block text-sm font-medium text-gray-700 mb-3">Banner Image *</label>
+
+        <!-- Drag and Drop Area -->
+        <div
+          class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors"
+          (dragover)="onDragOver($event)"
+          (dragleave)="onDragLeave($event)"
+          (drop)="onDrop($event)"
+          [class.border-blue-400]="isDragOver"
+          [class.bg-blue-50]="isDragOver"
+        >
+          <div *ngIf="!bannerForm.imageUrl" class="space-y-3">
+            <svg
+              class="mx-auto h-12 w-12 text-gray-400"
+              stroke="currentColor"
+              fill="none"
+              viewBox="0 0 48 48"
+            >
+              <path
+                d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+            <div class="text-sm text-gray-600">
+              <p class="font-medium">Drag and drop an image here, or</p>
+              <p class="mt-1">Click to browse files</p>
+            </div>
+          </div>
+
+          <!-- Image Preview -->
+          <div *ngIf="bannerForm.imageUrl" class="relative">
+            <img
+              [src]="getImageUrl(bannerForm.imageUrl)"
+              alt="Banner Preview"
+              class="max-h-40 mx-auto rounded-lg shadow-md"
+              decoding="async"
+              (error)="onImageError($event)"
+            />
+            <button
+              type="button"
+              (click)="removeImage()"
+              class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="mt-3 flex gap-3">
+          <button
+            type="button"
+            (click)="triggerFileInput()"
+            class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+              />
+            </svg>
+            Upload New Image
+          </button>
+          <button
+            type="button"
+            (click)="openImagePicker()"
+            class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition flex items-center gap-2"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+              />
+            </svg>
+            Browse Gallery
+          </button>
+        </div>
+
+        <!-- Upload Progress -->
+        <div *ngIf="uploadProgress > 0 && uploadProgress < 100" class="mt-3">
+          <div class="flex justify-between text-sm text-gray-600 mb-1">
+            <span>Uploading...</span>
+            <span>{{ uploadProgress }}%</span>
+          </div>
+          <div class="w-full bg-gray-200 rounded-full h-2">
+            <div
+              class="bg-blue-600 h-2 rounded-full transition-all duration-300"
+              [style.width.%]="uploadProgress"
+            ></div>
+          </div>
+        </div>
+
+        <!-- Hidden File Input -->
+        <input
+          type="file"
+          #fileInput
+          (change)="onFileSelected($event)"
+          accept="image/*"
+          class="hidden"
+        />
+
+        <!-- Image URL Field (Hidden) -->
+        <input type="hidden" [(ngModel)]="bannerForm.imageUrl" name="imageUrl" required />
+      </div>
+
+      <!-- Category & Order -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Category *</label>
+          <select
+            [(ngModel)]="bannerForm.category"
+            name="category"
+            required
+            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="announcement">Announcement</option>
+            <option value="promotion">Promotion</option>
+            <option value="safety">Safety</option>
+            <option value="news">News</option>
+            <option value="general">General</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Display Order</label>
+          <input
+            type="number"
+            [(ngModel)]="bannerForm.displayOrder"
+            name="displayOrder"
+            min="0"
+            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+        </div>
+      </div>
+
+      <!-- Target URL -->
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-2">Target URL / Deep Link</label>
+        <input
+          type="text"
+          [(ngModel)]="bannerForm.targetUrl"
+          name="targetUrl"
+          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          placeholder="/trips or https://example.com"
+        />
+      </div>
+
+      <!-- Dates -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Start Date *</label>
+          <input
+            type="datetime-local"
+            [(ngModel)]="bannerForm.startDate"
+            name="startDate"
+            required
+            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">End Date *</label>
+          <input
+            type="datetime-local"
+            [(ngModel)]="bannerForm.endDate"
+            name="endDate"
+            required
+            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+        </div>
+      </div>
+
+      <!-- Active Status -->
+      <div class="mb-6">
+        <label class="flex items-center">
+          <input
+            type="checkbox"
+            [(ngModel)]="bannerForm.active"
+            name="active"
+            class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+          />
+          <span class="ml-2 text-sm font-medium text-gray-700">Active</span>
+        </label>
+      </div>
+
+      <!-- Form Actions -->
+      <div class="flex gap-3">
+        <button
+          type="submit"
+          [disabled]="isLoading"
+          class="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+        >
+          {{ isEditing ? '💾 Update Banner' : 'Create Banner' }}
+        </button>
+        <button
+          type="button"
+          (click)="cancelForm()"
+          class="px-6 py-3 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition"
+        >
+          ✖ Cancel
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Enhanced Image Picker Modal -->
+  <div
+    *ngIf="showImagePicker"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4"
+    (click)="showImagePicker = false"
+  >
+    <div
+      class="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[85vh] flex flex-col"
+      (click)="$event.stopPropagation()"
+    >
+      <!-- Header -->
+      <div class="p-6 border-b border-gray-200">
+        <div class="flex justify-between items-center">
+          <h3 class="text-2xl font-bold text-gray-800">Select Banner Image</h3>
+          <button
+            (click)="showImagePicker = false"
+            class="text-gray-400 hover:text-gray-600 transition"
+          >
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+        <p class="text-gray-600 mt-2">Choose from existing banner images or upload a new one</p>
+      </div>
+
+      <!-- Content -->
+      <div class="flex-1 overflow-y-auto p-6">
+        <div *ngIf="availableImages.length === 0" class="text-center py-12">
+          <svg
+            class="mx-auto h-16 w-16 text-gray-300"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="1"
+              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+            />
+          </svg>
+          <p class="mt-4 text-gray-500">No images available. Upload your first banner image!</p>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div
+            *ngFor="let img of availableImages"
+            (click)="selectImage(img)"
+            class="group cursor-pointer border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:shadow-lg transition-all duration-200 overflow-hidden"
+          >
+            <div class="aspect-video relative">
+              <img
+                [src]="getImageUrl(img.url)"
+                [alt]="img.filename"
+                class="w-full h-full object-cover"
+                decoding="async"
+                loading="lazy"
+                (error)="onImageError($event)"
+              />
+              <div
+                class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-opacity flex items-center justify-center"
+              >
+                <svg
+                  class="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+              </div>
+            </div>
+            <div class="p-3">
+              <p class="text-xs text-gray-600 truncate font-medium">{{ img.filename }}</p>
+              <p class="text-xs text-gray-400 mt-1">{{ img.description || 'No description' }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="p-6 border-t border-gray-200 flex justify-between items-center">
+        <button
+          (click)="triggerFileInput()"
+          class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+            />
+          </svg>
+          Upload New Image
+        </button>
+        <button
+          (click)="showImagePicker = false"
+          class="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

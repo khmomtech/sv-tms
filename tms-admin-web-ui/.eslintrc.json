@@ -1,0 +1,69 @@
+{
+  "root": true,
+  "ignorePatterns": [
+    "projects/**/*",
+    "src/**/*.js"
+  ],
+  "overrides": [
+    {
+      "files": [
+        "*.ts"
+      ],
+      "extends": [
+        "eslint:recommended",
+        "@typescript-eslint/recommended",
+        "@angular-eslint/recommended",
+        "@angular-eslint/template/process-inline-templates"
+      ],
+      "rules": {
+        "@angular-eslint/directive-selector": [
+          "error",
+          {
+            "type": "attribute",
+            "prefix": "app",
+            "style": "camelCase"
+          }
+        ],
+        "@angular-eslint/component-selector": [
+          "error",
+          {
+            "type": "element",
+            "prefix": "app",
+            "style": "kebab-case"
+          }
+        ],
+        "@typescript-eslint/consistent-type-imports": ["warn", {"prefer": "type-imports"}],
+        "import/order": ["error", {"groups": ["builtin","external","internal","parent","sibling","index"], "newlines-between": "always", "alphabetize": {"order": "asc", "caseInsensitive": true}}],
+        "no-restricted-imports": ["error", {
+          "patterns": [
+            {
+              "group": ["../../../*", "../../../../*", "../../../../../*"],
+              "message": "Please use path aliases (@models, @services, @core, @shared, etc.) instead of deep relative imports"
+            },
+            {
+              "group": ["**/models/*"],
+              "message": "Import models from '@models' barrel export instead"
+            },
+            {
+              "group": ["**/services/*"],
+              "message": "Import services from '@services' barrel export instead"
+            },
+            {
+              "group": ["src/app/components/*"],
+              "message": "Components should be imported from feature modules or @shared"
+            }
+          ]
+        }]
+      }
+    },
+    {
+      "files": [
+        "*.html"
+      ],
+      "extends": [
+        "@angular-eslint/template/recommended",
+        "@angular-eslint/template/accessibility"
+      ]
+    }
+  ]
+}

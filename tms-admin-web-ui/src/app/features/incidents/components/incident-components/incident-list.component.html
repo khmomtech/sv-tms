@@ -1,0 +1,542 @@
+<div class="page">
+  <!-- Header -->
+  <div class="top-bar">
+    <div>
+      <h1>All Incidents</h1>
+      <div class="subtitle">Track and manage system incidents and requests</div>
+    </div>
+    <div class="top-actions">
+      <button class="btn" type="button" (click)="navigateToCreate()">
+        <span class="btn-icon">+</span> Create Incident
+      </button>
+    </div>
+  </div>
+  <!-- Stats -->
+  <div class="grid grid-4">
+    <div class="stat-card">
+      <div class="stat-icon stat-icon-blue">
+        <span>📋</span>
+      </div>
+      <div class="stat-content">
+        <div class="stat-value">{{ totalElements() }}</div>
+        <div class="stat-label">Total Issues</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon stat-icon-orange">
+        <span>⚠️</span>
+      </div>
+      <div class="stat-content">
+        <div class="stat-value">
+          {{
+            getStatusCount(IncidentStatus.NEW) + getStatusCount(IncidentStatus.UNDER_INVESTIGATION)
+          }}
+        </div>
+        <div class="stat-label">Open</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon stat-icon-purple">
+        <span>🔄</span>
+      </div>
+      <div class="stat-content">
+        <div class="stat-value">{{ getStatusCount(IncidentStatus.VALIDATED) }}</div>
+        <div class="stat-label">In Progress</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon stat-icon-green">
+        <span>✓</span>
+      </div>
+      <div class="stat-content">
+        <div class="stat-value">
+          {{ getStatusCount(IncidentStatus.RESOLVED) + getStatusCount(IncidentStatus.CLOSED) }}
+        </div>
+        <div class="stat-label">Resolved</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Table Card -->
+  <div class="card table-card">
+    <div class="filters">
+      <div class="filter-field filter-search">
+        <div class="filter-label">SEARCH</div>
+        <input
+          class="filter-input"
+          type="text"
+          [(ngModel)]="filters.search"
+          (input)="applyFilters()"
+          placeholder="Search ID, driver, vehicle, incident..."
+        />
+      </div>
+      <div class="filter-field">
+        <div class="filter-label">FROM DATE</div>
+        <input
+          class="filter-input"
+          type="date"
+          [(ngModel)]="filters.reportedAfter"
+          (change)="applyFilters()"
+        />
+      </div>
+      <div class="filter-field">
+        <div class="filter-label">TO DATE</div>
+        <input
+          class="filter-input"
+          type="date"
+          [(ngModel)]="filters.reportedBefore"
+          (change)="applyFilters()"
+        />
+      </div>
+      <div class="filter-field">
+        <div class="filter-label">STATUS</div>
+        <select class="filter-select" [(ngModel)]="filters.status" (change)="applyFilters()">
+          <option [value]="undefined">All</option>
+          <option *ngFor="let status of statuses" [value]="status">
+            {{ formatStatus(status) }}
+          </option>
+        </select>
+      </div>
+      <div class="filter-field">
+        <div class="filter-label">GROUP</div>
+        <select class="filter-select" [(ngModel)]="filters.group" (change)="applyFilters()">
+          <option [value]="undefined">All</option>
+          <option *ngFor="let group of groups" [value]="group">{{ formatGroup(group) }}</option>
+        </select>
+      </div>
+      <div class="filter-field">
+        <div class="filter-label">SEVERITY</div>
+        <select class="filter-select" [(ngModel)]="filters.severity" (change)="applyFilters()">
+          <option [value]="undefined">All</option>
+          <option *ngFor="let severity of severities" [value]="severity">{{ severity }}</option>
+        </select>
+      </div>
+      <div class="filter-field">
+        <div class="filter-label">DRIVER</div>
+        <input
+          class="filter-input"
+          type="text"
+          [(ngModel)]="filters.driverId"
+          (input)="applyFilters()"
+          placeholder="Driver name / ID"
+        />
+      </div>
+      <div class="filter-field">
+        <div class="filter-label">VEHICLE</div>
+        <input
+          class="filter-input"
+          type="text"
+          [(ngModel)]="filters.vehicleId"
+          (input)="applyFilters()"
+          placeholder="Plate number"
+        />
+      </div>
+      <div class="filter-field">
+        <div class="filter-label">SLA</div>
+        <select class="filter-select">
+          <option value="">All</option>
+          <option>Only overdue</option>
+          <option>Due in 4 hours</option>
+          <option>Within SLA</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    <div *ngIf="loading()" class="loading-state">
+      <div class="spinner"></div>
+      <div class="text-sm text-muted">Loading incidents...</div>
+    </div>
+
+    <!-- Table -->
+    <div *ngIf="!loading()" class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>INCIDENT</th>
+            <th>GROUP</th>
+            <th>DRIVER / VEHICLE</th>
+            <th>SEVERITY</th>
+            <th>STATUS</th>
+            <th>CREATED</th>
+            <th>ETA CLOSE</th>
+            <th>FIRST RESPONSE</th>
+            <th>CLOSED</th>
+            <th>SLA</th>
+            <th>ACTIONS</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let incident of incidents()">
+            <td>
+              <strong>{{ incident.code || '#' + incident.id }}</strong>
+            </td>
+            <td>
+              <div class="incident-title">{{ incident.title }}</div>
+              <div class="text-xs text-muted" *ngIf="incident.incidentType">
+                Type: {{ formatIncidentType(incident.incidentType) }}
+              </div>
+            </td>
+            <td>
+              <span class="badge badge-pill badge-group">{{
+                formatGroup(incident.incidentGroup)
+              }}</span>
+            </td>
+            <td>
+              <div class="text-sm">
+                {{ incident.driverName || 'N/A' }} • {{ incident.vehiclePlate || 'N/A' }}
+              </div>
+              <div
+                class="text-xs text-muted"
+                *ngIf="incident.locationText || incident.tripReference"
+              >
+                {{
+                  incident.tripReference ? 'Trip: ' + incident.tripReference : incident.locationText
+                }}
+              </div>
+            </td>
+            <td>
+              <span class="badge badge-pill" [ngClass]="getSeverityBadgeClass(incident.severity)">{{
+                incident.severity
+              }}</span>
+            </td>
+            <td>
+              <span
+                class="badge badge-pill"
+                [ngClass]="getStatusBadgeClass(incident.incidentStatus)"
+                >{{ formatStatus(incident.incidentStatus) }}</span
+              >
+            </td>
+            <td class="text-sm">{{ formatDate(incident.createdAt, 'DD-MMM-YYYY') }}</td>
+            <td class="text-sm">{{ formatDate(getETAClose(incident), 'DD-MMM-YYYY HH:mm') }}</td>
+            <td class="text-sm">{{ formatDate(incident.reportedAt, 'DD-MMM-YYYY HH:mm') }}</td>
+            <td class="text-sm">{{ formatDate(incident.resolvedAt, 'DD-MMM-YYYY') }}</td>
+            <td>
+              <span class="chip" [ngClass]="getSLAChipClass(incident)">{{
+                getSLAStatus(incident)
+              }}</span>
+            </td>
+            <td class="table-actions">
+              <button
+                class="link"
+                type="button"
+                (click)="openDrawer(incident)"
+                title="View details"
+              >
+                View
+              </button>
+              <button
+                class="link"
+                type="button"
+                (click)="editIncident(incident)"
+                title="Edit incident"
+              >
+                Edit
+              </button>
+              <button
+                class="link link-danger"
+                type="button"
+                (click)="deleteIncident(incident)"
+                title="Delete incident"
+              >
+                Delete
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Empty State -->
+      <div *ngIf="incidents().length === 0" class="empty-state">
+        <div class="text-sm text-muted">No incidents found. Try adjusting your filters.</div>
+      </div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination-wrapper">
+      <span class="pagination-info"
+        >Showing {{ incidents().length }} of {{ totalElements() }} incidents</span
+      >
+      <div class="pagination-buttons">
+        <button
+          class="btn btn-outline btn-sm"
+          [disabled]="currentPage() === 0"
+          (click)="goToPage(currentPage() - 1)"
+        >
+          Previous
+        </button>
+        <span class="pagination-pages">Page {{ currentPage() + 1 }} of {{ totalPages() }}</span>
+        <button
+          class="btn btn-outline btn-sm"
+          [disabled]="currentPage() >= totalPages() - 1"
+          (click)="goToPage(currentPage() + 1)"
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Drawer -->
+<div class="drawer-overlay" *ngIf="selectedIncident()" (click)="closeDrawer()"></div>
+<div class="drawer" *ngIf="selectedIncident()" [class.drawer-open]="selectedIncident()">
+  <div class="drawer-header">
+    <div>
+      <h2>{{ selectedIncident()?.title }}</h2>
+      <div class="drawer-meta">
+        <span class="badge" [ngClass]="getStatusBadgeClass(selectedIncident()!.incidentStatus)">
+          {{ formatStatus(selectedIncident()!.incidentStatus) }}
+        </span>
+        <span class="badge" [ngClass]="getSeverityBadgeClass(selectedIncident()!.severity)">
+          {{ selectedIncident()!.severity }}
+        </span>
+        <span class="text-muted">•</span>
+        <span class="text-muted">{{
+          selectedIncident()?.code || '#' + selectedIncident()?.id
+        }}</span>
+      </div>
+    </div>
+    <button class="drawer-close" type="button" (click)="closeDrawer()">✕</button>
+  </div>
+
+  <div class="drawer-tabs">
+    <button
+      class="drawer-tab"
+      [class.active]="activeTab() === 'overview'"
+      type="button"
+      (click)="setActiveTab('overview')"
+    >
+      Overview
+    </button>
+    <button
+      class="drawer-tab"
+      [class.active]="activeTab() === 'timeline'"
+      type="button"
+      (click)="setActiveTab('timeline')"
+    >
+      Timeline
+    </button>
+    <button
+      class="drawer-tab"
+      [class.active]="activeTab() === 'tasks'"
+      type="button"
+      (click)="setActiveTab('tasks')"
+    >
+      Tasks
+    </button>
+    <button
+      class="drawer-tab"
+      [class.active]="activeTab() === 'attachments'"
+      type="button"
+      (click)="setActiveTab('attachments')"
+    >
+      Attachments
+    </button>
+    <button
+      class="drawer-tab"
+      [class.active]="activeTab() === 'resolution'"
+      type="button"
+      (click)="setActiveTab('resolution')"
+    >
+      Resolution
+    </button>
+  </div>
+
+  <div class="drawer-body">
+    <!-- Overview Tab -->
+    <div *ngIf="activeTab() === 'overview'" class="tab-content">
+      <div class="detail-section">
+        <h3 class="section-title">Incident Details</h3>
+        <div class="detail-grid">
+          <div class="detail-item">
+            <div class="detail-label">Incident ID</div>
+            <div class="detail-value">
+              {{ selectedIncident()?.code || '#' + selectedIncident()?.id }}
+            </div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Group</div>
+            <div class="detail-value">{{ formatGroup(selectedIncident()!.incidentGroup) }}</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Severity</div>
+            <div class="detail-value">
+              <span class="badge" [ngClass]="getSeverityBadgeClass(selectedIncident()!.severity)">
+                {{ selectedIncident()!.severity }}
+              </span>
+            </div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Status</div>
+            <div class="detail-value">
+              <span
+                class="badge"
+                [ngClass]="getStatusBadgeClass(selectedIncident()!.incidentStatus)"
+              >
+                {{ formatStatus(selectedIncident()!.incidentStatus) }}
+              </span>
+            </div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Driver</div>
+            <div class="detail-value">{{ selectedIncident()?.driverName || 'N/A' }}</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Vehicle</div>
+            <div class="detail-value">{{ selectedIncident()?.vehiclePlate || 'N/A' }}</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Reported At</div>
+            <div class="detail-value">
+              {{ formatDate(selectedIncident()?.reportedAt, 'DD-MMM-YYYY HH:mm') }}
+            </div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">ETA Close</div>
+            <div class="detail-value">
+              {{ formatDate(getETAClose(selectedIncident()!), 'DD-MMM-YYYY HH:mm') }}
+            </div>
+          </div>
+          <div class="detail-item" *ngIf="selectedIncident()?.locationText">
+            <div class="detail-label">Location</div>
+            <div class="detail-value">{{ selectedIncident()?.locationText }}</div>
+          </div>
+          <div class="detail-item" *ngIf="selectedIncident()?.incidentType">
+            <div class="detail-label">Incident Type</div>
+            <div class="detail-value">{{ selectedIncident()?.incidentType }}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="detail-section" *ngIf="selectedIncident()?.description">
+        <h3 class="section-title">Description</h3>
+        <p class="description-text">{{ selectedIncident()?.description }}</p>
+      </div>
+
+      <div class="detail-section" *ngIf="selectedIncident()?.resolutionNotes">
+        <h3 class="section-title">Resolution Notes</h3>
+        <p class="description-text">{{ selectedIncident()?.resolutionNotes }}</p>
+      </div>
+    </div>
+
+    <!-- Timeline Tab -->
+    <div *ngIf="activeTab() === 'timeline'" class="tab-content">
+      <div class="timeline">
+        <div class="timeline-item">
+          <div class="timeline-dot"></div>
+          <div class="timeline-content">
+            <div class="timeline-header">
+              <span class="timeline-title">Incident Created</span>
+              <span class="timeline-time">{{
+                formatDate(selectedIncident()?.reportedAt, 'DD-MMM-YYYY HH:mm')
+              }}</span>
+            </div>
+            <div class="timeline-body">
+              Incident reported by {{ selectedIncident()?.reportedByUsername || 'System' }}
+            </div>
+          </div>
+        </div>
+        <div class="timeline-item" *ngIf="selectedIncident()?.createdAt">
+          <div class="timeline-dot"></div>
+          <div class="timeline-content">
+            <div class="timeline-header">
+              <span class="timeline-title">Incident Logged</span>
+              <span class="timeline-time">{{
+                formatDate(selectedIncident()?.createdAt, 'DD-MMM-YYYY HH:mm')
+              }}</span>
+            </div>
+            <div class="timeline-body">Incident recorded in system</div>
+          </div>
+        </div>
+        <div
+          class="timeline-item"
+          *ngIf="
+            selectedIncident()?.updatedAt &&
+            selectedIncident()?.updatedAt !== selectedIncident()?.createdAt
+          "
+        >
+          <div class="timeline-dot"></div>
+          <div class="timeline-content">
+            <div class="timeline-header">
+              <span class="timeline-title">Status Updated</span>
+              <span class="timeline-time">{{
+                formatDate(selectedIncident()?.updatedAt, 'DD-MMM-YYYY HH:mm')
+              }}</span>
+            </div>
+            <div class="timeline-body">Incident status changed</div>
+          </div>
+        </div>
+        <div class="timeline-item" *ngIf="selectedIncident()?.resolvedAt">
+          <div class="timeline-dot timeline-dot-success"></div>
+          <div class="timeline-content">
+            <div class="timeline-header">
+              <span class="timeline-title">Incident Resolved</span>
+              <span class="timeline-time">{{
+                formatDate(selectedIncident()?.resolvedAt, 'DD-MMM-YYYY HH:mm')
+              }}</span>
+            </div>
+            <div class="timeline-body">Incident marked as resolved</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tasks Tab -->
+    <div *ngIf="activeTab() === 'tasks'" class="tab-content">
+      <div class="task-list">
+        <div class="task-item">
+          <input type="checkbox" checked disabled />
+          <div class="task-content">
+            <div class="task-title">Initial assessment completed</div>
+            <div class="task-meta">
+              <span class="chip chip-success">Completed</span>
+            </div>
+          </div>
+        </div>
+        <div class="task-item">
+          <input type="checkbox" checked disabled />
+          <div class="task-content">
+            <div class="task-title">Driver contacted</div>
+            <div class="task-meta">
+              <span class="chip chip-success">Completed</span>
+            </div>
+          </div>
+        </div>
+        <div class="task-item">
+          <input type="checkbox" disabled />
+          <div class="task-content">
+            <div class="task-title">Investigation in progress</div>
+            <div class="task-meta">
+              <span class="chip chip-warning">In Progress</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Attachments Tab -->
+    <div *ngIf="activeTab() === 'attachments'" class="tab-content">
+      <div class="attachments-list">
+        <p class="text-muted">No attachments available</p>
+      </div>
+    </div>
+
+    <!-- Resolution Tab -->
+    <div *ngIf="activeTab() === 'resolution'" class="tab-content">
+      <div class="detail-section" *ngIf="selectedIncident()?.resolutionNotes">
+        <h3 class="section-title">Resolution Notes</h3>
+        <p class="description-text">{{ selectedIncident()?.resolutionNotes }}</p>
+      </div>
+      <div class="detail-section" *ngIf="!selectedIncident()?.resolutionNotes">
+        <p class="text-muted">No resolution notes available</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="drawer-footer">
+    <button class="btn btn-outline" type="button" (click)="closeDrawer()">Close</button>
+    <button class="btn" type="button">Edit Incident</button>
+  </div>
+</div>

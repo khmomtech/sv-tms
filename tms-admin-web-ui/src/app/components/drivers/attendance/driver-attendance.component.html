@@ -1,0 +1,398 @@
+<div class="p-6 space-y-6">
+  <div class="flex items-center justify-between">
+    <h1 class="text-xl font-semibold">Driver Attendance</h1>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">Driver</label>
+      <div class="relative" #topWrapper>
+        <div class="flex gap-2">
+          <input
+            type="text"
+            class="w-full rounded border px-3 py-2"
+            [formControl]="driverQueryCtrlTop"
+            placeholder="Type name or phone"
+            (focus)="onTopFocus()"
+            (blur)="onTopBlur()"
+            (keydown)="onTopKeyDown($event)"
+          />
+        </div>
+        <button
+          *ngIf="driverIdCtrl.value"
+          class="absolute right-2 top-12 md:top-1/2 md:-translate-y-1/2 text-gray-500 hover:text-gray-700"
+          (click)="clearDriverTop()"
+          aria-label="Clear"
+        >
+          ✕
+        </button>
+
+        <!-- Dropdown with pagination controls -->
+        <div
+          *ngIf="showDropdownTop"
+          class="absolute z-20 mt-1 w-full max-h-80 overflow-auto rounded border bg-white shadow"
+        >
+          <div *ngIf="isSearchingTop" class="px-3 py-2 text-sm text-gray-500">Searching…</div>
+          <ng-container *ngIf="!isSearchingTop">
+            <button
+              type="button"
+              class="w-full text-left px-3 py-2 hover:bg-gray-50"
+              *ngFor="let d of driverResultsTop; let i = index"
+              (mousedown)="pickDriverTop(d, $event)"
+              [ngClass]="{ 'bg-gray-100': i === activeIndexTop }"
+            >
+              <div class="flex flex-col">
+                <span
+                  class="text-sm font-medium"
+                  [innerHTML]="
+                    highlightText(
+                      d.name || (d.firstName || '') + ' ' + (d.lastName || ''),
+                      driverQueryCtrlTop.value
+                    )
+                  "
+                ></span>
+                <span class="text-xs text-gray-500">ID: {{ d.id }} • {{ d.phone || '—' }}</span>
+              </div>
+            </button>
+            <div *ngIf="driverResultsTop.length === 0" class="px-3 py-2 text-sm text-gray-500">
+              No matches
+            </div>
+            <!-- pagination removed; autocomplete shows up to maxResults -->
+          </ng-container>
+        </div>
+      </div>
+      <p *ngIf="driverIdCtrl.value" class="text-xs text-gray-500 mt-1">
+        Selected ID: {{ driverIdCtrl.value }}
+      </p>
+      <!-- Month-wide tools moved below table -->
+      <!-- Advanced filters removed -->
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">Year</label>
+      <input type="number" class="w-full rounded border px-3 py-2" [formControl]="yearCtrl" />
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">Month</label>
+      <input
+        type="number"
+        class="w-full rounded border px-3 py-2"
+        [formControl]="monthCtrl"
+        min="1"
+        max="12"
+      />
+    </div>
+    <div class="md:col-span-2 grid grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">From date (optional)</label>
+        <input type="date" class="w-full rounded border px-3 py-2" [formControl]="fromDateCtrl" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">To date (optional)</label>
+        <input type="date" class="w-full rounded border px-3 py-2" [formControl]="toDateCtrl" />
+      </div>
+    </div>
+    <div class="flex items-end gap-2">
+      <button
+        class="px-4 py-2 rounded bg-blue-600 text-white disabled:opacity-50"
+        (click)="loadAttendance()"
+        [disabled]="isLoading"
+      >
+        {{ isLoading ? 'Filtering…' : 'Filter' }}
+      </button>
+      <button class="px-4 py-2 rounded bg-emerald-600 text-white" (click)="openCreate()">
+        Add Permission
+      </button>
+    </div>
+  </div>
+
+  <div *ngIf="errorMessage" class="p-3 rounded bg-red-50 text-red-700">{{ errorMessage }}</div>
+
+  <div *ngIf="!errorMessage && !driverIdCtrl.value" class="p-3 rounded bg-amber-50 text-amber-800">
+    <ng-container *ngIf="fromDateCtrl.value && toDateCtrl.value; else monthMsg">
+      No driver selected — showing all drivers with permissions from {{ fromDateCtrl.value }} to
+      {{ toDateCtrl.value }}.
+    </ng-container>
+    <ng-template #monthMsg>
+      No driver selected — showing all drivers with permissions for {{ yearCtrl.value }}/{{
+        monthCtrl.value
+      }}.
+    </ng-template>
+  </div>
+
+  <div *ngIf="summary" class="grid grid-cols-1 md:grid-cols-5 gap-4">
+    <div class="p-4 rounded bg-white shadow">
+      <div class="text-xs text-gray-500">Present</div>
+      <div class="text-2xl font-semibold">{{ summary.present || 0 }}</div>
+    </div>
+    <div class="p-4 rounded bg-white shadow">
+      <div class="text-xs text-gray-500">Late</div>
+      <div class="text-2xl font-semibold">{{ summary.late || 0 }}</div>
+    </div>
+    <div class="p-4 rounded bg-white shadow">
+      <div class="text-xs text-gray-500">Absent</div>
+      <div class="text-2xl font-semibold">{{ summary.absent || 0 }}</div>
+    </div>
+    <div class="p-4 rounded bg-white shadow">
+      <div class="text-xs text-gray-500">On Leave</div>
+      <div class="text-2xl font-semibold">{{ summary.onLeave || 0 }}</div>
+    </div>
+    <div class="p-4 rounded bg-white shadow">
+      <div class="text-xs text-gray-500">Off Duty</div>
+      <div class="text-2xl font-semibold">{{ summary.offDuty || 0 }}</div>
+    </div>
+  </div>
+
+  <div class="bg-white shadow rounded overflow-hidden">
+    <table class="min-w-full">
+      <thead class="bg-gray-50">
+        <tr>
+          <th
+            *ngIf="!driverIdCtrl.value"
+            class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+          >
+            Driver
+          </th>
+          <th
+            *ngIf="!driverIdCtrl.value"
+            class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+          >
+            Truck Plate
+          </th>
+          <th
+            class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+          >
+            Date
+          </th>
+          <th
+            class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+          >
+            Status
+          </th>
+          <th
+            class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+          >
+            Check In
+          </th>
+          <th
+            class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+          >
+            Check Out
+          </th>
+          <th
+            class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+          >
+            Hours
+          </th>
+          <th class="px-4 py-2 text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y">
+        <tr *ngFor="let rec of records">
+          <td *ngIf="!driverIdCtrl.value" class="px-4 py-2">
+            <button class="text-blue-600 hover:underline" (click)="goToDriver(rec.driverId)">
+              {{ rec.driverName || '#' + rec.driverId }}
+            </button>
+            <div class="text-xs text-gray-500">ID: {{ rec.driverId }}</div>
+          </td>
+          <td *ngIf="!driverIdCtrl.value" class="px-4 py-2">{{ rec.truckPlateNo || '—' }}</td>
+          <td class="px-4 py-2">{{ rec.date }}</td>
+          <td class="px-4 py-2">
+            <span class="px-2 py-1 rounded text-xs" [ngClass]="statusBadgeClass(rec.status)">{{
+              rec.status
+            }}</span>
+          </td>
+          <td class="px-4 py-2">{{ rec.checkInTime || '—' }}</td>
+          <td class="px-4 py-2">{{ rec.checkOutTime || '—' }}</td>
+          <td class="px-4 py-2">{{ rec.hoursWorked ?? '—' }}</td>
+          <td class="px-4 py-2 text-right space-x-3">
+            <button class="text-blue-600 hover:underline" (click)="goToDriver(rec.driverId)">
+              View Driver
+            </button>
+            <button class="text-indigo-600 hover:underline" (click)="openEdit(rec)">Edit</button>
+            <button class="text-red-600 hover:underline" (click)="delete(rec)">Delete</button>
+          </td>
+        </tr>
+        <tr *ngIf="!records.length && !isLoading">
+          <td
+            [attr.colspan]="driverIdCtrl.value ? 6 : 8"
+            class="px-4 py-6 text-center text-gray-500"
+          >
+            No records
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Bottom pagination and page-size controls (month-wide only) -->
+  <div *ngIf="!driverIdCtrl.value" class="mt-3 flex flex-col gap-2">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+      <div class="flex items-center gap-4">
+        <label class="inline-flex items-center gap-2 text-sm text-gray-700">
+          <span>Page size</span>
+          <select
+            class="rounded border px-2 py-1"
+            [ngModel]="monthSize"
+            (ngModelChange)="onChangeMonthSize($event)"
+            [ngModelOptions]="{ standalone: true }"
+            [disabled]="isLoading"
+            aria-label="Page size"
+          >
+            <option [ngValue]="10">10</option>
+            <option [ngValue]="20">20</option>
+            <option [ngValue]="50">50</option>
+          </select>
+        </label>
+      </div>
+      <div class="flex items-center gap-3 text-xs text-gray-600" *ngIf="monthTotalElements">
+        <span>
+          Showing {{ monthShowingStart }}–{{ monthShowingEnd }} of {{ monthTotalElements }}
+        </span>
+        <div class="flex items-center gap-2" *ngIf="monthTotalPages > 1">
+          <button
+            class="px-2 py-1 rounded border disabled:opacity-50"
+            [disabled]="isLoading || monthPage === 0"
+            (click)="goPrevMonthPage()"
+            aria-label="Previous page"
+          >
+            Prev
+          </button>
+          <span>Page {{ monthPage + 1 }} / {{ monthTotalPages }}</span>
+          <button
+            class="px-2 py-1 rounded border disabled:opacity-50"
+            [disabled]="isLoading || monthPage + 1 >= monthTotalPages"
+            (click)="goNextMonthPage()"
+            aria-label="Next page"
+          >
+            Next
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create/Edit Modal -->
+  <div *ngIf="isModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+    <div class="bg-white rounded shadow-lg w-full max-w-lg">
+      <div class="px-5 py-4 border-b flex items-center justify-between">
+        <h2 class="font-semibold">{{ isEditing ? 'Edit Permission' : 'Add Permission' }}</h2>
+        <button class="text-gray-600 hover:text-black" (click)="closeModal()">✕</button>
+      </div>
+
+      <div class="p-5 space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="md:col-span-2">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Driver</label>
+            <div class="relative" #modalWrapper>
+              <div class="flex gap-2">
+                <input
+                  type="text"
+                  class="w-full rounded border px-3 py-2"
+                  [formControl]="driverQueryCtrlModal"
+                  placeholder="Type name or phone"
+                  (focus)="onModalFocus()"
+                  (blur)="onModalBlur()"
+                  (keydown)="onModalKeyDown($event)"
+                />
+              </div>
+              <button
+                *ngIf="form.driverId.value"
+                class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                (click)="clearDriverModal()"
+                aria-label="Clear"
+              >
+                ✕
+              </button>
+              <div
+                *ngIf="showDropdownModal"
+                class="absolute z-20 mt-1 w-full max-h-80 overflow-auto rounded border bg-white shadow"
+              >
+                <div *ngIf="isSearchingModal" class="px-3 py-2 text-sm text-gray-500">
+                  Searching…
+                </div>
+                <ng-container *ngIf="!isSearchingModal">
+                  <button
+                    type="button"
+                    class="w-full text-left px-3 py-2 hover:bg-gray-50"
+                    *ngFor="let d of driverResultsModal; let i = index"
+                    (mousedown)="pickDriverModal(d, $event)"
+                    [ngClass]="{ 'bg-gray-100': i === activeIndexModal }"
+                  >
+                    <div class="flex flex-col">
+                      <span
+                        class="text-sm font-medium"
+                        [innerHTML]="
+                          highlightText(
+                            d.name || (d.firstName || '') + ' ' + (d.lastName || ''),
+                            driverQueryCtrlModal.value
+                          )
+                        "
+                      ></span>
+                      <span class="text-xs text-gray-500"
+                        >ID: {{ d.id }} • {{ d.phone || '—' }}</span
+                      >
+                    </div>
+                  </button>
+                  <div
+                    *ngIf="driverResultsModal.length === 0"
+                    class="px-3 py-2 text-sm text-gray-500"
+                  >
+                    No matches
+                  </div>
+                  <!-- pagination removed; autocomplete shows up to maxResults -->
+                </ng-container>
+              </div>
+            </div>
+            <p *ngIf="form.driverId.value" class="text-xs text-gray-500 mt-1">
+              Selected ID: {{ form.driverId.value }}
+            </p>
+          </div>
+          <div>
+            <label class="block text-sm mb-1">From Date</label>
+            <input type="date" class="w-full rounded border px-3 py-2" [formControl]="form.date" />
+          </div>
+          <div>
+            <label class="block text-sm mb-1">To Date (optional)</label>
+            <input
+              type="date"
+              class="w-full rounded border px-3 py-2"
+              [formControl]="form.endDate"
+            />
+            <p class="text-xs text-gray-500 mt-1">
+              Leave blank for single day. When set, range is inclusive.
+            </p>
+          </div>
+          <div>
+            <label class="block text-sm mb-1">Status</label>
+            <select class="w-full rounded border px-3 py-2" [formControl]="form.status">
+              <option value="ON_LEAVE">On Leave</option>
+              <option value="OFF_DUTY">Off Duty</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm mb-1">Notes</label>
+            <textarea
+              class="w-full rounded border px-3 py-2 min-h-28"
+              [formControl]="form.notes"
+              placeholder="Optional"
+              rows="4"
+            ></textarea>
+          </div>
+        </div>
+
+        <div *ngIf="formError" class="p-3 rounded bg-red-50 text-red-700">{{ formError }}</div>
+      </div>
+
+      <div class="px-5 py-4 border-t flex items-center justify-end gap-2">
+        <button class="px-4 py-2 rounded border" (click)="closeModal()">Cancel</button>
+        <button
+          class="px-4 py-2 rounded bg-blue-600 text-white disabled:opacity-50"
+          [disabled]="saveInProgress"
+          (click)="save()"
+        >
+          {{ saveInProgress ? 'Saving…' : 'Save' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

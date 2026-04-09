@@ -1,0 +1,31 @@
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+  <div class="w-full max-w-md p-6 bg-white rounded-lg shadow-lg">
+    <h3 class="mb-4 text-lg font-bold">Assign Truck</h3>
+
+    <form [formGroup]="form" (ngSubmit)="submit()">
+      <select formControlName="vehicleId" class="w-full p-2 mb-4 border rounded">
+        <option [ngValue]="null">-- Select Truck --</option>
+        <option *ngFor="let truck of trucks" [value]="truck.id">
+          {{ truck.licensePlate }}
+        </option>
+      </select>
+
+      <div class="flex justify-end gap-2">
+        <button
+          type="submit"
+          [disabled]="form.invalid"
+          class="px-4 py-2 text-white bg-blue-600 rounded hover:bg-blue-700"
+        >
+          ✔ Confirm
+        </button>
+        <button
+          type="button"
+          (click)="cancel()"
+          class="px-4 py-2 text-gray-700 border rounded hover:bg-gray-100"
+        >
+          ✖ Cancel
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

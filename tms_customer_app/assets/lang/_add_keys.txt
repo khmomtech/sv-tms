@@ -1,0 +1,4 @@
+{
+  "track": "Track",
+  "detail": "Details"
+}

@@ -1,0 +1,104 @@
+<!-- Wrap Container -->
+<div class="w-full max-w-5xl p-6 mx-auto bg-white rounded shadow">
+  <!-- Heading -->
+  <h2 class="flex items-center gap-2 mb-2 text-2xl font-bold text-gray-800">
+    📦 {{ 'bulkDispatchUpload.title' | translate }}
+  </h2>
+  <p class="mb-4 text-sm text-gray-600">
+    {{ 'bulkDispatchUpload.description' | translate }}
+    <a href="/assets/templates/khb-template.xlsx" download class="text-blue-600 hover:underline">{{
+      'bulkDispatchUpload.download_template' | translate
+    }}</a>
+  </p>
+
+  <!-- Upload Form -->
+  <form (ngSubmit)="uploadExcel()" enctype="multipart/form-data" class="space-y-4">
+    <input
+      type="file"
+      (change)="onFileSelected($event)"
+      accept=".xlsx"
+      required
+      class="block w-full px-4 py-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+    />
+
+    <!-- Preview Table -->
+    <div *ngIf="parsedRows.length > 0" class="mt-4">
+      <h3 class="mb-2 font-semibold text-gray-800">
+        📋 {{ 'bulkDispatchUpload.data_preview' | translate }}
+      </h3>
+      <div class="overflow-x-auto border border-gray-200 rounded">
+        <table class="min-w-full text-sm table-auto">
+          <thead class="bg-gray-100">
+            <tr>
+              <th class="px-2 py-1 border">#</th>
+              <th class="px-2 py-1 border">{{ 'bulkDispatchUpload.delivery_date' | translate }}</th>
+              <th class="px-2 py-1 border">{{ 'bulkDispatchUpload.customer' | translate }}</th>
+              <th class="px-2 py-1 border">{{ 'bulkDispatchUpload.tracking_no' | translate }}</th>
+              <th class="px-2 py-1 border">{{ 'bulkDispatchUpload.truck' | translate }}</th>
+              <th class="px-2 py-1 border">{{ 'bulkDispatchUpload.trip_no' | translate }}</th>
+              <th class="px-2 py-1 border">{{ 'bulkDispatchUpload.from' | translate }}</th>
+              <th class="px-2 py-1 border">{{ 'bulkDispatchUpload.to' | translate }}</th>
+              <th class="px-2 py-1 border">{{ 'bulkDispatchUpload.item' | translate }}</th>
+              <th class="px-2 py-1 border">{{ 'bulkDispatchUpload.qty' | translate }}</th>
+              <th class="px-2 py-1 border">{{ 'bulkDispatchUpload.uom' | translate }}</th>
+              <th class="px-2 py-1 border">{{ 'bulkDispatchUpload.pallet_uom' | translate }}</th>
+              <th class="px-2 py-1 border">{{ 'bulkDispatchUpload.loading_place' | translate }}</th>
+              <th class="px-2 py-1 border">{{ 'bulkDispatchUpload.status' | translate }}</th>
+              <th class="px-2 py-1 text-red-600 border">
+                {{ 'bulkDispatchUpload.error' | translate }}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let row of parsedRows; let i = index" [class.bg-red-50]="row.error">
+              <td class="px-2 py-1 border">{{ i + 1 }}</td>
+              <td class="px-2 py-1 border">{{ row.deliveryDate }}</td>
+              <td class="px-2 py-1 border">{{ row.customerCode }}</td>
+              <td class="px-2 py-1 border">{{ row.trackingNo }}</td>
+              <td class="px-2 py-1 border">{{ row.truckNumber }}</td>
+              <td class="px-2 py-1 border">{{ row.truckTripCount }}</td>
+              <td class="px-2 py-1 border">{{ row.fromDestination }}</td>
+              <td class="px-2 py-1 border">{{ row.toDestination }}</td>
+              <td class="px-2 py-1 border">{{ row.item }}</td>
+              <td class="px-2 py-1 border">{{ row.qty }}</td>
+              <td class="px-2 py-1 border">{{ row.uom }}</td>
+              <td class="px-2 py-1 border">{{ row.uoMPallet }}</td>
+              <td class="px-2 py-1 border">{{ row.loadingPlace }}</td>
+              <td class="px-2 py-1 border">{{ row.status }}</td>
+              <td class="px-2 py-1 text-red-600 border">{{ row.error || '-' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Progress Bar -->
+    <div *ngIf="isUploading" class="mt-4">
+      <div class="w-full h-2 bg-gray-100 rounded-full">
+        <div
+          class="h-2 transition-all bg-blue-600 rounded-full"
+          [style.width.%]="uploadProgress"
+        ></div>
+      </div>
+      <p class="mt-1 text-xs text-gray-500">
+        {{ 'bulkDispatchUpload.uploading_progress' | translate: { progress: uploadProgress } }}
+      </p>
+    </div>
+
+    <!-- Submit -->
+    <button
+      type="submit"
+      [disabled]="!selectedFile || isUploading || hasValidationErrors"
+      class="w-full py-2 text-sm font-semibold text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50"
+    >
+      <span *ngIf="!isUploading">🚀 {{ 'bulkDispatchUpload.upload_file' | translate }}</span>
+      <span *ngIf="isUploading">⏳ {{ 'bulkDispatchUpload.uploading' | translate }}</span>
+    </button>
+
+    <!-- Success & Error -->
+    <div *ngIf="uploadSuccess" class="mt-2 font-medium text-green-600">
+      {{ 'bulkDispatchUpload.upload_successful' | translate }}
+    </div>
+    <div *ngIf="uploadError" class="mt-2 font-medium text-red-600">{{ uploadError }}</div>
+  </form>
+</div>

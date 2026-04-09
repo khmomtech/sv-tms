@@ -1,0 +1,120 @@
+/* Reuse existing styles from previous component */
+.map-wrapper {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.sidebar {
+  width: 300px;
+  background: #f8f9fa;
+  padding: 10px;
+  overflow-y: auto;
+  transition: width 0.3s ease;
+}
+
+.sidebar.collapsed {
+  width: 50px;
+}
+
+.sidebar.collapsed h3,
+.sidebar.collapsed input,
+.sidebar.collapsed select,
+.sidebar.collapsed ul {
+  display: none;
+}
+
+.sidebar .toggle-btn {
+  float: right;
+  margin-bottom: 10px;
+  background: transparent;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.sidebar .form-control {
+  width: 100%;
+  padding: 6px;
+  margin-bottom: 10px;
+  font-size: 0.875rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.sidebar .driver-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.sidebar .driver-list .driver-item {
+  cursor: pointer;
+  padding: 8px;
+  border-bottom: 1px solid #ddd;
+  transition: background 0.2s ease;
+}
+
+.sidebar .driver-list .driver-item:hover {
+  background: #e9ecef;
+}
+
+.map-area {
+  flex-grow: 1;
+  position: relative;
+}
+
+.zoom-controls {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  z-index: 10;
+}
+
+.zoom-controls button {
+  background: white;
+  border: 1px solid #ccc;
+  font-size: 18px;
+  padding: 5px 10px;
+  cursor: pointer;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.replay-slider {
+  margin-top: 1rem;
+}
+
+.replay-slider input[type='range'] {
+  width: 100%;
+  accent-color: #3b82f6;
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    width: 100%;
+    position: absolute;
+    z-index: 30;
+    height: 100%;
+  }
+
+  .sidebar.collapsed {
+    width: 0;
+    padding: 0;
+  }
+
+  .map-wrapper {
+    flex-direction: column;
+  }
+}
+
+.resizer {
+  width: 5px;
+  cursor: col-resize;
+  background-color: #e5e7eb; /* Tailwind gray-200 */
+  position: relative;
+  z-index: 10;
+}

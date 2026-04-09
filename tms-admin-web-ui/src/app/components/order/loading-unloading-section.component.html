@@ -1,0 +1,273 @@
+<div class="routing-header">
+  <div>
+    <p class="routing-caption">Routing</p>
+    <h3 class="routing-title">Loading and Unloading Stops</h3>
+    <p class="routing-subtitle">Add contact details and location for each stop.</p>
+  </div>
+  <div class="routing-actions">
+    <button class="action-btn" type="button" (click)="addLoading.emit()">+ Add Loading</button>
+    <button class="action-btn" type="button" (click)="addUnloading.emit()">+ Add Unloading</button>
+  </div>
+</div>
+
+<div class="route-columns">
+  <section class="route-panel">
+    <div class="panel-title">Loading</div>
+    <ng-container *ngFor="let loading of loadingLocations; let i = index; trackBy: trackByIndex">
+      <article class="route-card">
+        <div class="card-head">
+          <div class="card-title-wrap">
+            <h4 class="card-title">Loading {{ i + 1 }}</h4>
+            <p class="card-subtitle">Pickup stop</p>
+          </div>
+          <div class="card-actions">
+            <button
+              class="map-icon-btn"
+              type="button"
+              aria-label="View loading location on Google Maps"
+              [disabled]="!canOpenMap(loading.address, loading.long, loading.leng)"
+              (click)="openGoogleMaps(loading.address, loading.long, loading.leng)"
+            >
+              🔍
+            </button>
+            <button
+              *ngIf="loadingLocations.length > 1"
+              class="remove-btn"
+              type="button"
+              aria-label="Remove loading location"
+              (click)="removeLoading.emit(i)"
+            >
+              Remove
+            </button>
+          </div>
+        </div>
+
+        <div class="field-grid">
+          <label class="field">
+            <span>Contact Person <b>*</b></span>
+            <input
+              class="card-input"
+              type="text"
+              placeholder="e.g., Sothea KEHT"
+              [(ngModel)]="loading.contactPerson"
+              name="loadingContactPerson{{ i }}"
+            />
+          </label>
+          <label class="field">
+            <span>Phone <b>*</b></span>
+            <input
+              class="card-input"
+              type="tel"
+              placeholder="e.g., 012345678"
+              [(ngModel)]="loading.phone"
+              name="loadingPhone{{ i }}"
+              pattern="^\\+?\\d{8,12}$"
+              inputmode="tel"
+              [attr.aria-invalid]="locationErrors.loading[i] ? 'true' : 'false'"
+            />
+          </label>
+        </div>
+
+        <label class="field">
+          <span>Address <b>*</b></span>
+          <input
+            class="card-input"
+            type="text"
+            placeholder="Street, district, province"
+            [(ngModel)]="loading.address"
+            name="loadingAddress{{ i }}"
+          />
+        </label>
+        <a
+          *ngIf="canOpenMap(loading.address, loading.long, loading.leng)"
+          class="map-inline-link"
+          [href]="getGoogleMapsLink(loading.address, loading.long, loading.leng)"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Open map for this loading address
+        </a>
+
+        <div class="field-grid">
+          <label class="field">
+            <span>Planned Time</span>
+            <input
+              class="card-input"
+              type="time"
+              [(ngModel)]="loading.plannedTime"
+              name="loadingTime{{ i }}"
+            />
+          </label>
+          <div class="field map-action">
+            <span>Location</span>
+            <button
+              class="map-btn"
+              type="button"
+              [disabled]="!canOpenMap(loading.address, loading.long, loading.leng)"
+              (click)="openGoogleMaps(loading.address, loading.long, loading.leng)"
+            >
+              View in Google Maps
+            </button>
+          </div>
+        </div>
+
+        <div class="field-grid">
+          <label class="field">
+            <span>Longitude</span>
+            <input
+              class="card-input"
+              type="text"
+              placeholder="e.g., 104.9282"
+              [(ngModel)]="loading.long"
+              name="loadingLong{{ i }}"
+            />
+          </label>
+          <label class="field">
+            <span>Latitude</span>
+            <input
+              class="card-input"
+              type="text"
+              placeholder="e.g., 11.5564"
+              [(ngModel)]="loading.leng"
+              name="loadingLeng{{ i }}"
+            />
+          </label>
+        </div>
+
+        <p *ngIf="locationErrors.loading[i]" class="error-text">{{ locationErrors.loading[i] }}</p>
+      </article>
+    </ng-container>
+  </section>
+
+  <section class="route-panel">
+    <div class="panel-title">Unloading</div>
+    <ng-container
+      *ngFor="let unloading of unloadingLocations; let i = index; trackBy: trackByIndex"
+    >
+      <article class="route-card">
+        <div class="card-head">
+          <div class="card-title-wrap">
+            <h4 class="card-title">Unloading {{ i + 1 }}</h4>
+            <p class="card-subtitle">Drop-off stop</p>
+          </div>
+          <div class="card-actions">
+            <button
+              class="map-icon-btn"
+              type="button"
+              aria-label="View unloading location on Google Maps"
+              [disabled]="!canOpenMap(unloading.address, unloading.long, unloading.leng)"
+              (click)="openGoogleMaps(unloading.address, unloading.long, unloading.leng)"
+            >
+              🔍
+            </button>
+            <button
+              *ngIf="unloadingLocations.length > 1"
+              class="remove-btn"
+              type="button"
+              aria-label="Remove unloading location"
+              (click)="removeUnloading.emit(i)"
+            >
+              Remove
+            </button>
+          </div>
+        </div>
+
+        <div class="field-grid">
+          <label class="field">
+            <span>Contact Person <b>*</b></span>
+            <input
+              class="card-input"
+              type="text"
+              placeholder="e.g., Customer Name"
+              [(ngModel)]="unloading.contactPerson"
+              name="unloadingContactPerson{{ i }}"
+            />
+          </label>
+          <label class="field">
+            <span>Phone <b>*</b></span>
+            <input
+              class="card-input"
+              type="tel"
+              placeholder="e.g., 0888888888"
+              [(ngModel)]="unloading.phone"
+              name="unloadingPhone{{ i }}"
+              pattern="^\\+?\\d{8,12}$"
+              inputmode="tel"
+              [attr.aria-invalid]="locationErrors.unloading[i] ? 'true' : 'false'"
+            />
+          </label>
+        </div>
+
+        <label class="field">
+          <span>Address <b>*</b></span>
+          <input
+            class="card-input"
+            type="text"
+            placeholder="Street, district, province"
+            [(ngModel)]="unloading.address"
+            name="unloadingAddress{{ i }}"
+          />
+        </label>
+        <a
+          *ngIf="canOpenMap(unloading.address, unloading.long, unloading.leng)"
+          class="map-inline-link"
+          [href]="getGoogleMapsLink(unloading.address, unloading.long, unloading.leng)"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Open map for this unloading address
+        </a>
+
+        <div class="field-grid">
+          <label class="field">
+            <span>Planned Time</span>
+            <input
+              class="card-input"
+              type="time"
+              [(ngModel)]="unloading.plannedTime"
+              name="unloadingTime{{ i }}"
+            />
+          </label>
+          <div class="field map-action">
+            <span>Location</span>
+            <button
+              class="map-btn"
+              type="button"
+              [disabled]="!canOpenMap(unloading.address, unloading.long, unloading.leng)"
+              (click)="openGoogleMaps(unloading.address, unloading.long, unloading.leng)"
+            >
+              View in Google Maps
+            </button>
+          </div>
+        </div>
+
+        <div class="field-grid">
+          <label class="field">
+            <span>Longitude</span>
+            <input
+              class="card-input"
+              type="text"
+              placeholder="e.g., 104.9282"
+              [(ngModel)]="unloading.long"
+              name="unloadingLong{{ i }}"
+            />
+          </label>
+          <label class="field">
+            <span>Latitude</span>
+            <input
+              class="card-input"
+              type="text"
+              placeholder="e.g., 11.5564"
+              [(ngModel)]="unloading.leng"
+              name="unloadingLeng{{ i }}"
+            />
+          </label>
+        </div>
+
+        <p *ngIf="locationErrors.unloading[i]" class="error-text">
+          {{ locationErrors.unloading[i] }}
+        </p>
+      </article>
+    </ng-container>
+  </section>
+</div>

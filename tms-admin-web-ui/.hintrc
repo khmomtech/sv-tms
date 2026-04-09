@@ -1,0 +1,29 @@
+{
+  "extends": [
+    "development"
+  ],
+  "hints": {
+    "axe/forms": "warning",
+    "axe/name-role-value": [
+      "default",
+      {
+        "button-name": "warning"
+      }
+    ],
+    "axe/text-alternatives": [
+      "default",
+      {
+        "image-alt": "warning"
+      }
+    ],
+    "button-type": "warning",
+    "axe/language": [
+      "default",
+      {
+        "html-has-lang": "error"
+      }
+    ],
+    "axe/keyboard": "warning",
+    "axe/aria": "error"
+  }
+}

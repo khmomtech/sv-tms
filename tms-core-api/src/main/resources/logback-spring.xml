@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+  <!-- ============================================================ -->
+  <!--  SV-TMS application logging configuration                    -->
+  <!--  MDC keys: requestId, userId, clientIp, dispatchId,          -->
+  <!--            driverId, routeCode                                -->
+  <!-- ============================================================ -->
+
+  <springProperty scope="context" name="APP_NAME" source="spring.application.name" defaultValue="sv-tms"/>
+
+  <!-- ── Console appender ─────────────────────────────────────── -->
+  <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} [req=%X{requestId:-?} user=%X{userId:-?} ip=%X{clientIp:-?} dispatch=%X{dispatchId:-} driver=%X{driverId:-} route=%X{routeCode:-}] - %msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <!-- ── File appender (JSON structured log) ──────────────────── -->
+  <springProfile name="prod,review">
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+      <file>logs/${APP_NAME}.log</file>
+      <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+        <fileNamePattern>logs/${APP_NAME}.%d{yyyy-MM-dd}.log.gz</fileNamePattern>
+        <maxHistory>30</maxHistory>
+        <totalSizeCap>2GB</totalSizeCap>
+      </rollingPolicy>
+      <encoder>
+        <!-- Structured pattern readable by log aggregators -->
+        <pattern>%d{yyyy-MM-dd'T'HH:mm:ss.SSSZ} level=%-5level logger=%logger{40} requestId=%X{requestId:-?} userId=%X{userId:-?} clientIp=%X{clientIp:-?} dispatchId=%X{dispatchId:-} driverId=%X{driverId:-} routeCode=%X{routeCode:-} thread=%thread msg="%msg"%n</pattern>
+      </encoder>
+    </appender>
+  </springProfile>
+
+  <!-- ── Logger configuration ─────────────────────────────────── -->
+  <logger name="com.svtrucking.logistics" level="INFO"/>
+  <logger name="org.springframework.web" level="WARN"/>
+  <logger name="org.springframework.security" level="WARN"/>
+  <logger name="org.hibernate.SQL" level="WARN"/>
+  <logger name="org.hibernate.orm.jdbc.bind" level="WARN"/>
+
+  <!-- Debug level for non-prod profiles -->
+  <springProfile name="dev,local">
+    <logger name="com.svtrucking.logistics" level="DEBUG"/>
+    <logger name="org.springframework.web" level="DEBUG"/>
+  </springProfile>
+
+  <!-- ── Root ─────────────────────────────────────────────────── -->
+  <root level="WARN">
+    <appender-ref ref="CONSOLE"/>
+  </root>
+
+  <springProfile name="prod,review">
+    <root level="WARN">
+      <appender-ref ref="CONSOLE"/>
+      <appender-ref ref="FILE"/>
+    </root>
+  </springProfile>
+
+</configuration>

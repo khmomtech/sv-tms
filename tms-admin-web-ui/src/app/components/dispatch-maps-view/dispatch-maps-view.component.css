@@ -1,0 +1,39 @@
+/* Scrollbar customization */
+:host ::ng-deep .overflow-y-auto::-webkit-scrollbar {
+  width: 6px;
+}
+
+:host ::ng-deep .overflow-y-auto::-webkit-scrollbar-thumb {
+  background-color: rgba(100, 100, 100, 0.2);
+  border-radius: 10px;
+}
+
+/* Map full height inside its column */
+:host ::ng-deep .google-map {
+  height: 100% !important;
+  width: 100% !important;
+  border-radius: 16px;
+}
+
+/* Transition effect for map marker cards */
+.card-hover {
+  transition: all 0.3s ease;
+}
+
+.card-hover:hover {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+/* Improve info-window look */
+.map-info-window div {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #333;
+  line-height: 1.4;
+}
+
+/* Rounded borders for map-container */
+:host ::ng-deep .map-container {
+  border-radius: 16px;
+  overflow: hidden;
+}

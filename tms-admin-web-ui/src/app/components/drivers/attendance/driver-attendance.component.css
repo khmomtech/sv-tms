@@ -1,0 +1,12 @@
+/* Basic spacing and table styling, leveraging Tailwind utility classes where available */
+:host {
+  display: block;
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+th,
+td {
+  padding: 0.5rem 1rem;
+}

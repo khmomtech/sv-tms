@@ -1,0 +1,358 @@
+<section class="bg-slate-50 min-h-screen p-6">
+  <!-- PAGE HEADER -->
+  <header class="mb-8 flex flex-col gap-4">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="text-xs uppercase tracking-[0.25em] text-slate-500">Orders</p>
+        <h1 class="text-3xl font-extrabold text-slate-900 leading-tight">Create Shipment Order</h1>
+      </div>
+
+      <button
+        (click)="openOrderModal()"
+        class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg transition-all"
+      >
+        <span class="text-lg">＋</span>
+        Add Shipment
+      </button>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-3">
+      <span class="text-sm text-slate-500">
+        Want to pre-select a customer? Use: <span class="font-semibold">?customerId=10</span>
+      </span>
+
+      <input
+        type="text"
+        [(ngModel)]="searchQuery"
+        (input)="filterOrders()"
+        placeholder="Search shipment orders…"
+        class="flex-1 max-w-xs px-3 py-2 border border-slate-300 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition"
+      />
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT -->
+  <main class="space-y-8">
+    <!-- FORM CARD -->
+    <article class="bg-white rounded-3xl border border-slate-200 shadow-md">
+      <div class="p-6 space-y-6">
+        <!-- Section Header -->
+        <div class="flex items-center justify-between border-b pb-4">
+          <h2 class="text-xl font-bold text-slate-800">Shipment Details</h2>
+          <span class="text-sm text-slate-500"
+            >Fields marked <span class="text-red-500">*</span> are required</span
+          >
+        </div>
+
+        <!-- FORM GRID -->
+        <form class="grid gap-6 md:grid-cols-12">
+          <!-- CUSTOMER -->
+          <label class="md:col-span-5 flex flex-col gap-1 text-sm font-medium text-slate-600">
+            Customer <span class="text-red-500">*</span>
+            <div class="flex gap-2">
+              <input
+                type="text"
+                class="flex-1 px-4 py-2 border border-slate-300 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition"
+                placeholder="Search customer or paste ID"
+              />
+              <button
+                type="button"
+                class="px-4 py-2 rounded-xl text-sm text-white bg-blue-600 hover:bg-blue-700 shadow-sm"
+              >
+                Select
+              </button>
+            </div>
+          </label>
+
+          <!-- ORDER REF -->
+          <label class="md:col-span-3 flex flex-col gap-1 text-sm font-medium text-slate-600">
+            Order Ref <span class="text-red-500">*</span>
+            <input
+              type="text"
+              class="px-4 py-2 border border-slate-300 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-400"
+              value="ORD-6539"
+            />
+          </label>
+
+          <!-- STATUS -->
+          <label class="md:col-span-4 flex flex-col gap-1 text-sm font-medium text-slate-600">
+            Status
+            <select
+              class="px-4 py-2 border border-slate-300 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-400"
+            >
+              <option>Pending</option>
+              <option>Confirmed</option>
+              <option>Scheduled</option>
+              <option>Cancelled</option>
+            </select>
+          </label>
+
+          <!-- BILL TO -->
+          <label class="md:col-span-6 flex flex-col gap-1 text-sm font-medium text-slate-600">
+            Bill To
+            <input
+              type="text"
+              class="px-4 py-2 border border-slate-300 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-400"
+              placeholder="Same as customer or 3rd party"
+            />
+          </label>
+
+          <!-- SHIPMENT TYPE -->
+          <label class="md:col-span-3 flex flex-col gap-1 text-sm font-medium text-slate-600">
+            Shipment Type <span class="text-red-500">*</span>
+            <select
+              class="px-4 py-2 border border-slate-300 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-400"
+            >
+              <option>Full Truckload (FTL)</option>
+              <option>Less Than Truckload (LTL)</option>
+            </select>
+          </label>
+
+          <!-- COURIER -->
+          <label class="md:col-span-3 flex flex-col gap-1 text-sm font-medium text-slate-600">
+            Courier
+            <select
+              class="px-4 py-2 border border-slate-300 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-400"
+            >
+              <option>SV Fleet</option>
+              <option>Partner</option>
+            </select>
+          </label>
+
+          <!-- ORDER DATE -->
+          <label class="md:col-span-3 flex flex-col gap-1 text-sm font-medium text-slate-600">
+            Order Date <span class="text-red-500">*</span>
+            <input
+              type="date"
+              class="px-4 py-2 border rounded-xl shadow-sm focus:ring-2 focus:ring-blue-400"
+            />
+          </label>
+
+          <!-- DELIVERY DATE -->
+          <label class="md:col-span-3 flex flex-col gap-1 text-sm font-medium text-slate-600">
+            Delivery Date <span class="text-red-500">*</span>
+            <input
+              type="date"
+              class="px-4 py-2 border rounded-xl shadow-sm focus:ring-2 focus:ring-blue-400"
+            />
+          </label>
+
+          <!-- SELLER -->
+          <label class="md:col-span-6 flex flex-col gap-1 text-sm font-medium text-slate-600">
+            Seller
+            <select
+              class="px-4 py-2 border border-slate-300 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-400"
+            >
+              <option value="">Select seller</option>
+              <option>Mr. Dara</option>
+            </select>
+          </label>
+        </form>
+      </div>
+
+      <!-- ROUTING SECTION -->
+      <div class="p-6 space-y-6 border-t border-slate-100">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-xs uppercase tracking-[0.25em] text-slate-500">Routing</p>
+            <h3 class="text-lg font-semibold text-slate-800">Loading & Unloading</h3>
+          </div>
+
+          <div class="flex gap-2">
+            <button
+              class="px-4 py-2 text-sm text-blue-700 bg-blue-100 hover:bg-blue-200 transition rounded-xl"
+            >
+              ＋ Add Loading
+            </button>
+            <button
+              class="px-4 py-2 text-sm text-blue-700 bg-blue-100 hover:bg-blue-200 transition rounded-xl"
+            >
+              ＋ Add Unloading
+            </button>
+          </div>
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-4">
+          <!-- LOADING -->
+          <div class="p-4 space-y-3 border border-slate-200 rounded-2xl hover:shadow transition">
+            <div class="flex items-center justify-between">
+              <span class="font-semibold text-slate-700">Loading 1</span>
+              <button class="text-slate-400 hover:text-slate-700">✏️</button>
+            </div>
+
+            <input
+              type="text"
+              class="w-full px-3 py-2 border rounded-xl"
+              placeholder="Supplier / Warehouse Name"
+            />
+            <input
+              type="text"
+              class="w-full px-3 py-2 border rounded-xl"
+              placeholder="Street, District, Province"
+            />
+            <input type="time" class="w-full px-3 py-2 border rounded-xl" />
+          </div>
+
+          <!-- UNLOADING -->
+          <div class="p-4 space-y-3 border border-slate-200 rounded-2xl hover:shadow transition">
+            <div class="flex items-center justify-between">
+              <span class="font-semibold text-slate-700">Unloading 1</span>
+              <button class="text-slate-400 hover:text-slate-700">✏️</button>
+            </div>
+
+            <input
+              type="text"
+              class="w-full px-3 py-2 border rounded-xl"
+              placeholder="Customer Warehouse"
+            />
+            <input
+              type="text"
+              class="w-full px-3 py-2 border rounded-xl"
+              placeholder="Street, District, Province"
+            />
+            <input type="time" class="w-full px-3 py-2 border rounded-xl" />
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <!-- ITEMS TABLE -->
+    <article class="bg-white rounded-3xl border border-slate-200 shadow-md">
+      <div class="p-6 space-y-6">
+        <div class="flex items-center justify-between border-b pb-3">
+          <h3 class="text-lg font-semibold text-slate-800">Items / Pallets</h3>
+          <button class="px-4 py-2 text-sm text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-xl">
+            ＋ Add Item
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-100 text-slate-500 text-[11px] uppercase tracking-[0.15em]">
+              <tr>
+                <th class="py-3 px-4">Qty</th>
+                <th class="py-3 px-4">Unit</th>
+                <th class="py-3 px-4">Item Name</th>
+                <th class="py-3 px-4">Pallet</th>
+                <th class="py-3 px-4">Size</th>
+                <th class="py-3 px-4">Weight</th>
+                <th class="py-3 px-4">From</th>
+                <th class="py-3 px-4">To</th>
+                <th class="py-3 px-4">Warehouse</th>
+                <th class="py-3 px-4">Dept.</th>
+                <th class="py-3 px-4">Actions</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              <tr class="text-slate-500">
+                <td colspan="11" class="py-6 text-center italic">No items added yet.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="flex items-center justify-between text-sm">
+          <span class="text-slate-500">Total Weight: <strong>0 kg</strong></span>
+          <div class="flex gap-3">
+            <button class="px-4 py-2 text-slate-600 border border-slate-300 rounded-xl">
+              Clear
+            </button>
+            <button class="px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 shadow-md">
+              Submit
+            </button>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <!-- RECENT ORDERS TABLE -->
+    <article class="bg-white rounded-3xl border border-slate-200 shadow-md">
+      <div class="p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-semibold text-slate-800">Recent Orders</h3>
+          <span class="text-sm text-slate-500">Page {{ currentPage + 1 }} / {{ totalPages }}</span>
+        </div>
+
+        <div class="overflow-x-auto border border-slate-100 rounded-xl">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-100 text-slate-500 text-[11px] uppercase tracking-[0.15em]">
+              <tr>
+                <th class="px-3 py-3">Order #</th>
+                <th class="px-3 py-3">Customer</th>
+                <th class="px-3 py-3">Pickup</th>
+                <th class="px-3 py-3">Delivery</th>
+                <th class="px-3 py-3">Status</th>
+                <th class="px-3 py-3">Actions</th>
+              </tr>
+            </thead>
+
+            <tbody *ngIf="filteredList.length > 0">
+              <tr
+                *ngFor="let order of filteredList"
+                class="border-b border-slate-100 hover:bg-slate-50 transition"
+              >
+                <td class="px-3 py-3">{{ order.orderNumber ?? '—' }}</td>
+                <td class="px-3 py-3">{{ order.customerName }}</td>
+                <td class="px-3 py-3">{{ order.pickupAddress ?? '—' }}</td>
+                <td class="px-3 py-3">{{ order.deliveryAddress ?? '—' }}</td>
+                <td class="px-3 py-3">
+                  <span class="px-3 py-1 rounded-full bg-slate-100 text-slate-600 text-[11px]">
+                    {{ order.status }}
+                  </span>
+                </td>
+                <td class="px-3 py-3 space-x-2">
+                  <button
+                    (click)="viewOrderDetails(order)"
+                    class="px-3 py-1 text-xs rounded-full bg-slate-100 text-slate-600"
+                  >
+                    View
+                  </button>
+
+                  <button
+                    (click)="openOrderModal(order)"
+                    class="px-3 py-1 text-xs rounded-full bg-yellow-100 text-amber-700"
+                  >
+                    Edit
+                  </button>
+
+                  <button
+                    (click)="deleteOrder(order.id!)"
+                    class="px-3 py-1 text-xs rounded-full bg-red-100 text-red-600"
+                  >
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+
+            <tbody *ngIf="filteredList.length === 0">
+              <tr>
+                <td colspan="6" class="px-3 py-6 text-center text-slate-500">No orders found.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- PAGINATION -->
+        <div class="flex items-center justify-between mt-4 text-sm">
+          <button
+            (click)="prevPage()"
+            [disabled]="currentPage === 0"
+            class="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-full disabled:opacity-60"
+          >
+            Previous
+          </button>
+
+          <button
+            (click)="nextPage()"
+            [disabled]="currentPage >= totalPages - 1"
+            class="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-full disabled:opacity-60"
+          >
+            Next
+          </button>
+        </div>
+      </div>
+    </article>
+  </main>
+</section>

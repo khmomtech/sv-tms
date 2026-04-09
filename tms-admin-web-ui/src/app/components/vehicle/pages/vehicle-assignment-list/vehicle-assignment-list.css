@@ -1,0 +1,445 @@
+.assignments-table-wrapper {
+  max-height: 60vh;
+}
+
+.assignments-table-head th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #f8fafc;
+}
+
+.sortable-header {
+  cursor: pointer;
+  user-select: none;
+}
+
+.sortable-header:hover {
+  color: #1d4ed8;
+}
+
+.sort-icon {
+  font-size: 15px;
+  line-height: 1;
+}
+
+.zebra-row {
+  background-color: #fcfdff;
+}
+
+.filter-chip {
+  padding: 0.375rem 0.75rem;
+  border-radius: 9999px;
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+  color: #374151;
+  font-size: 0.75rem;
+  font-weight: 600;
+  transition: all 0.15s ease;
+}
+
+.filter-chip:hover {
+  background: #f3f4f6;
+}
+
+.filter-chip.active {
+  border-color: #2563eb;
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.filter-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 9999px;
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.filter-badge .material-icons {
+  font-size: 14px;
+}
+
+.loading-text .material-icons {
+  font-size: 48px;
+  color: #3b82f6;
+  margin-bottom: 16px;
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ========== Error State ========== */
+.error-state {
+  background: white;
+  border-radius: 12px;
+  padding: 60px 40px;
+  text-align: center;
+}
+
+.error-icon {
+  font-size: 64px;
+  color: #ef4444;
+  margin-bottom: 16px;
+}
+
+.error-state h3 {
+  font-size: 20px;
+  color: #1a202c;
+  margin: 0 0 8px 0;
+}
+
+.error-message {
+  color: #64748b;
+  margin: 0 0 24px 0;
+  font-size: 14px;
+}
+
+/* ========== Empty State ========== */
+.empty-state {
+  background: white;
+  border-radius: 12px;
+  padding: 80px 40px;
+  text-align: center;
+}
+
+.empty-icon {
+  font-size: 80px;
+  color: #cbd5e1;
+  margin-bottom: 24px;
+}
+
+.empty-state h3 {
+  font-size: 20px;
+  color: #1a202c;
+  margin: 0 0 8px 0;
+}
+
+.empty-state p {
+  color: #64748b;
+  margin: 0 0 24px 0;
+  font-size: 14px;
+}
+
+/* ========== Table ========== */
+.table-container {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.assignments-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.assignments-table thead {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.assignments-table th {
+  padding: 16px 20px;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.assignments-table th .material-icons {
+  vertical-align: middle;
+  margin-right: 6px;
+  font-size: 18px;
+  color: #64748b;
+}
+
+.assignment-row {
+  border-bottom: 1px solid #f1f5f9;
+  transition: all 0.2s;
+}
+
+.assignment-row:last-child {
+  border-bottom: none;
+}
+
+.assignment-row:hover {
+  background: #f8fafc;
+}
+
+.assignments-table td {
+  padding: 20px;
+  font-size: 14px;
+  color: #1a202c;
+}
+
+/* Column Widths */
+.col-vehicle {
+  width: 20%;
+}
+.col-driver {
+  width: 30%;
+}
+.col-temp {
+  width: 30%;
+}
+.col-effective {
+  width: 20%;
+}
+
+/* Vehicle Info */
+.vehicle-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vehicle-code {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  background: #f1f5f9;
+  color: #1e293b;
+  border-radius: 6px;
+  font-weight: 600;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+}
+
+/* Driver Info */
+.driver-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.driver-icon {
+  font-size: 20px;
+  color: #64748b;
+}
+
+.driver-icon.temp {
+  color: #f59e0b;
+}
+
+.driver-icon.effective {
+  color: #10b981;
+}
+
+.driver-name {
+  font-weight: 500;
+  color: #1e293b;
+}
+
+.no-driver {
+  color: #94a3b8;
+  font-style: italic;
+  font-size: 13px;
+}
+
+/* Time Badge */
+.time-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: #dbeafe;
+  color: #1e40af;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-left: 8px;
+}
+
+.time-badge .material-icons {
+  font-size: 14px;
+}
+
+.time-badge.expiring {
+  background: #fed7aa;
+  color: #9a3412;
+}
+
+.time-badge.critical {
+  background: #fecaca;
+  color: #991b1b;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* ========== Pagination ========== */
+.pagination-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: white;
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-top: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.pagination-info {
+  font-size: 14px;
+  color: #64748b;
+}
+
+.pagination-info strong {
+  color: #1a202c;
+  font-weight: 600;
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.page-indicator {
+  font-size: 14px;
+  color: #475569;
+  font-weight: 500;
+  min-width: 100px;
+  text-align: center;
+}
+
+/* ========== Responsive Design ========== */
+@media (max-width: 1024px) {
+  .vehicle-assignments-page {
+    padding: 16px;
+  }
+
+  .page-header {
+    padding: 20px;
+  }
+
+  .header-content {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .stats-summary {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 768px) {
+  .page-title {
+    font-size: 24px;
+  }
+
+  .table-container {
+    overflow-x: auto;
+  }
+
+  .assignments-table {
+    min-width: 600px;
+  }
+
+  .pagination-section {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .filter-chips {
+    flex-wrap: wrap;
+  }
+}
+
+/* ========== Dark Mode Support ========== */
+@media (prefers-color-scheme: dark) {
+  .vehicle-assignments-page {
+    background: #0f172a;
+  }
+
+  .page-header,
+  .filters-section,
+  .table-container,
+  .pagination-section,
+  .loading-state,
+  .error-state,
+  .empty-state {
+    background: #1e293b;
+  }
+
+  .page-title,
+  .stat-value,
+  .error-state h3,
+  .empty-state h3,
+  .driver-name,
+  .vehicle-code {
+    color: #f1f5f9;
+  }
+
+  .page-subtitle,
+  .stat-label,
+  .pagination-info,
+  .loading-text,
+  .error-message,
+  .empty-state p {
+    color: #94a3b8;
+  }
+
+  .search-input {
+    background: #0f172a;
+    border-color: #334155;
+    color: #f1f5f9;
+  }
+
+  .search-input:focus {
+    background: #1e293b;
+  }
+
+  .filter-chip {
+    background: #334155;
+    color: #cbd5e1;
+  }
+
+  .filter-chip:hover {
+    background: #475569;
+  }
+
+  .assignment-row:hover {
+    background: #334155;
+  }
+
+  .assignments-table thead {
+    background: #334155;
+    border-bottom-color: #475569;
+  }
+
+  .assignment-row {
+    border-bottom-color: #334155;
+  }
+
+  .vehicle-code {
+    background: #334155;
+    color: #cbd5e1;
+  }
+}

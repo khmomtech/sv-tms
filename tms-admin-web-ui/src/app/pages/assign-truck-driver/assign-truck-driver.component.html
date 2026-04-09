@@ -1,0 +1,92 @@
+<div class="assignment-container">
+  <h2>{{ 'assignTruckDriver.title' | translate }}</h2>
+
+  <div *ngIf="successMessage" class="alert alert-success">
+    {{ successMessage }}
+  </div>
+
+  <div *ngIf="errorMessage" class="alert alert-danger">
+    {{ errorMessage }}
+  </div>
+
+  <div *ngIf="showSwapWarning" class="alert alert-warning">
+    <strong>⚠ {{ 'assignTruckDriver.swap_warning_title' | translate }}</strong>
+    <ul>
+      <li *ngIf="currentDriverAssignment">
+        {{ 'assignTruckDriver.driver_assigned_to_truck' | translate }}
+        <strong>{{ currentDriverAssignment.truckPlate }}</strong>
+        {{ 'assignTruckDriver.will_be_revoked' | translate }}
+      </li>
+      <li *ngIf="currentTruckAssignment">
+        {{ 'assignTruckDriver.truck_assigned_to_driver' | translate }}
+        <strong>{{ getAssignmentDriverName(currentTruckAssignment) }}</strong>
+        {{ 'assignTruckDriver.will_be_revoked' | translate }}
+      </li>
+    </ul>
+  </div>
+
+  <form [formGroup]="assignmentForm" (ngSubmit)="onSubmit()">
+    <div class="form-group">
+      <label for="driver">{{ 'assignTruckDriver.driver' | translate }}</label>
+      <select id="driver" formControlName="driverId" class="form-control">
+        <option value="">{{ 'assignTruckDriver.select_driver' | translate }}</option>
+        <option *ngFor="let driver of drivers" [value]="driver.id">
+          {{ driver.name || driver.firstName + ' ' + driver.lastName }} ({{ driver.licenseNumber }})
+        </option>
+      </select>
+      <div *ngIf="currentDriverAssignment" class="current-assignment">
+        {{ 'assignTruckDriver.current' | translate }} {{ currentDriverAssignment.truckPlate }}
+        <button
+          type="button"
+          class="btn btn-sm btn-link"
+          (click)="revoke(currentDriverAssignment.driverId)"
+        >
+          {{ 'assignTruckDriver.revoke' | translate }}
+        </button>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="truck">{{ 'assignTruckDriver.truck' | translate }}</label>
+      <select id="truck" formControlName="vehicleId" class="form-control">
+        <option value="">{{ 'assignTruckDriver.select_truck' | translate }}</option>
+        <option *ngFor="let truck of trucks" [value]="truck.id">
+          {{ truck.licensePlate || truck.plateNumber }} ({{ truck.model }})
+        </option>
+      </select>
+      <div *ngIf="currentTruckAssignment" class="current-assignment">
+        {{ 'assignTruckDriver.current' | translate }}
+        {{ getAssignmentDriverName(currentTruckAssignment) }}
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="reason">{{ 'assignTruckDriver.reason_optional' | translate }}</label>
+      <textarea
+        id="reason"
+        formControlName="reason"
+        class="form-control"
+        rows="2"
+        [placeholder]="'assignTruckDriver.reason_placeholder' | translate"
+      ></textarea>
+    </div>
+
+    <div class="form-group">
+      <label>
+        <input type="checkbox" formControlName="forceReassignment" />
+        {{ 'assignTruckDriver.force_reassignment' | translate }}
+      </label>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary" [disabled]="assignmentForm.invalid || loading">
+        {{
+          (loading ? 'assignTruckDriver.assigning' : 'assignTruckDriver.assign_truck') | translate
+        }}
+      </button>
+      <button type="button" class="btn btn-secondary" (click)="assignmentForm.reset()">
+        {{ 'assignTruckDriver.clear' | translate }}
+      </button>
+    </div>
+  </form>
+</div>

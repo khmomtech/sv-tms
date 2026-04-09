@@ -1,0 +1,411 @@
+<div class="container p-8 mx-auto bg-gray-100">
+  <!-- Top Bar with Actions -->
+  <div class="flex items-center justify-between mb-8">
+    <h2 class="text-4xl font-bold text-gray-800">Transport Order Details</h2>
+    <div class="relative">
+      <button
+        (click)="toggleActionMenu()"
+        class="flex items-center px-4 py-2 text-white bg-green-500 rounded-lg shadow hover:bg-green-600"
+      >
+        ⚙️ Action
+        <svg class="w-4 h-4 ml-2" fill="currentColor" viewBox="0 0 20 20">
+          <path
+            fill-rule="evenodd"
+            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+            clip-rule="evenodd"
+          />
+        </svg>
+      </button>
+
+      <!-- Dropdown Actions -->
+      <ul
+        *ngIf="showActionMenu"
+        class="absolute right-0 z-20 w-56 mt-2 bg-white border border-gray-200 rounded-md shadow-xl"
+      >
+        <li>
+          <button
+            (click)="updateStatus()"
+            type="button"
+            class="block w-full px-4 py-2 text-left hover:bg-gray-100"
+          >
+            📝 Update Status
+          </button>
+        </li>
+        <li>
+          <button
+            (click)="assignDriver()"
+            type="button"
+            class="block w-full px-4 py-2 text-left hover:bg-gray-100"
+          >
+            Assign Driver
+          </button>
+        </li>
+        <li>
+          <button
+            (click)="changeDriver()"
+            type="button"
+            class="block w-full px-4 py-2 text-left hover:bg-gray-100"
+          >
+            ♻️ Change Driver
+          </button>
+        </li>
+        <li>
+          <button
+            (click)="printInvoice()"
+            type="button"
+            class="block w-full px-4 py-2 text-left hover:bg-gray-100"
+          >
+            🖨️ Print Invoice
+          </button>
+        </li>
+        <li>
+          <button
+            (click)="generateDeliveryNote()"
+            type="button"
+            class="block w-full px-4 py-2 text-left hover:bg-gray-100"
+          >
+            Delivery Note
+          </button>
+        </li>
+        <li>
+          <button
+            (click)="openReport()"
+            type="button"
+            class="block w-full px-4 py-2 text-left hover:bg-gray-100"
+          >
+            📄 Reports
+          </button>
+        </li>
+        <li>
+          <a
+            [routerLink]="['/orders', order?.id, 'tracking']"
+            class="block w-full px-4 py-2 text-left hover:bg-gray-100"
+          >
+            🚚 View Tracking
+          </a>
+        </li>
+        <!--
+        <li><a href="#" (click)="notifyCustomer()" class="block px-4 py-2 hover:bg-gray-100">✉️ Notify Customer</a></li>
+        <li><a href="#" (click)="processPayment()" class="block px-4 py-2 hover:bg-gray-100">💰 Process Payment</a></li>
+        <li><a href="#" (click)="cancelOrder()" class="block px-4 py-2 text-red-600 hover:bg-red-100">🛑 Cancel
+            Order</a></li>
+        -->
+      </ul>
+    </div>
+  </div>
+
+  <!-- Order Content -->
+  <div *ngIf="order; else loading" class="grid gap-6 lg:grid-cols-[minmax(0,3fr)_320px]">
+    <div class="space-y-6">
+      <!-- Order Summary -->
+      <section class="grid grid-cols-1 gap-6 p-6 bg-white shadow-lg md:grid-cols-3 rounded-xl">
+        <div>
+          <label class="block text-sm font-semibold text-gray-500">Order Reference</label>
+          <span class="text-lg font-medium text-gray-800">{{ order.orderReference }}</span>
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-500">Customer Name</label>
+          <span class="text-lg font-medium text-gray-800">{{ order.customerName }}</span>
+          <span class="block text-gray-600">Bill To: {{ order.billTo }}</span>
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-500">Status</label>
+          <span
+            [ngClass]="{
+              'text-yellow-600': order.status === 'PENDING',
+              'text-green-600': order.status === 'CONFIRMED',
+              'text-blue-600': order.status === 'DISPATCHED',
+              'text-purple-600': order.status === 'LOADING',
+              'text-gray-600': order.status === 'COMPLETED',
+            }"
+            class="text-lg font-semibold"
+            >{{ order.status }}</span
+          >
+        </div>
+      </section>
+
+      <div class="grid gap-6 md:grid-cols-2">
+        <section class="p-6 bg-white shadow-lg rounded-xl">
+          <h3 class="mb-4 text-xl font-semibold text-gray-700">Loading Point(s)</h3>
+          <ng-container *ngIf="pickupStops.length > 0; else noPickup">
+            <div *ngFor="let stop of pickupStops; let i = index" class="pb-2 mb-4 border-b">
+              <p>
+                <strong>Point {{ i + 1 }}:</strong>
+              </p>
+              <p><strong>Name:</strong> {{ stop.address?.name || '-' }}</p>
+              <p>
+                <strong>Address:</strong> {{ stop.address?.address || '-' }},
+                {{ stop.address?.city || '' }}
+              </p>
+              <p>
+                <strong>Coordinates:</strong>
+                {{ stop.address?.latitude || 'N/A' }}, {{ stop.address?.longitude || 'N/A' }}
+              </p>
+              <a
+                *ngIf="stop.address?.latitude && stop.address?.longitude"
+                [href]="getDirectionLink1(stop.address.latitude, stop.address.longitude)"
+                target="_blank"
+                class="inline-block px-3 py-1 mt-2 text-sm text-white bg-blue-500 rounded hover:bg-blue-600"
+              >
+                View Route
+              </a>
+            </div>
+          </ng-container>
+          <ng-template #noPickup>
+            <p class="text-sm text-gray-500">No loading points available.</p>
+          </ng-template>
+        </section>
+        <section class="p-6 bg-white shadow-lg rounded-xl">
+          <h3 class="mb-4 text-xl font-semibold text-gray-700">Unload Point(s)</h3>
+          <ng-container *ngIf="dropStops.length > 0; else noDrop">
+            <div *ngFor="let stop of dropStops; let i = index" class="pb-2 mb-4 border-b">
+              <p>
+                <strong>Point {{ i + 1 }}:</strong>
+              </p>
+              <p><strong>Name:</strong> {{ stop.address?.name || '-' }}</p>
+              <p>
+                <strong>Address:</strong> {{ stop.address?.address || '-' }},
+                {{ stop.address?.city || '' }}
+              </p>
+              <p>
+                <strong>Coordinates:</strong>
+                {{ stop.address?.latitude || 'N/A' }}, {{ stop.address?.longitude || 'N/A' }}
+              </p>
+              <a
+                *ngIf="stop.address?.latitude && stop.address?.longitude"
+                [href]="getDirectionLink1(stop.address.latitude, stop.address.longitude)"
+                target="_blank"
+                class="inline-block px-3 py-1 mt-2 text-sm text-white bg-green-600 rounded hover:bg-green-700"
+              >
+                View Route
+              </a>
+            </div>
+          </ng-container>
+          <ng-template #noDrop>
+            <p class="text-sm text-gray-500">No unload points available.</p>
+          </ng-template>
+        </section>
+      </div>
+
+      <nav class="p-4 bg-white shadow-lg rounded-xl">
+        <ul class="flex space-x-6 border-b">
+          <li>
+            <button
+              (click)="selectedTab = 'items'"
+              [ngClass]="
+                selectedTab === 'items' ? 'border-blue-500 text-blue-600' : 'text-gray-500'
+              "
+              class="px-4 py-2 font-medium border-b-2"
+            >
+              Items
+            </button>
+          </li>
+          <li>
+            <button
+              (click)="selectedTab = 'details'"
+              [ngClass]="
+                selectedTab === 'details' ? 'border-blue-500 text-blue-600' : 'text-gray-500'
+              "
+              class="px-4 py-2 font-medium border-b-2"
+            >
+              Details
+            </button>
+          </li>
+        </ul>
+
+        <div class="mt-6">
+          <div *ngIf="selectedTab === 'items'">
+            <table class="w-full text-left">
+              <thead class="bg-gray-200">
+                <tr>
+                  <th class="p-2">Item Name</th>
+                  <th class="p-2">Quantity</th>
+                  <th class="p-2">UOM</th>
+                  <th class="p-2">Pallets</th>
+                  <th class="p-2">Loading Place</th>
+                  <th class="p-2">Unloading Place</th>
+                  <th class="p-2">Warehouse</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let item of order.items" class="border-b">
+                  <td class="p-2">{{ item.itemName }}</td>
+                  <td class="p-2">{{ item.quantity }}</td>
+                  <td class="p-2">{{ item.unitOfMeasurement }}</td>
+                  <td class="p-2">{{ item.palletType }}</td>
+                  <td class="p-2">{{ item.fromDestination }}</td>
+                  <td class="p-2">{{ item.toDestination }}</td>
+                  <td class="p-2">{{ item.warehouse }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div *ngIf="selectedTab === 'details'">
+            <p><strong>Customer Contact:</strong> {{ order.customerName }}</p>
+          </div>
+        </div>
+      </nav>
+
+      <div class="text-right">
+        <button
+          [routerLink]="'/admin/transport-orders'"
+          class="px-4 py-2 text-white bg-gray-400 rounded-lg hover:bg-gray-500"
+        >
+          ← Back
+        </button>
+      </div>
+    </div>
+
+    <div class="space-y-6">
+      <section class="h-full p-6 bg-white shadow-lg rounded-xl space-y-4">
+        <div>
+          <h3 class="mb-2 text-lg font-semibold text-gray-700">Assign</h3>
+        </div>
+        <div
+          *ngIf="order.dispatches?.length; else noDispatches"
+          class="space-y-3 max-h-64 overflow-auto"
+        >
+          <div
+            *ngFor="let dispatch of order.dispatches ?? []"
+            class="px-3 py-3 border border-gray-100 rounded-lg shadow-sm bg-white"
+          >
+            <div class="my-1 text-sm font-semibold text-gray-800">
+              {{ dispatch.routeCode || '—' }}
+            </div>
+            <div class="flex flex-wrap gap-x-3 text-sm text-gray-600">
+              <span>Route: {{ dispatch.routeCode || 'N/A' }}</span>
+              <span>Driver: {{ dispatch.driverName || 'N/A' }}</span>
+              <span>Vehicle: {{ dispatch.licensePlate || 'N/A' }}</span>
+            </div>
+            <div class="mt-2">
+              <span
+                class="inline-flex items-center px-2 py-1 text-[11px] font-semibold uppercase rounded-full"
+                [ngClass]="{
+                  'bg-yellow-100 text-yellow-700':
+                    dispatch.status === DispatchStatus.PENDING ||
+                    dispatch.status === DispatchStatus.ASSIGNED,
+                  'bg-blue-100 text-blue-700':
+                    dispatch.status === DispatchStatus.IN_TRANSIT ||
+                    dispatch.status === DispatchStatus.LOADED,
+                  'bg-purple-100 text-purple-700':
+                    dispatch.status === DispatchStatus.ARRIVED_LOADING ||
+                    dispatch.status === DispatchStatus.ARRIVED_UNLOADING,
+                  'bg-green-100 text-green-700': dispatch.status === DispatchStatus.DELIVERED,
+                  'bg-red-100 text-red-700': dispatch.status === DispatchStatus.CANCELLED,
+                }"
+              >
+                {{ dispatch.status }}
+              </span>
+              <a
+                [routerLink]="['/dispatch', dispatch.id]"
+                class="ml-3 text-blue-600 underline text-xs"
+                >View</a
+              >
+            </div>
+          </div>
+        </div>
+        <ng-template #noDispatches>
+          <p class="text-sm text-gray-500">No trips assigned yet.</p>
+        </ng-template>
+        <div class="flex flex-col gap-2">
+          <button
+            class="w-full px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded hover:bg-blue-700"
+            (click)="openDispatchList()"
+          >
+            View Trip Plan
+          </button>
+          <button
+            class="w-full px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded hover:bg-indigo-700"
+            (click)="createTrip()"
+          >
+            ➕ Trip
+          </button>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- Modal: Assign Driver -->
+  <div
+    *ngIf="showAssignDriverModal"
+    class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50"
+  >
+    <div class="p-6 bg-white rounded-lg shadow-lg w-96">
+      <h2 class="mb-4 text-lg font-bold">Assign Driver</h2>
+      <label class="block text-sm font-medium">Select Driver</label>
+      <select [(ngModel)]="selectedDriverId" class="w-full p-2 border rounded">
+        <option *ngFor="let driver of availableDrivers" [value]="driver.id">
+          {{ driver.name }} - {{ driver.assignedVehicle?.licensePlate }}
+        </option>
+      </select>
+      <div class="flex justify-end mt-4">
+        <button (click)="assignDriverToOrder()" class="px-4 py-2 text-white bg-green-500 rounded">
+          Assign
+        </button>
+        <button
+          (click)="closeAssignDriverModal()"
+          class="px-4 py-2 ml-2 text-white bg-gray-400 rounded"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Update Status -->
+<div
+  *ngIf="showStatusModal"
+  class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+>
+  <div class="p-6 bg-white rounded-lg shadow-lg w-96">
+    <h2 class="mb-4 text-lg font-bold">Update Order Status</h2>
+    <label class="block mb-2 text-sm font-medium">Select Status</label>
+    <select [(ngModel)]="selectedStatus" class="w-full p-2 mb-4 border rounded">
+      <option *ngFor="let status of availableStatuses" [value]="status">{{ status }}</option>
+    </select>
+    <div class="flex justify-end">
+      <button (click)="confirmStatusUpdate()" class="px-4 py-2 text-white bg-green-500 rounded">
+        Update
+      </button>
+      <button (click)="cancelStatusUpdate()" class="px-4 py-2 ml-2 text-white bg-gray-400 rounded">
+        Cancel
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Loading State -->
+<ng-template #loading>
+  <div class="text-center text-gray-500">Loading order details...</div>
+</ng-template>
+
+<!-- Modal: Report Preview -->
+<div
+  *ngIf="showReportPreview"
+  class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+>
+  <div class="w-[90%] h-[90%] bg-white rounded shadow-lg overflow-hidden">
+    <div class="flex items-center justify-between p-3 border-b">
+      <div class="font-semibold text-lg">Report Preview</div>
+      <div class="flex gap-2">
+        <button (click)="printFromPreview()" class="px-3 py-1 bg-blue-600 text-white rounded">
+          Print
+        </button>
+        <button (click)="openReportInNewTab()" class="px-3 py-1 bg-gray-600 text-white rounded">
+          Open in new tab
+        </button>
+        <button (click)="closeReportPreview()" class="px-3 py-1 bg-gray-300 rounded">Close</button>
+      </div>
+    </div>
+    <div class="h-full">
+      <iframe
+        id="report-preview-iframe"
+        [srcdoc]="reportHtml"
+        class="w-full h-full"
+        frameborder="0"
+      ></iframe>
+    </div>
+  </div>
+</div>

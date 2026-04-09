@@ -1,0 +1,289 @@
+<div class="container">
+  <!-- Breadcrumb -->
+  <div class="breadcrumb">
+    <a routerLink="/">Home</a>
+    <span class="separator">/</span>
+    <a routerLink="/incidents">Incident Management</a>
+    <span class="separator">/</span>
+    <span class="current">{{ isEditMode() ? 'Edit' : 'Create' }}</span>
+  </div>
+
+  <!-- Page Card -->
+  <div class="page-card">
+    <h1>{{ isEditMode() ? 'Edit Incident' : 'Report Incident' }}</h1>
+    <p class="subtitle">Driver, system, or customer reports a quick event.</p>
+
+    <!-- Error Alert -->
+    <div *ngIf="error()" class="error-alert">
+      <span>⚠️ {{ error() }}</span>
+      <button type="button" class="btn-close" (click)="error.set(null)">✕</button>
+    </div>
+
+    <!-- Form -->
+    <form [formGroup]="incidentForm" (ngSubmit)="onSubmit()">
+      <!-- Title - Full Width -->
+      <div class="form-group full-width">
+        <label class="form-label">Incident Title</label>
+        <input
+          type="text"
+          class="form-input"
+          formControlName="title"
+          placeholder="Speeding in school zone"
+          [class.error]="incidentForm.get('title')?.invalid && incidentForm.get('title')?.touched"
+        />
+        <div
+          class="field-error"
+          *ngIf="incidentForm.get('title')?.invalid && incidentForm.get('title')?.touched"
+        >
+          Title is required
+        </div>
+      </div>
+
+      <!-- Two Column Grid -->
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Incident Group</label>
+          <select
+            class="form-select"
+            formControlName="incidentGroup"
+            [class.error]="
+              incidentForm.get('incidentGroup')?.invalid &&
+              incidentForm.get('incidentGroup')?.touched
+            "
+          >
+            <option value="">-- Select Group --</option>
+            <option value="TRAFFIC">Traffic (Speeding, Harsh Braking)</option>
+            <option value="BEHAVIOR">Behavior (Driver Conduct, Compliance)</option>
+            <option value="CUSTOMER">Customer (Complaints, Service Issues)</option>
+            <option value="ACCIDENT">Accident (Collisions, Incidents)</option>
+            <option value="VEHICLE">Vehicle (Mechanical, Maintenance)</option>
+          </select>
+          <div
+            class="field-error"
+            *ngIf="
+              incidentForm.get('incidentGroup')?.invalid &&
+              incidentForm.get('incidentGroup')?.touched
+            "
+          >
+            Please select an incident group
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Incident Type</label>
+          <select
+            class="form-select"
+            formControlName="incidentType"
+            [class.error]="
+              incidentForm.get('incidentType')?.invalid && incidentForm.get('incidentType')?.touched
+            "
+          >
+            <option value="">-- Select Type --</option>
+            <!-- Traffic-related -->
+            <option value="SPEEDING">Speeding</option>
+            <option value="HARSH_BRAKING">Harsh Braking</option>
+            <option value="HARSH_ACCELERATION">Harsh Acceleration</option>
+            <option value="SHARP_CORNERING">Sharp Cornering</option>
+            <option value="WRONG_ROUTE">Wrong Route</option>
+            <!-- Behavior-related -->
+            <option value="UNPROFESSIONAL_CONDUCT">Unprofessional Conduct</option>
+            <option value="POLICY_VIOLATION">Policy Violation</option>
+            <option value="UNAUTHORIZED_STOP">Unauthorized Stop</option>
+            <option value="MISSED_SCHEDULE">Missed Schedule</option>
+            <!-- Customer-related -->
+            <option value="CUSTOMER_COMPLAINT">Customer Complaint</option>
+            <option value="DAMAGE_CLAIM">Damage Claim</option>
+            <option value="SERVICE_QUALITY_ISSUE">Service Quality Issue</option>
+            <!-- Accident-related -->
+            <option value="COLLISION">Collision</option>
+            <option value="PROPERTY_DAMAGE">Property Damage</option>
+            <option value="INJURY">Injury</option>
+            <!-- Vehicle-related -->
+            <option value="MECHANICAL_FAILURE">Mechanical Failure</option>
+            <option value="BREAKDOWN">Breakdown</option>
+            <option value="MAINTENANCE_DUE">Maintenance Due</option>
+            <!-- Other -->
+            <option value="OTHER">Other</option>
+          </select>
+          <div
+            class="field-error"
+            *ngIf="
+              incidentForm.get('incidentType')?.invalid && incidentForm.get('incidentType')?.touched
+            "
+          >
+            Please select an incident type
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Severity</label>
+          <select
+            class="form-select"
+            formControlName="severity"
+            [class.error]="
+              incidentForm.get('severity')?.invalid && incidentForm.get('severity')?.touched
+            "
+          >
+            <option value="">-- Select Severity --</option>
+            <option value="LOW">Low</option>
+            <option value="MEDIUM">Medium</option>
+            <option value="HIGH">High</option>
+            <option value="CRITICAL">Critical</option>
+          </select>
+          <div
+            class="field-error"
+            *ngIf="incidentForm.get('severity')?.invalid && incidentForm.get('severity')?.touched"
+          >
+            Please select severity level
+          </div>
+        </div>
+
+        <div class="form-group" *ngIf="isEditMode()">
+          <label class="form-label">Status</label>
+          <select
+            class="form-select"
+            formControlName="incidentStatus"
+            [disabled]="submitting()"
+            [class.error]="
+              incidentForm.get('incidentStatus')?.invalid &&
+              incidentForm.get('incidentStatus')?.touched
+            "
+          >
+            <option *ngFor="let status of incidentStatuses" [value]="status">
+              {{ status.replace('_', ' ') }}
+            </option>
+          </select>
+          <div
+            class="field-error"
+            *ngIf="
+              incidentForm.get('incidentStatus')?.invalid &&
+              incidentForm.get('incidentStatus')?.touched
+            "
+          >
+            Please select a status
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Driver</label>
+          <ng-select
+            [items]="drivers$ | async"
+            bindLabel="name"
+            bindValue="id"
+            formControlName="driverId"
+            placeholder="Select or search driver..."
+            [searchable]="true"
+            [clearable]="true"
+            [loading]="driversLoading()"
+            notFoundText="No drivers found"
+            typeToSearchText="Type to search drivers..."
+          >
+            <ng-template ng-label-tmp let-item="item">
+              <div class="ng-select-label">
+                <strong>{{ item.name }}</strong>
+                <small class="text-muted"> (ID: {{ item.id }})</small>
+              </div>
+            </ng-template>
+            <ng-template ng-option-tmp let-item="item" let-index="index">
+              <div class="ng-select-option">
+                <div>{{ item.name }}</div>
+                <small class="text-muted">ID: {{ item.id }} • {{ item.phone || 'No phone' }}</small>
+              </div>
+            </ng-template>
+          </ng-select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Vehicle</label>
+          <ng-select
+            [items]="vehicles$ | async"
+            bindLabel="licensePlate"
+            bindValue="id"
+            formControlName="vehicleId"
+            placeholder="Select or search vehicle..."
+            [searchable]="true"
+            [clearable]="true"
+            [loading]="vehiclesLoading()"
+            notFoundText="No vehicles found"
+            typeToSearchText="Type to search vehicles..."
+          >
+            <ng-template ng-label-tmp let-item="item">
+              <div class="ng-select-label">
+                <strong>{{ item.licensePlate }}</strong>
+                <small class="text-muted"> (ID: {{ item.id }})</small>
+              </div>
+            </ng-template>
+            <ng-template ng-option-tmp let-item="item" let-index="index">
+              <div class="ng-select-option">
+                <div>{{ item.licensePlate }}</div>
+                <small class="text-muted"
+                  >ID: {{ item.id }} • {{ item.model || 'Unknown model' }}</small
+                >
+              </div>
+            </ng-template>
+          </ng-select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Location</label>
+          <input
+            type="text"
+            class="form-input"
+            formControlName="location"
+            placeholder="Auto GPS or manual entry"
+          />
+        </div>
+      </div>
+
+      <!-- Description - Full Width -->
+      <div class="form-group full-width">
+        <label class="form-label">Description</label>
+        <textarea
+          class="form-textarea"
+          formControlName="description"
+          rows="4"
+          placeholder="Describe what happened…"
+          [class.error]="
+            incidentForm.get('description')?.invalid && incidentForm.get('description')?.touched
+          "
+        ></textarea>
+        <div
+          class="field-error"
+          *ngIf="
+            incidentForm.get('description')?.invalid && incidentForm.get('description')?.touched
+          "
+        >
+          Description is required
+        </div>
+      </div>
+
+      <!-- Attachments - Full Width -->
+      <div class="form-group full-width">
+        <label class="form-label">Attachments</label>
+        <div class="file-upload-wrapper">
+          <input
+            type="file"
+            id="file-upload"
+            multiple
+            (change)="onFileSelect($event)"
+            class="file-input"
+          />
+          <label for="file-upload" class="file-label">
+            <span *ngIf="selectedFiles.length === 0">Choose Files No file chosen</span>
+            <span *ngIf="selectedFiles.length > 0"
+              >{{ selectedFiles.length }} file(s) selected</span
+            >
+          </label>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="button" class="btn-cancel" (click)="goBack()">Cancel</button>
+        <button type="submit" class="btn-submit" [disabled]="submitting() || incidentForm.invalid">
+          <span *ngIf="submitting()" class="spinner"></span>
+          {{ isEditMode() ? 'Update Incident' : 'Submit Incident' }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

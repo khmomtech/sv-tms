@@ -1,0 +1,231 @@
+<div class="container-fluid p-4">
+  <!-- Breadcrumb Navigation -->
+  <nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a routerLink="/dashboard">Home</a></li>
+      <li class="breadcrumb-item"><a routerLink="/cases">Case Management</a></li>
+      <li class="breadcrumb-item active" aria-current="page">
+        {{ isEditMode() ? 'Edit Case' : 'Create Case' }}
+      </li>
+    </ol>
+  </nav>
+
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0">{{ isEditMode() ? 'Edit Case' : 'Create Investigation Case' }}</h2>
+    <a routerLink="/cases" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left me-1"></i>Back
+    </a>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loadingIncident() || loading()" class="text-center py-5">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+    <p class="text-muted mt-3">
+      {{ loadingIncident() ? 'Loading incident details...' : 'Loading case details...' }}
+    </p>
+  </div>
+
+  <!-- Main Content -->
+  <div *ngIf="!loadingIncident() && !loading()">
+    <!-- Linked Incident Section -->
+    <div *ngIf="linkedIncident()" class="card mb-4 border-info">
+      <div class="card-header bg-info bg-opacity-10 border-info">
+        <h5 class="mb-0"><i class="bi bi-link-45deg me-2"></i>Linked Incident(s)</h5>
+      </div>
+      <div class="card-body">
+        <div class="incident-box">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <div>
+              <strong class="fs-6"
+                >{{ linkedIncident()!.code }} – {{ linkedIncident()!.title }}</strong
+              >
+              <span
+                class="badge ms-2"
+                [ngClass]="{
+                  'bg-danger': linkedIncident()!.severity === 'CRITICAL',
+                  'bg-warning text-dark': linkedIncident()!.severity === 'HIGH',
+                  'bg-info': linkedIncident()!.severity === 'MEDIUM',
+                  'bg-secondary': linkedIncident()!.severity === 'LOW',
+                }"
+              >
+                {{ linkedIncident()!.severity }}
+              </span>
+            </div>
+          </div>
+          <div class="text-muted small">
+            <div class="mb-1">
+              <i class="bi bi-person me-1"></i>
+              <strong>Driver:</strong> {{ linkedIncident()!.driverName || 'Unknown' }} ({{
+                formatDriverId(linkedIncident()!.driverId)
+              }})
+            </div>
+            <div class="mb-1">
+              <i class="bi bi-truck me-1"></i>
+              <strong>Vehicle:</strong> {{ linkedIncident()!.vehiclePlate || 'N/A' }}
+            </div>
+            <div>
+              <i class="bi bi-clock me-1"></i>
+              <strong>Occurred:</strong>
+              {{ linkedIncident()!.reportedAt | date: 'dd MMM yyyy, hh:mm a' }}
+            </div>
+          </div>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-secondary mt-3" disabled>
+          <i class="bi bi-plus-circle me-1"></i>Add Another Incident
+          <small class="text-muted ms-2">(Coming soon)</small>
+        </button>
+      </div>
+    </div>
+
+    <!-- Validation Summary -->
+    <div *ngIf="hasValidationErrors()" class="alert alert-warning border-0 mb-3" role="alert">
+      <small
+        ><i class="bi bi-exclamation-circle me-1"></i>Please complete all required fields</small
+      >
+    </div>
+
+    <!-- Error Alert -->
+    <div *ngIf="error()" class="alert alert-danger border-0 mb-3" role="alert">
+      <small>{{ error() }}</small>
+      <button type="button" class="btn-close btn-close-sm" (click)="error.set(null)"></button>
+    </div>
+
+    <!-- Case Form -->
+    <div class="card">
+      <div class="card-body">
+        <form [formGroup]="caseForm" (ngSubmit)="onSubmit()">
+          <div class="row g-3">
+            <!-- Title -->
+            <div class="col-12">
+              <label for="title" class="form-label">Title <span class="text-danger">*</span></label>
+              <input
+                type="text"
+                class="form-control form-control-lg"
+                id="title"
+                formControlName="title"
+                placeholder="e.g., Driver Behavior Investigation"
+                maxlength="255"
+                [class.is-invalid]="
+                  hasFieldError('title', 'required') || hasFieldError('title', 'maxlength')
+                "
+              />
+              <div
+                class="invalid-feedback"
+                *ngIf="hasFieldError('title', 'required') || hasFieldError('title', 'maxlength')"
+              >
+                {{ getFieldError('title') }}
+              </div>
+            </div>
+
+            <!-- Category & Severity -->
+            <div class="col-md-6">
+              <label for="category" class="form-label"
+                >Category <span class="text-danger">*</span></label
+              >
+              <select
+                class="form-select"
+                id="category"
+                formControlName="category"
+                [class.is-invalid]="hasFieldError('category', 'required')"
+              >
+                <option value="">Select category</option>
+                <option *ngFor="let cat of categoryOptions" [value]="cat.value">
+                  {{ cat.label }}
+                </option>
+              </select>
+              <div class="invalid-feedback">{{ getFieldError('category') }}</div>
+            </div>
+
+            <div class="col-md-6">
+              <label for="severity" class="form-label"
+                >Severity <span class="text-danger">*</span></label
+              >
+              <select
+                class="form-select"
+                id="severity"
+                formControlName="severity"
+                [class.is-invalid]="hasFieldError('severity', 'required')"
+              >
+                <option value="">Select severity</option>
+                <option *ngFor="let sev of severityOptions" [value]="sev.value">
+                  {{ sev.label }}
+                </option>
+              </select>
+              <div class="invalid-feedback">{{ getFieldError('severity') }}</div>
+            </div>
+
+            <!-- Description -->
+            <div class="col-12">
+              <label for="description" class="form-label"
+                >Description <span class="text-danger">*</span></label
+              >
+              <textarea
+                class="form-control"
+                id="description"
+                formControlName="description"
+                rows="5"
+                placeholder="Explain the investigation scope and why this case is being created..."
+                [class.is-invalid]="
+                  hasFieldError('description', 'required') ||
+                  hasFieldError('description', 'maxlength')
+                "
+              ></textarea>
+              <div class="d-flex justify-content-between mt-1">
+                <div
+                  class="invalid-feedback d-block"
+                  *ngIf="
+                    hasFieldError('description', 'required') ||
+                    hasFieldError('description', 'maxlength')
+                  "
+                >
+                  {{ getFieldError('description') }}
+                </div>
+                <small class="text-muted ms-auto"
+                  >{{ getCharacterCount('description') }}/2000</small
+                >
+              </div>
+            </div>
+
+            <!-- Assigned Investigator & SLA Date -->
+            <div class="col-md-6">
+              <label for="assignedToUserId" class="form-label">Assigned Investigator</label>
+              <select class="form-select" id="assignedToUserId" formControlName="assignedToUserId">
+                <option [value]="null">Unassigned</option>
+                <!-- TODO: Load from UserService -->
+              </select>
+            </div>
+
+            <div class="col-md-6">
+              <label for="slaTargetDate" class="form-label">SLA Target Date</label>
+              <input
+                type="datetime-local"
+                class="form-control"
+                id="slaTargetDate"
+                formControlName="slaTargetDate"
+                [class.is-invalid]="hasFieldError('slaTargetDate', 'pastDate')"
+              />
+              <div class="invalid-feedback">{{ getFieldError('slaTargetDate') }}</div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="col-12 mt-4 pt-3 border-top">
+              <div *ngIf="!canSubmit()" class="small text-muted mb-2 text-end">
+                {{ submitDisabledReason() }}
+              </div>
+              <div class="d-flex gap-2 justify-content-end">
+                <button type="button" class="btn btn-light" (click)="goBack()">Cancel</button>
+                <button type="submit" class="btn btn-primary" [disabled]="!canSubmit()">
+                  <span *ngIf="submitting()" class="spinner-border spinner-border-sm me-1"></span>
+                  {{ isEditMode() ? 'Update Case' : 'Create Case' }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>

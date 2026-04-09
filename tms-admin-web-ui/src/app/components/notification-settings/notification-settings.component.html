@@ -1,0 +1,167 @@
+<div class="space-y-6">
+
+  <!-- ════════════════════════════════════════════════════════════
+       Push Provider Settings  (reads/writes /api/admin/settings)
+       ════════════════════════════════════════════════════════════ -->
+  <div class="p-6 bg-white rounded-lg shadow">
+    <div class="flex items-center justify-between mb-1">
+      <h2 class="text-xl font-semibold text-gray-700">Push Notification Provider</h2>
+      <span *ngIf="pushSettings.savedBy" class="text-xs text-gray-400">
+        Last changed by <strong>{{ pushSettings.savedBy }}</strong>
+        <span *ngIf="pushSettings.savedAt"> · {{ pushSettings.savedAt | date:'short' }}</span>
+      </span>
+    </div>
+    <p class="mb-4 text-sm text-gray-500">
+      Controls how push notifications reach drivers' devices.
+      Changes take effect immediately — no restart required.
+    </p>
+
+    <div *ngIf="pushLoading" class="py-4 text-sm text-gray-400 animate-pulse">
+      Loading push settings…
+    </div>
+
+    <div *ngIf="pushError && !pushLoading"
+         class="p-3 mb-4 text-sm text-yellow-800 bg-yellow-50 border border-yellow-200 rounded">
+      ⚠️ {{ pushError }}
+    </div>
+
+    <div *ngIf="!pushLoading" class="space-y-5">
+
+      <!-- Provider radio group -->
+      <div>
+        <label class="block mb-2 text-sm font-medium text-gray-700">Active Provider</label>
+        <div class="space-y-2">
+          <label *ngFor="let opt of providerOptions"
+                 class="flex items-start gap-3 p-3 border rounded cursor-pointer transition-colors"
+                 [class.border-blue-500]="pushSettings.provider === opt.value"
+                 [class.bg-blue-50]="pushSettings.provider === opt.value"
+                 [class.border-gray-200]="pushSettings.provider !== opt.value">
+            <input type="radio"
+                   name="pushProvider"
+                   [value]="opt.value"
+                   [(ngModel)]="pushSettings.provider"
+                   class="mt-0.5 shrink-0" />
+            <div>
+              <span class="text-sm font-medium text-gray-800">{{ opt.label }}</span>
+              <p class="text-xs text-gray-500 mt-0.5">{{ opt.description }}</p>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Redis queue toggle -->
+      <div class="flex items-center justify-between p-3 border rounded">
+        <div>
+          <p class="text-sm font-medium text-gray-700">Redis Queue</p>
+          <p class="text-xs text-gray-500 mt-0.5">
+            Buffer notifications in Redis for async delivery and automatic retry.
+            Disable only when Redis is unavailable.
+          </p>
+        </div>
+        <label class="relative inline-flex items-center cursor-pointer ml-4">
+          <input type="checkbox" [(ngModel)]="pushSettings.queueEnabled" class="sr-only peer" />
+          <div class="w-11 h-6 bg-gray-200 rounded-full peer transition-all
+                      peer-checked:bg-blue-600
+                      after:content-[''] after:absolute after:top-[2px] after:left-[2px]
+                      after:bg-white after:border after:rounded-full after:h-5 after:w-5
+                      after:transition-all peer-checked:after:translate-x-full"></div>
+        </label>
+      </div>
+
+      <!-- Kafka-specific topic fields -->
+      <div *ngIf="pushSettings.provider === 'kafka'"
+           class="p-4 bg-gray-50 border border-gray-200 rounded space-y-3">
+        <p class="text-sm font-medium text-gray-700">Kafka Topics</p>
+        <div>
+          <label class="block text-xs text-gray-600 mb-1">General Notifications Topic</label>
+          <input type="text"
+                 class="w-full px-3 py-2 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                 placeholder="notifications.push"
+                 [(ngModel)]="pushSettings.kafkaTopic" />
+        </div>
+        <div>
+          <label class="block text-xs text-gray-600 mb-1">
+            Incoming Call Topic
+            <span class="text-gray-400 font-normal">(high-priority, separate consumer recommended)</span>
+          </label>
+          <input type="text"
+                 class="w-full px-3 py-2 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                 placeholder="notifications.call"
+                 [(ngModel)]="pushSettings.kafkaCallTopic" />
+        </div>
+      </div>
+
+      <!-- Change reason (required for audit trail) -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">
+          Reason for change
+          <span class="text-red-500 ml-0.5">*</span>
+          <span class="text-xs font-normal text-gray-400 ml-1">— recorded in audit log</span>
+        </label>
+        <input type="text"
+               class="w-full px-3 py-2 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+               placeholder="e.g. Switch to Kafka for load testing"
+               [(ngModel)]="pushSettings.changeReason" />
+      </div>
+
+      <button
+        class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700
+               disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        [disabled]="pushSettings.saving || !pushSettings.changeReason?.trim()"
+        (click)="savePushProvider()">
+        {{ pushSettings.saving ? 'Saving…' : 'Save provider settings' }}
+      </button>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════
+       Alert Channel Settings  (TELEGRAM / EMAIL / IN_APP)
+       ════════════════════════════════════════════════════════════ -->
+  <div class="p-6 bg-white rounded-lg shadow">
+    <h2 class="text-xl font-semibold text-gray-700 mb-4">Alert Channel Settings</h2>
+
+    <div *ngIf="settings.length === 0" class="text-sm text-gray-400">
+      No channel settings found.
+    </div>
+
+    <div *ngFor="let s of settings" class="p-4 mb-3 border rounded">
+      <div class="flex items-center justify-between">
+        <span class="font-medium text-gray-800">{{ s.channel }}</span>
+        <label class="flex items-center gap-2 text-sm">
+          <input type="checkbox" [(ngModel)]="s.enabled" />
+          Enabled
+        </label>
+      </div>
+
+      <div class="grid grid-cols-1 gap-4 mt-3 md:grid-cols-2">
+        <div>
+          <label class="block text-xs text-gray-600 mb-1">Threshold Days</label>
+          <input type="number"
+                 class="w-full px-3 py-2 text-sm border rounded"
+                 [(ngModel)]="s.thresholdDays" />
+        </div>
+        <div>
+          <label class="block text-xs text-gray-600 mb-1">Threshold KM</label>
+          <input type="number"
+                 class="w-full px-3 py-2 text-sm border rounded"
+                 [(ngModel)]="s.thresholdKm" />
+        </div>
+      </div>
+
+      <div class="mt-3">
+        <label class="block text-xs text-gray-600 mb-1">Recipients JSON</label>
+        <textarea rows="3"
+                  class="w-full px-3 py-2 text-sm border rounded font-mono"
+                  [(ngModel)]="s.recipientsJson"></textarea>
+      </div>
+
+      <div class="mt-3">
+        <button class="px-3 py-2 text-sm text-white bg-blue-600 rounded hover:bg-blue-700"
+                (click)="saveChannel(s)">
+          Save
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>

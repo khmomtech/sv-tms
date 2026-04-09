@@ -1,0 +1,175 @@
+<div class="container-fluid p-4">
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <a routerLink="/tasks" class="text-decoration-none text-muted mb-2 d-block">
+        <i class="bi bi-arrow-left me-2"></i>Back to Tasks
+      </a>
+      <h2 class="mb-0">Task Details</h2>
+    </div>
+    <div class="btn-group" *ngIf="task()">
+      <a [routerLink]="['/tasks', taskId(), 'edit']" class="btn btn-outline-primary">
+        <i class="bi bi-pencil me-2"></i>Edit
+      </a>
+      <button class="btn btn-outline-danger" (click)="deleteTask()">
+        <i class="bi bi-trash me-2"></i>Delete
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading Spinner -->
+  <div *ngIf="loading()" class="text-center py-5">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+  </div>
+
+  <!-- Task Details -->
+  <div *ngIf="!loading() && task()" class="row g-4">
+    <!-- Main Information -->
+    <div class="col-lg-8">
+      <div class="card">
+        <div class="card-header bg-white">
+          <div class="d-flex justify-content-between align-items-start">
+            <div class="flex-grow-1">
+              <h4 class="mb-2">{{ task()!.title }}</h4>
+              <div class="d-flex flex-wrap gap-2 align-items-center">
+                <span [class]="getStatusBadgeClass(task()!.status)">
+                  {{ getStatusLabel(task()!.status) }}
+                </span>
+                <span class="badge bg-secondary" *ngIf="task()!.taskTypeName">
+                  {{ task()!.taskTypeName }}
+                </span>
+                <span *ngIf="isOverdue(task()!)" class="badge bg-danger">
+                  <i class="bi bi-exclamation-triangle me-1"></i>Overdue
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card-body">
+          <h6 class="text-muted mb-3">Description</h6>
+          <p class="mb-4" *ngIf="task()!.description">{{ task()!.description }}</p>
+          <p class="text-muted mb-4" *ngIf="!task()!.description">No description provided</p>
+
+          <h6 class="text-muted mb-3">Task Information</h6>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <div class="info-item">
+                <label class="text-muted">Task ID</label>
+                <p class="mb-0 fw-medium">#{{ task()!.id }}</p>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="info-item">
+                <label class="text-muted">Task Type</label>
+                <p class="mb-0 fw-medium">{{ task()!.taskTypeName || 'N/A' }}</p>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="info-item">
+                <label class="text-muted">Vehicle</label>
+                <p class="mb-0 fw-medium">{{ task()!.vehicleName || 'N/A' }}</p>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="info-item">
+                <label class="text-muted">Created By</label>
+                <p class="mb-0 fw-medium">{{ task()!.createdByUsername || '-' }}</p>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="info-item">
+                <label class="text-muted">Due Date</label>
+                <p class="mb-0 fw-medium" [class.text-danger]="isOverdue(task()!)">
+                  {{ formatDateOnly(task()!.dueDate) }}
+                </p>
+              </div>
+            </div>
+            <div class="col-md-6" *ngIf="task()!.completedAt">
+              <div class="info-item">
+                <label class="text-muted">Completed At</label>
+                <p class="mb-0 fw-medium">
+                  {{ formatDateOnly(task()!.completedAt) }}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Timeline Section -->
+      <div class="card mt-4">
+        <div class="card-header bg-white">
+          <h5 class="mb-0">Timeline</h5>
+        </div>
+        <div class="card-body">
+          <div class="timeline">
+            <div class="timeline-item">
+              <div class="timeline-icon bg-primary">
+                <i class="bi bi-plus-circle"></i>
+              </div>
+              <div class="timeline-content">
+                <div class="timeline-header">
+                  <strong>Task Created</strong>
+                  <span class="text-muted">{{ formatDate(task()!.createdDate) }}</span>
+                </div>
+                <p class="mb-0 text-muted">
+                  Created by {{ task()!.createdByUsername || 'Unknown' }}
+                </p>
+              </div>
+            </div>
+
+            <div class="timeline-item" *ngIf="task()!.completedAt">
+              <div class="timeline-icon bg-success">
+                <i class="bi bi-check-circle"></i>
+              </div>
+              <div class="timeline-content">
+                <div class="timeline-header">
+                  <strong>Task Completed</strong>
+                  <span class="text-muted">{{ formatDate(task()!.completedAt) }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="timeline-item" *ngIf="task()!.completedAt">
+              <div class="timeline-icon bg-success">
+                <i class="bi bi-check-circle"></i>
+              </div>
+              <div class="timeline-content">
+                <div class="timeline-header">
+                  <strong>Task Completed</strong>
+                  <span class="text-muted">{{ formatDate(task()!.completedAt) }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="col-lg-4">
+      <!-- Metadata -->
+      <div class="card">
+        <div class="card-header bg-white">
+          <h5 class="mb-0">Metadata</h5>
+        </div>
+        <div class="card-body">
+          <div class="metadata-item">
+            <label class="text-muted">Created</label>
+            <p class="mb-0">{{ formatDate(task()!.createdDate) }}</p>
+          </div>
+          <div class="metadata-item">
+            <label class="text-muted">Last Updated</label>
+            <p class="mb-0">{{ formatDate(task()!.updatedDate) }}</p>
+          </div>
+          <div class="metadata-item" *ngIf="task()!.completedAt">
+            <label class="text-muted">Completed At</label>
+            <p class="mb-0">{{ formatDate(task()!.completedAt) }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

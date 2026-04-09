@@ -1,0 +1,150 @@
+<div class="p-6">
+  <div class="header-grid mb-4">
+    <div>
+      <h2 class="title">Shipment Tracking</h2>
+      <div class="meta mt-2">
+        <span class="ref"
+          >Ref: <strong>{{ orderDetail?.orderReference || '-' }}</strong></span
+        >
+        <button
+          class="icon-btn"
+          title="Copy reference"
+          aria-label="Copy reference"
+          (click)="copyReference()"
+        >
+          📋
+        </button>
+        <span class="sep">•</span>
+        <span class="id">ID: {{ orderDetail?.id || orderId }}</span>
+      </div>
+    </div>
+
+    <div class="actions">
+      <span class="status-pill" aria-live="polite">{{
+        orderDetail?.status || trackingData?.status || '-'
+      }}</span>
+      <button
+        class="btn ml-3"
+        (click)="openLiveTracking()"
+        [disabled]="!(trackingData?.liveTrackingUrl || orderDetail?.tracking?.liveTrackingUrl)"
+      >
+        Live
+      </button>
+      <button class="btn ml-2" (click)="notifyCustomer()">Notify</button>
+      <button
+        class="btn ml-2"
+        (click)="openDispatchDetail()"
+        [disabled]="!orderDetail?.dispatches?.length"
+      >
+        Dispatch
+      </button>
+      <button class="btn ml-2" (click)="goBack()">Back</button>
+    </div>
+  </div>
+
+  <div class="search-row" style="margin-bottom: 12px; display: flex; gap: 8px; align-items: center">
+    <input
+      class="field"
+      placeholder="Enter order reference"
+      [(ngModel)]="refInput"
+      aria-label="Order reference"
+    />
+    <button class="pill primary" (click)="searchByRef()">Track</button>
+    <button class="pill" (click)="refreshTracking()">Refresh</button>
+    <button class="pill" (click)="toggleAuto()">Auto: {{ autoEnabled ? 'ON' : 'OFF' }}</button>
+    <button class="pill" (click)="shareLink()">Share</button>
+    <button class="pill" (click)="openMap()">Open Map</button>
+  </div>
+
+  <div *ngIf="isLoading" class="p-6">
+    <div class="skeleton header-skel"></div>
+    <div class="skeleton card-skel" *ngFor="let n of [1, 2, 3]"></div>
+  </div>
+
+  <div *ngIf="error" class="p-6 text-red-600" role="alert">{{ error }}</div>
+
+  <div *ngIf="!isLoading && (trackingData || orderDetail)">
+    <div class="cards mb-6">
+      <div class="card p-4">
+        <h4 class="muted">Trip Info</h4>
+        <div class="font-medium mt-1">Ref: {{ orderDetail?.orderReference || '-' }}</div>
+        <div class="muted small">Customer: {{ orderDetail?.customerName || '-' }}</div>
+      </div>
+
+      <div class="card p-4">
+        <h4 class="muted">Timing</h4>
+        <div class="font-medium mt-1">Order: {{ orderDetail?.orderDate | date: 'short' }}</div>
+        <div class="muted small">Delivery: {{ orderDetail?.deliveryDate | date: 'short' }}</div>
+        <div *ngIf="trackingData?.eta" class="muted small">
+          ETA: {{ trackingData?.eta | date: 'short' }}
+        </div>
+      </div>
+
+      <div class="card p-4">
+        <h4 class="muted">Driver & Vehicle</h4>
+        <div class="font-medium mt-1">
+          {{ orderDetail?.assignedDriver?.name || orderDetail?.dispatches?.[0]?.driverName || '-' }}
+        </div>
+        <div class="muted small">
+          Phone:
+          {{
+            orderDetail?.assignedDriver?.contact || orderDetail?.dispatches?.[0]?.driverPhone || '-'
+          }}
+        </div>
+        <div class="muted small">
+          Vehicle:
+          {{
+            orderDetail?.assignedDriver?.vehicleNumber ||
+              orderDetail?.dispatches?.[0]?.licensePlate ||
+              '-'
+          }}
+        </div>
+      </div>
+    </div>
+
+    <div class="tracking-grid mb-6">
+      <div class="timeline" role="list">
+        <h3 class="text-lg font-semibold mb-2">Timeline</h3>
+        <ul>
+          <li
+            *ngFor="
+              let e of trackingData?.events || orderDetail?.tracking?.events || [];
+              let i = index
+            "
+            role="listitem"
+          >
+            <div class="event-row">
+              <div class="event-icon">●</div>
+              <div class="event-body">
+                <div class="event-header">
+                  <div class="event-status">{{ e.status }}</div>
+                  <div class="event-time">{{ e.timestamp | date: 'short' }}</div>
+                </div>
+                <div class="event-location">{{ e.location || e.note || '—' }}</div>
+                <button
+                  class="event-toggle"
+                  (click)="toggleEventDetails(i)"
+                  [attr.aria-expanded]="!!eventDetailsOpen[i]"
+                >
+                  {{ eventDetailsOpen[i] ? 'Hide details' : 'Show details' }}
+                </button>
+                <div *ngIf="eventDetailsOpen[i]" class="event-details">
+                  <pre class="notice">{{ e | json }}</pre>
+                </div>
+              </div>
+            </div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="map">
+        <h3 class="text-lg font-semibold mb-2">Map</h3>
+        <div class="map-placeholder">Map placeholder — integrate Leaflet/Maps SDK here</div>
+      </div>
+    </div>
+  </div>
+
+  <div *ngIf="!isLoading && !trackingData" class="p-6 text-gray-600">
+    No tracking information available.
+  </div>
+</div>

@@ -1,0 +1,28 @@
+/* FilterBar Component - Tailwind CSS */
+
+/* Ensure proper stacking for absolute positioned elements */
+.filter-bar {
+  position: relative;
+}
+
+/* Custom focus ring for search input */
+.filter-bar input:focus {
+  outline: none;
+}
+
+/* Smooth transitions for interactive elements */
+.filter-bar button {
+  transition: all 0.15s ease-in-out;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filter-bar > div:first-child {
+    width: 100%;
+  }
+}

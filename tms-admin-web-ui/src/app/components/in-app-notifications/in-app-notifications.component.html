@@ -1,0 +1,34 @@
+<div class="p-6 bg-white rounded-lg shadow">
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="text-xl font-semibold">In-App Notifications</h2>
+    <button class="px-3 py-1 text-sm text-white bg-blue-600 rounded" (click)="markAll()">
+      Mark All Read
+    </button>
+  </div>
+
+  <div *ngIf="notifications.length === 0" class="text-gray-500">No notifications</div>
+
+  <div
+    *ngFor="let n of notifications"
+    class="p-3 mb-2 border rounded"
+    [class.bg-gray-50]="!n.isRead"
+  >
+    <div class="flex items-center justify-between">
+      <div class="font-medium">{{ n.title }}</div>
+      <button
+        class="text-sm text-blue-600 hover:underline"
+        *ngIf="!n.isRead"
+        (click)="markRead(n.id)"
+      >
+        Mark Read
+      </button>
+    </div>
+    <div class="text-gray-700">{{ n.body }}</div>
+    <div class="text-xs text-gray-400">{{ n.createdAt | date: 'short' }}</div>
+  </div>
+
+  <div class="flex items-center justify-end gap-2 mt-4">
+    <button class="px-3 py-1 text-sm border rounded" (click)="prevPage()">Prev</button>
+    <button class="px-3 py-1 text-sm border rounded" (click)="nextPage()">Next</button>
+  </div>
+</div>

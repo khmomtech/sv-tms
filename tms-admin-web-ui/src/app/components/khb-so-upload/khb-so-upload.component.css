@@ -1,0 +1,123 @@
+/* Container Layout */
+.container {
+  max-width: 900px;
+  margin: auto;
+  background-color: #fefefe;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  overflow-x: hidden;
+}
+
+/* Headings */
+h2,
+h4,
+h5 {
+  font-weight: 600;
+  color: #333;
+}
+
+/* File Input Styling */
+input[type='file'] {
+  border: 1px solid #ccc;
+  padding: 10px;
+  border-radius: 4px;
+  width: 100%;
+  font-size: 14px;
+}
+
+/* Buttons */
+button {
+  min-width: 120px;
+}
+
+button[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Alerts */
+.alert {
+  font-size: 14px;
+  padding: 10px 16px;
+}
+
+/* Spinner */
+.spinner-border {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+/* Table Wrapper */
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+/* Table Styling */
+.table {
+  font-size: 0.875rem;
+  min-width: 1200px;
+}
+
+.table thead th {
+  background-color: #f0f0f0;
+  font-weight: 500;
+  text-transform: capitalize;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.table td,
+.table th {
+  vertical-align: middle;
+  white-space: nowrap;
+  padding: 0.5rem;
+}
+
+.table-sm td,
+.table-sm th {
+  padding: 0.3rem 0.5rem;
+}
+
+/* Error Row Highlight */
+.table-danger {
+  background-color: #f8d7da !important;
+  color: #842029 !important;
+}
+
+.table-danger td {
+  font-weight: 500;
+}
+
+/* Error Details */
+ul.text-danger {
+  margin: 0;
+  padding-left: 1rem;
+  font-size: 12px;
+}
+
+/* Responsive Optimizations */
+@media (max-width: 600px) {
+  .container {
+    padding: 16px;
+  }
+
+  h2 {
+    font-size: 20px;
+  }
+
+  .table {
+    font-size: 12px;
+  }
+
+  .table-wrapper {
+    border: none;
+  }
+}

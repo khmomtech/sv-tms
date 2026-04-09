@@ -1,0 +1,198 @@
+<div class="p-6 max-w-5xl mx-auto space-y-4">
+  <div class="flex items-center justify-between">
+    <div>
+      <p class="text-xs uppercase text-gray-500 tracking-wide">Factory Loading</p>
+      <h2 class="text-2xl font-bold text-gray-900">Loading Session</h2>
+      <p class="text-sm text-gray-600">Dispatch #{{ dispatchId }}</p>
+    </div>
+    <button
+      class="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+      (click)="loadSession()"
+    >
+      Refresh
+    </button>
+  </div>
+
+  <div *ngIf="loading" class="p-6 text-gray-500 border rounded-lg">Loading session...</div>
+
+  <ng-container *ngIf="!loading && session">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="p-4 bg-white border rounded-lg shadow-sm">
+        <p class="text-xs uppercase text-gray-500">Warehouse</p>
+        <p class="text-xl font-semibold">{{ session.warehouseCode }}</p>
+        <p class="text-sm text-gray-600">Bay: {{ session.bay || 'N/A' }}</p>
+      </div>
+      <div class="p-4 bg-white border rounded-lg shadow-sm">
+        <p class="text-xs uppercase text-gray-500">Started</p>
+        <p class="text-xl font-semibold">
+          {{ session.startedAt ? (session.startedAt | date: 'short') : 'Not started' }}
+        </p>
+      </div>
+      <div class="p-4 bg-white border rounded-lg shadow-sm">
+        <p class="text-xs uppercase text-gray-500">Status</p>
+        <p class="text-xl font-semibold">
+          {{ session.dispatchStatus }} / {{ session.queueStatus || 'N/A' }}
+        </p>
+      </div>
+    </div>
+
+    <form [formGroup]="form" class="space-y-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">End Time</label>
+          <input
+            formControlName="endedAt"
+            type="datetime-local"
+            class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Remarks</label>
+          <textarea
+            formControlName="remarks"
+            rows="2"
+            class="w-full p-3 border rounded focus:ring-2 focus:ring-blue-500"
+          ></textarea>
+        </div>
+      </div>
+
+      <div class="border rounded-lg p-4 space-y-3 bg-white shadow-sm">
+        <div class="flex items-center justify-between">
+          <h3 class="text-lg font-semibold text-gray-900">Pallet Verification</h3>
+          <button
+            type="button"
+            class="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700"
+            (click)="addPallet()"
+          >
+            Add Pallet
+          </button>
+        </div>
+
+        <div class="space-y-3" formArrayName="palletItems">
+          <div
+            *ngFor="let group of palletItems.controls; let i = index"
+            [formGroupName]="i"
+            class="p-3 border rounded"
+          >
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-2">
+              <input
+                formControlName="itemDescription"
+                class="p-2 border rounded"
+                placeholder="Description"
+              />
+              <input formControlName="palletTag" class="p-2 border rounded" placeholder="Tag" />
+              <input
+                formControlName="quantity"
+                type="number"
+                class="p-2 border rounded"
+                placeholder="Qty"
+              />
+              <input formControlName="unit" class="p-2 border rounded" placeholder="Unit" />
+              <select formControlName="verifiedOk" class="p-2 border rounded">
+                <option [ngValue]="true">OK</option>
+                <option [ngValue]="false">Issue</option>
+              </select>
+            </div>
+            <input
+              formControlName="conditionNote"
+              class="w-full mt-2 p-2 border rounded"
+              placeholder="Condition note"
+            />
+            <button
+              type="button"
+              class="mt-2 text-sm text-red-600 hover:underline"
+              (click)="removePallet(i)"
+            >
+              Remove
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="border rounded-lg p-4 space-y-3 bg-white shadow-sm">
+        <div class="flex items-center justify-between">
+          <h3 class="text-lg font-semibold text-gray-900">Empties Return</h3>
+          <button
+            type="button"
+            class="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700"
+            (click)="addEmptyReturn()"
+          >
+            Add Return
+          </button>
+        </div>
+
+        <div class="space-y-3" formArrayName="emptiesReturns">
+          <div
+            *ngFor="let group of emptiesReturns.controls; let i = index"
+            [formGroupName]="i"
+            class="p-3 border rounded"
+          >
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
+              <input formControlName="itemName" class="p-2 border rounded" placeholder="Item" />
+              <input
+                formControlName="quantity"
+                type="number"
+                class="p-2 border rounded"
+                placeholder="Qty"
+              />
+              <input formControlName="unit" class="p-2 border rounded" placeholder="Unit" />
+              <input
+                formControlName="conditionNote"
+                class="p-2 border rounded"
+                placeholder="Condition"
+              />
+            </div>
+            <button
+              type="button"
+              class="mt-2 text-sm text-red-600 hover:underline"
+              (click)="removeEmpty(i)"
+            >
+              Remove
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="border rounded-lg p-4 space-y-3 bg-white shadow-sm">
+        <h3 class="text-lg font-semibold text-gray-900">Documents</h3>
+        <div class="flex items-center gap-2">
+          <select
+            [(ngModel)]="documentType"
+            class="px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="INVOICE">Invoice</option>
+            <option value="PACKING_LIST">Packing List</option>
+            <option value="PROOF_OF_DELIVERY">POD</option>
+            <option value="OTHER">Other</option>
+          </select>
+          <input type="file" (change)="onDocumentFile($event)" class="text-sm" />
+          <button
+            type="button"
+            class="px-3 py-2 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700"
+            (click)="uploadDocument()"
+          >
+            Upload
+          </button>
+        </div>
+        <ul class="text-sm text-gray-700 list-disc list-inside" *ngIf="session.documents?.length">
+          <li *ngFor="let doc of session.documents">
+            <a [href]="doc.fileUrl" target="_blank" class="text-blue-700 hover:underline">
+              {{ doc.documentType }} - {{ doc.fileName }}
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <div class="flex justify-end">
+        <button
+          type="button"
+          class="px-5 py-2 text-sm font-semibold text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-60"
+          [disabled]="submitting"
+          (click)="submit()"
+        >
+          {{ submitting ? 'Saving...' : 'Complete Loading' }}
+        </button>
+      </div>
+    </form>
+  </ng-container>
+</div>
