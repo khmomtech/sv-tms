@@ -10,8 +10,10 @@ async function assertRouteLoads(page: any, path: string, opts?: { expectHeaderTe
     }
   });
 
-  await page.goto(path);
-  await page.waitForLoadState('domcontentloaded');
+  // SPA smoke checks only need the route shell and component content to render.
+  // Waiting for the full `load` event is flaky in dev mode because first-hit lazy chunks
+  // can keep navigation open longer than the page actually needs to become usable.
+  await page.goto(path, { waitUntil: 'domcontentloaded' });
 
   // Visible main content area
   const main = page.locator('main, .main-content, [role="main"], .container, .content');
