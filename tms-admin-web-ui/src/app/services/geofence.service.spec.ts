@@ -11,6 +11,7 @@ describe('GeofenceService', () => {
 
   const API_BASE = '/api/admin/geofences';
   const COMPANY_ID = 1;
+  const geofenceListUrl = `${API_BASE}?companyId=${COMPANY_ID}&includeInactive=true`;
 
   const mockGeofence: Geofence = {
     id: 42,
@@ -73,7 +74,7 @@ describe('GeofenceService', () => {
       expect(result[0].id).toBe(42);
     });
 
-    const req = httpMock.expectOne(`${API_BASE}?companyId=${COMPANY_ID}`);
+    const req = httpMock.expectOne(geofenceListUrl);
     expect(req.request.method).toBe('GET');
     req.flush(mockList);
 
@@ -86,7 +87,7 @@ describe('GeofenceService', () => {
       expect(result).toEqual([]);
     });
 
-    const req = httpMock.expectOne(`${API_BASE}?companyId=${COMPANY_ID}`);
+    const req = httpMock.expectOne(geofenceListUrl);
     req.flush('Unauthorized', { status: 401, statusText: 'Unauthorized' });
 
     expect(service.getCachedGeofences()).toEqual([]);
@@ -97,7 +98,7 @@ describe('GeofenceService', () => {
       expect(result).toEqual([]);
     });
 
-    const req = httpMock.expectOne(`${API_BASE}?companyId=${COMPANY_ID}`);
+    const req = httpMock.expectOne(geofenceListUrl);
     req.flush('Forbidden', { status: 403, statusText: 'Forbidden' });
 
     expect(service.getCachedGeofences()).toEqual([]);
@@ -108,7 +109,7 @@ describe('GeofenceService', () => {
       expect(result).toEqual([]);
     });
 
-    const req = httpMock.expectOne(`${API_BASE}?companyId=${COMPANY_ID}`);
+    const req = httpMock.expectOne(geofenceListUrl);
     req.flush('Not Found', { status: 404, statusText: 'Not Found' });
 
     expect(service.getCachedGeofences()).toEqual([]);
@@ -122,7 +123,7 @@ describe('GeofenceService', () => {
       error: () => (errorThrown = true),
     });
 
-    const req = httpMock.expectOne(`${API_BASE}?companyId=${COMPANY_ID}`);
+    const req = httpMock.expectOne(geofenceListUrl);
     req.flush('Server Error', { status: 500, statusText: 'Internal Server Error' });
 
     expect(errorThrown).toBeTrue();
@@ -163,7 +164,7 @@ describe('GeofenceService', () => {
   it('createGeofence: appends to existing cached list', () => {
     // Pre-populate with one geofence
     service.loadGeofences(COMPANY_ID).subscribe();
-    httpMock.expectOne(`${API_BASE}?companyId=${COMPANY_ID}`).flush([mockGeofence]);
+    httpMock.expectOne(geofenceListUrl).flush([mockGeofence]);
 
     const created = { ...mockGeofence, id: 100, name: 'Zone B' };
 
@@ -179,7 +180,7 @@ describe('GeofenceService', () => {
   it('updateGeofence: PUT /{id} sends request body and updates subject', () => {
     // Pre-populate cache
     service.loadGeofences(COMPANY_ID).subscribe();
-    httpMock.expectOne(`${API_BASE}?companyId=${COMPANY_ID}`).flush([mockGeofence]);
+    httpMock.expectOne(geofenceListUrl).flush([mockGeofence]);
 
     const updateRequest: GeofenceCreateRequest = { ...mockCreateRequest, name: 'Updated Zone' };
     const updated: Geofence = { ...mockGeofence, name: 'Updated Zone' };
@@ -200,7 +201,7 @@ describe('GeofenceService', () => {
     const other: Geofence = { ...mockGeofence, id: 55, name: 'Other Zone' };
 
     service.loadGeofences(COMPANY_ID).subscribe();
-    httpMock.expectOne(`${API_BASE}?companyId=${COMPANY_ID}`).flush([mockGeofence, other]);
+    httpMock.expectOne(geofenceListUrl).flush([mockGeofence, other]);
 
     const updated: Geofence = { ...mockGeofence, name: 'Updated' };
     service.updateGeofence(42, mockCreateRequest).subscribe();
@@ -214,7 +215,7 @@ describe('GeofenceService', () => {
 
   it('deleteGeofence: DELETE /{id} removes from cached list', () => {
     service.loadGeofences(COMPANY_ID).subscribe();
-    httpMock.expectOne(`${API_BASE}?companyId=${COMPANY_ID}`).flush([mockGeofence]);
+    httpMock.expectOne(geofenceListUrl).flush([mockGeofence]);
 
     service.deleteGeofence(42).subscribe();
 
@@ -229,7 +230,7 @@ describe('GeofenceService', () => {
     const other: Geofence = { ...mockGeofence, id: 55, name: 'Other Zone' };
 
     service.loadGeofences(COMPANY_ID).subscribe();
-    httpMock.expectOne(`${API_BASE}?companyId=${COMPANY_ID}`).flush([mockGeofence, other]);
+    httpMock.expectOne(geofenceListUrl).flush([mockGeofence, other]);
 
     service.deleteGeofence(42).subscribe();
     httpMock.expectOne(`${API_BASE}/42`).flush(null);

@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { TranslateFakeLoader, TranslateLoader, TranslateModule } from '@ngx-translate/core';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { of, Subject } from 'rxjs';
 
@@ -70,7 +71,12 @@ describe('DriverMessagesComponent', () => {
     webSocketService.subscribe.and.returnValue(realtime$.asObservable());
 
     await TestBed.configureTestingModule({
-      imports: [DriverMessagesComponent],
+      imports: [
+        DriverMessagesComponent,
+        TranslateModule.forRoot({
+          loader: { provide: TranslateLoader, useClass: TranslateFakeLoader },
+        }),
+      ],
       providers: [
         { provide: DriverChatService, useValue: chatService },
         { provide: WebSocketService, useValue: webSocketService },
@@ -92,7 +98,7 @@ describe('DriverMessagesComponent', () => {
 
   it('loads the selected conversation and existing messages on init', () => {
     expect(chatService.listConversations).toHaveBeenCalled();
-    expect(chatService.listMessages).toHaveBeenCalledWith(99);
+    expect(chatService.listMessages).toHaveBeenCalledWith(99, 0, 30);
     expect(component.selectedConversation?.driverId).toBe(99);
     expect(component.messages.length).toBe(1);
     expect(component.messages[0].message).toBe('Initial support request');

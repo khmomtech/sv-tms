@@ -4,10 +4,30 @@ import { BulkOrderUploadComponent } from './bulk-order-upload.component';
 
 describe('BulkOrderUploadComponent', () => {
   let component: BulkOrderUploadComponent;
+  const translations: Record<string, string> = {
+    'bulkOrderUpload.field_labels.customer_code': 'Customer code',
+    'bulkOrderUpload.messages.cors_blocked':
+      'Upload was blocked by browser/API access rules (CORS or origin mismatch).',
+    'bulkOrderUpload.messages.internal_error':
+      'Upload failed because the server hit an internal error. Nothing was saved. Check backend logs and try again.',
+    'bulkOrderUpload.messages.internal_error_with_detail':
+      'Upload failed before saving any data. The server reported: {{message}}',
+    'bulkOrderUpload.messages.validation_issue_with_detail':
+      'Upload was blocked by template, row, or master-data validation. {{message}}',
+    'bulkOrderUpload.messages.validation_issue_fallback':
+      'Upload was blocked by template, row, or master-data validation. Nothing was saved.',
+    'bulkOrderUpload.errors.missing_from_destination': 'Missing fromDestination',
+    'bulkOrderUpload.errors.missing_uom': 'Missing UoM',
+  };
   const translateStub = {
     instant: (key: string, params?: Record<string, unknown>) => {
       if (key === 'bulkOrderUpload.value_label' && params?.['value']) {
         return `Value: ${params['value']}.`;
+      }
+      if (translations[key]) {
+        return translations[key].replace(/\{\{(\w+)\}\}/g, (_, token) =>
+          String(params?.[token] ?? `{{${token}}}`),
+        );
       }
       return key;
     },
@@ -84,6 +104,37 @@ describe('BulkOrderUploadComponent', () => {
     });
 
     expect(readable).toBe('Customer code: Customer not found. Value: C1000023.');
+  });
+
+  it('treats generic 500 responses with master-data details as validation-style failures', () => {
+    const message = (component as any).buildFriendlyUploadError(
+      { status: 500, error: null } as any,
+      { message: 'Item not found' },
+      ['Item not found'],
+    );
+
+    expect(message).toBe(
+      'Upload was blocked by template, row, or master-data validation. Item not found',
+    );
+  });
+
+  it('suppresses noisy generic unexpected-error text when no useful detail exists', () => {
+    const message = (component as any).buildFriendlyUploadError(
+      { status: 500, error: null } as any,
+      { message: 'An unexpected error occurred' },
+      [],
+    );
+
+    expect(message).toBe(
+      'Upload failed because the server hit an internal error. Nothing was saved. Check backend logs and try again.',
+    );
+  });
+
+  it('filters generic server messages out of the validation summary panel', () => {
+    component.serverMessages = ['An unexpected error occurred', 'Item not found'];
+
+    expect(component.filteredServerMessages).toEqual(['Item not found']);
+    expect(component.hasStructuredServerFeedback).toBeTrue();
   });
 
   it('formats DeliveryDate cells as dd.MM.yyyy during extraction', async () => {
@@ -374,8 +425,9 @@ describe('BulkOrderUploadComponent', () => {
       [],
     );
 
-    expect(message).toContain('server hit an internal error');
-    expect(message).toContain('Internal Server Error');
+    expect(message).toBe(
+      'Upload failed before saving any data. The server reported: Internal Server Error',
+    );
   });
 
   it('turns cors-style 403 upload failures into actionable guidance', () => {

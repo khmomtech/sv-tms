@@ -114,8 +114,8 @@ describe('SidebarComponent', () => {
     expect(component.isNavItemVisible(driverChat!)).toBeTrue();
   });
 
-  it('should keep parent visible when query matches parent label', () => {
-    component.searchQuery = 'dispatch';
+  it('should keep parent visible when query matches a routable descendant label', () => {
+    component.searchQuery = 'loading management';
     component.filterMenuItems();
 
     const dispatch = component.filteredNavItems.find((item) => item.id === 'dispatch-safety');
@@ -262,5 +262,39 @@ describe('SidebarComponent', () => {
     component.onNavItemClick();
 
     expect(emitSpy).toHaveBeenCalled();
+  });
+
+  it('should handle keyboard event with undefined key gracefully', () => {
+    fixture.detectChanges();
+    const event = new KeyboardEvent('keydown', {
+      key: undefined as any,
+      ctrlKey: true,
+    }) as any;
+
+    expect(() => component.onGlobalKeyDown(event)).not.toThrow();
+  });
+
+  it('should open search on Ctrl+K keyboard shortcut', () => {
+    fixture.detectChanges();
+    const event = new KeyboardEvent('keydown', {
+      key: 'k',
+      ctrlKey: true,
+    });
+
+    component.onGlobalKeyDown(event);
+
+    expect(component.showSearch).toBeTrue();
+  });
+
+  it('should open search on Cmd+K (Mac) keyboard shortcut', () => {
+    fixture.detectChanges();
+    const event = new KeyboardEvent('keydown', {
+      key: 'k',
+      metaKey: true,
+    });
+
+    component.onGlobalKeyDown(event);
+
+    expect(component.showSearch).toBeTrue();
   });
 });

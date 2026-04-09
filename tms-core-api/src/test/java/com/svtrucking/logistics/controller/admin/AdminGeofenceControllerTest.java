@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.http.MediaType;
 import com.svtrucking.logistics.exception.GlobalExceptionHandler;
 import org.springframework.security.web.method.annotation.AuthenticationPrincipalArgumentResolver;
@@ -130,7 +131,7 @@ class AdminGeofenceControllerTest {
     @Test
     void listGeofences_repositoryThrows_returnsInternalServerErrorAndErrorResponse() throws Exception {
         when(geofenceRepository.findByCompanyIdAndActiveTrue(COMPANY_ID))
-                .thenThrow(new org.springframework.dao.DataIntegrityViolationException("DB timeout"));
+                .thenThrow(new DataAccessResourceFailureException("DB timeout"));
 
         mockMvc.perform(get("/api/admin/geofences").param("companyId", String.valueOf(COMPANY_ID)))
                 .andExpect(status().isServiceUnavailable())
