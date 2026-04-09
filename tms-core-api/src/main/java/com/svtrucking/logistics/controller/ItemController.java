@@ -35,9 +35,14 @@ public class ItemController {
   /** 🔍 Search items by keyword */
   @GetMapping("/search")
   @PreAuthorize("@authorizationService.hasPermission('item:read')")
-  public ResponseEntity<List<ItemDto>> searchItems(@RequestParam String keyword) {
+  public ResponseEntity<List<ItemDto>> searchItems(
+      @RequestParam(required = false) String keyword, @RequestParam(required = false) String q) {
+    String effectiveKeyword = keyword;
+    if ((effectiveKeyword == null || effectiveKeyword.isBlank()) && q != null && !q.isBlank()) {
+      effectiveKeyword = q;
+    }
     List<ItemDto> items =
-        itemService.searchItems(keyword).stream()
+        itemService.searchItems(effectiveKeyword).stream()
             .map(ItemDto::fromEntity)
             .collect(Collectors.toList());
     return ResponseEntity.ok(items);

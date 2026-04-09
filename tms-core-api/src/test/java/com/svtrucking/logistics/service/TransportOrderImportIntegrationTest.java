@@ -2,6 +2,7 @@ package com.svtrucking.logistics.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.svtrucking.logistics.dto.ImportError;
 import com.svtrucking.logistics.enums.DispatchStatus;
 import com.svtrucking.logistics.model.*;
 import com.svtrucking.logistics.repository.*;
@@ -27,6 +28,31 @@ import org.springframework.web.multipart.MultipartFile;
 @Transactional
 public class TransportOrderImportIntegrationTest {
 
+    private static final String[] IMPORT_HEADERS = new String[] {
+            "DeliveryDate",
+            "CustomerCode",
+            "TrackingNo",
+            "TruckTripCount",
+            "TruckNumber",
+            "TripNo",
+            "FromDestination",
+            "ToDestination",
+            "ItemCode",
+            "ItemName",
+            "Qty",
+            "UoM",
+            "UoMPallet",
+            "LoadingPlace",
+            "Status",
+            "RequiresDriver"
+    };
+
+    private void writeImportHeaders(Row header) {
+        for (int i = 0; i < IMPORT_HEADERS.length; i++) {
+            header.createCell(i).setCellValue(IMPORT_HEADERS[i]);
+        }
+    }
+
     @Autowired
     private TransportOrderService transportOrderService;
     @Autowired
@@ -43,6 +69,8 @@ public class TransportOrderImportIntegrationTest {
     private VehicleDriverRepository vehicleDriverRepository;
     @Autowired
     private DispatchRepository dispatchRepository;
+    @Autowired
+    private TransportOrderRepository transportOrderRepository;
     @Autowired
     private com.svtrucking.logistics.repository.UserRepository userRepository;
 
@@ -102,8 +130,7 @@ public class TransportOrderImportIntegrationTest {
         Workbook wb = new XSSFWorkbook();
         Sheet s = wb.createSheet("sheet1");
         Row header = s.createRow(0);
-        for (int i = 0; i < 16; i++)
-            header.createCell(i).setCellValue("H" + i);
+        writeImportHeaders(header);
 
         Row r = s.createRow(1);
         // deliveryDate (dd.MM.yyyy)
@@ -157,6 +184,22 @@ public class TransportOrderImportIntegrationTest {
         assertThat(created.getDriver()).isNotNull();
         assertThat(created.getDriver().getId()).isEqualTo(d.getId());
         assertThat(created.getStatus()).isEqualTo(DispatchStatus.ASSIGNED);
+
+        // Regression guard: ensure @Version fields are initialized for optimistic locking
+        assertThat(created.getVersion()).isNotNull();
+        assertThat(created.getVersion()).isGreaterThanOrEqualTo(0L);
+
+        TransportOrder importedOrder = transportOrderRepository.findByOrderReferenceIgnoreCase(created.getRouteCode()).orElse(null);
+        assertThat(importedOrder).isNotNull();
+        assertThat(importedOrder.getVersion()).isNotNull();
+        assertThat(importedOrder.getVersion()).isGreaterThanOrEqualTo(0);
+
+        // Additional check: versions increment on update
+        long beforeVersion = created.getVersion();
+        created.setStatus(DispatchStatus.IN_TRANSIT);
+        dispatchRepository.save(created);
+        Dispatch updated = dispatchRepository.findById(created.getId()).orElseThrow();
+        assertThat(updated.getVersion()).isGreaterThanOrEqualTo(beforeVersion);
     }
 
     @Test
@@ -197,9 +240,7 @@ public class TransportOrderImportIntegrationTest {
         Workbook wb = new XSSFWorkbook();
         Sheet s = wb.createSheet("sheet1");
         Row header = s.createRow(0);
-        for (int i = 0; i < 16; i++) {
-            header.createCell(i).setCellValue("H" + i);
-        }
+        writeImportHeaders(header);
 
         Row r = s.createRow(1);
         r.createCell(0).setCellValue(LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy")));
@@ -266,6 +307,74 @@ public class TransportOrderImportIntegrationTest {
     }
 
     @Test
+    void import_should_return_structured_422_errors_for_missing_master_data() throws Exception {
+        Customer c = new Customer();
+        c.setName("Missing Master Customer");
+        c.setCustomerCode("TCUSTERR");
+        customerRepository.save(c);
+
+        CustomerAddress from = new CustomerAddress();
+        from.setName("Warehouse ERR");
+        customerAddressRepository.save(from);
+        CustomerAddress to = new CustomerAddress();
+        to.setName("Customer Site ERR");
+        customerAddressRepository.save(to);
+
+        User sysUser = new User();
+        sysUser.setUsername("testusererr");
+        sysUser.setPassword("password");
+        sysUser.setEmail("testerr@example.com");
+        userRepository.save(sysUser);
+        SecurityContextHolder.getContext()
+                .setAuthentication(new UsernamePasswordAuthenticationToken("testusererr", null, List.of()));
+
+        Workbook wb = new XSSFWorkbook();
+        Sheet s = wb.createSheet("sheet1");
+        Row header = s.createRow(0);
+        writeImportHeaders(header);
+
+        Row r = s.createRow(1);
+        r.createCell(0).setCellValue(LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy")));
+        r.createCell(1).setCellValue("TCUSTERR");
+        r.createCell(2).setCellValue("TRACK-ERR");
+        r.createCell(3).setCellValue("1");
+        r.createCell(4).setCellValue("3E-0116");
+        r.createCell(5).setCellValue("TRIPERR");
+        r.createCell(6).setCellValue("Warehouse ERR");
+        r.createCell(7).setCellValue("Customer Site ERR");
+        r.createCell(8).setCellValue("CPD000136");
+        r.createCell(10).setCellValue(5);
+        r.createCell(11).setCellValue("PCS");
+        r.createCell(12).setCellValue(0);
+        r.createCell(13).setCellValue("WH1");
+        r.createCell(14).setCellValue("PENDING");
+        r.createCell(15).setCellValue("FALSE");
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        wb.write(out);
+        wb.close();
+
+        MultipartFile mf = new MockMultipartFile(
+                "file",
+                "missing-master-data.xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                out.toByteArray());
+
+        var response = transportOrderService.importBulkOrders(mf);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(422);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().isSuccess()).isFalse();
+        assertThat(response.getBody().getMessage()).contains("Import blocked");
+        assertThat(response.getBody().getData()).isInstanceOf(List.class);
+        @SuppressWarnings("unchecked")
+        List<ImportError> errors = (List<ImportError>) response.getBody().getData();
+        assertThat(errors).extracting(ImportError::getField).contains("truckNumber", "itemCode");
+        assertThat(errors).extracting(ImportError::getValue).contains("3E-0116", "CPD000136");
+        assertThat(errors).extracting(ImportError::getRow).containsOnly(2);
+    }
+
+    @Test
     void import_should_accept_date_cell_and_string_qty() throws Exception {
         Customer c = new Customer();
         c.setName("Test Customer");
@@ -303,9 +412,7 @@ public class TransportOrderImportIntegrationTest {
         Workbook wb = new XSSFWorkbook();
         Sheet s = wb.createSheet("sheet1");
         Row header = s.createRow(0);
-        for (int i = 0; i < 16; i++) {
-            header.createCell(i).setCellValue("H" + i);
-        }
+        writeImportHeaders(header);
 
         Row r = s.createRow(1);
         Cell dateCell = r.createCell(0);
@@ -393,9 +500,7 @@ public class TransportOrderImportIntegrationTest {
         Workbook wb = new XSSFWorkbook();
         Sheet s = wb.createSheet("sheet1");
         Row header = s.createRow(0);
-        for (int i = 0; i < 16; i++) {
-            header.createCell(i).setCellValue("H" + i);
-        }
+        writeImportHeaders(header);
 
         Row r = s.createRow(1);
         r.createCell(0)
@@ -502,9 +607,7 @@ public class TransportOrderImportIntegrationTest {
         Workbook wb = new XSSFWorkbook();
         Sheet s = wb.createSheet("sheet1");
         Row header = s.createRow(0);
-        for (int i = 0; i < 16; i++) {
-            header.createCell(i).setCellValue("H" + i);
-        }
+        writeImportHeaders(header);
         Row r = s.createRow(1);
         r.createCell(0).setCellValue(LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy")));
         r.createCell(1).setCellValue("TCUSTDUP");

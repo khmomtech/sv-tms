@@ -1,5 +1,7 @@
 package com.svtrucking.logistics.service;
 
+import com.svtrucking.logistics.dto.CustomerFinanceTransactionDto;
+import com.svtrucking.logistics.enums.CustomerFinanceTransactionType;
 import com.svtrucking.logistics.enums.CustomerType;
 import com.svtrucking.logistics.enums.RoleType;
 import com.svtrucking.logistics.enums.Status;
@@ -8,8 +10,10 @@ import com.svtrucking.logistics.exception.InvalidCustomerDataException;
 import com.svtrucking.logistics.exception.DuplicateCustomerException;
 import com.svtrucking.logistics.model.Customer;
 import com.svtrucking.logistics.model.CustomerAudit;
+import com.svtrucking.logistics.model.CustomerFinanceTransaction;
 import com.svtrucking.logistics.model.Role;
 import com.svtrucking.logistics.model.User;
+import com.svtrucking.logistics.repository.CustomerFinanceTransactionRepository;
 import com.svtrucking.logistics.repository.CustomerRepository;
 import com.svtrucking.logistics.repository.CustomerAuditRepository;
 import com.svtrucking.logistics.repository.RoleRepository;
@@ -19,7 +23,9 @@ import jakarta.persistence.criteria.Predicate;
 import java.io.InputStream;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -52,6 +58,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class CustomerService {
     private final CustomerRepository customerRepository;
     private final CustomerAuditRepository customerAuditRepository;
+    private final CustomerFinanceTransactionRepository customerFinanceTransactionRepository;
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
@@ -771,6 +778,156 @@ public class CustomerService {
         customer.setDeviceToken(deviceToken);
         customerRepository.save(customer);
         log.debug("Updated FCM device token for customer id={}", customerId);
+    }
+
+    @Transactional
+    public CustomerFinanceTransactionDto applyOpeningBalance(
+            Long customerId,
+            BigDecimal amount,
+            String reference,
+            String note,
+            LocalDate effectiveDate) {
+        Customer customer = getCustomerById(customerId);
+        if (customerFinanceTransactionRepository.existsByCustomerIdAndTransactionType(
+                customerId, CustomerFinanceTransactionType.OPENING_BALANCE)) {
+            throw new InvalidCustomerDataException("Opening balance already exists for this customer");
+        }
+
+        BigDecimal normalizedAmount = normalizeMoney(amount);
+        if (normalizedAmount.compareTo(BigDecimal.ZERO) < 0) {
+            throw new InvalidCustomerDataException("Opening balance amount must be zero or greater");
+        }
+        BigDecimal currentBalance = customer.getCurrentBalance() == null ? BigDecimal.ZERO : customer.getCurrentBalance();
+
+        return saveFinanceTransaction(
+                customer,
+                CustomerFinanceTransactionType.OPENING_BALANCE,
+                normalizedAmount,
+                normalizedAmount.subtract(currentBalance),
+                reference,
+                note,
+                effectiveDate);
+    }
+
+    @Transactional
+    public CustomerFinanceTransactionDto applyCreditNote(
+            Long customerId,
+            BigDecimal amount,
+            String reference,
+            String note,
+            LocalDate effectiveDate) {
+        Customer customer = getCustomerById(customerId);
+        BigDecimal normalizedAmount = normalizePositiveMoney(amount, "Credit note");
+        return saveFinanceTransaction(
+                customer,
+                CustomerFinanceTransactionType.CREDIT_NOTE,
+                normalizedAmount,
+                normalizedAmount.negate(),
+                reference,
+                note,
+                effectiveDate);
+    }
+
+    @Transactional
+    public CustomerFinanceTransactionDto applyDebitNote(
+            Long customerId,
+            BigDecimal amount,
+            String reference,
+            String note,
+            LocalDate effectiveDate) {
+        Customer customer = getCustomerById(customerId);
+        BigDecimal normalizedAmount = normalizePositiveMoney(amount, "Debit note");
+        return saveFinanceTransaction(
+                customer,
+                CustomerFinanceTransactionType.DEBIT_NOTE,
+                normalizedAmount,
+                normalizedAmount,
+                reference,
+                note,
+                effectiveDate);
+    }
+
+    @Transactional(readOnly = true)
+    public List<CustomerFinanceTransactionDto> getFinanceTransactions(Long customerId) {
+        getCustomerById(customerId);
+        return customerFinanceTransactionRepository.findByCustomerIdOrderByCreatedAtDesc(customerId).stream()
+                .map(CustomerFinanceTransactionDto::fromEntity)
+                .toList();
+    }
+
+    private CustomerFinanceTransactionDto saveFinanceTransaction(
+            Customer customer,
+            CustomerFinanceTransactionType transactionType,
+            BigDecimal amount,
+            BigDecimal balanceDelta,
+            String reference,
+            String note,
+            LocalDate effectiveDate) {
+        String actor = getCurrentUsername();
+        BigDecimal balanceBefore = customer.getCurrentBalance() == null ? BigDecimal.ZERO : customer.getCurrentBalance();
+        BigDecimal balanceAfter = balanceBefore.add(balanceDelta);
+
+        if (balanceAfter.compareTo(BigDecimal.ZERO) < 0) {
+            throw new InvalidCustomerDataException("Resulting customer balance cannot be negative");
+        }
+
+        customer.setCurrentBalance(balanceAfter);
+        Customer savedCustomer = customerRepository.save(customer);
+
+        CustomerFinanceTransaction transaction = new CustomerFinanceTransaction();
+        transaction.setCustomer(savedCustomer);
+        transaction.setTransactionType(transactionType);
+        transaction.setAmount(amount);
+        transaction.setBalanceBefore(balanceBefore);
+        transaction.setBalanceAfter(balanceAfter);
+        transaction.setCurrency(resolveCustomerCurrency(savedCustomer));
+        transaction.setEffectiveDate(effectiveDate != null ? effectiveDate : LocalDate.now());
+        transaction.setReference(sanitizeOptional(reference));
+        transaction.setNote(sanitizeOptional(note));
+        transaction.setCreatedBy(actor);
+
+        CustomerFinanceTransaction savedTransaction = customerFinanceTransactionRepository.save(transaction);
+
+        CustomerAudit audit = CustomerAudit.forUpdate(
+                savedCustomer.getId(),
+                actor,
+                "current_balance",
+                balanceBefore.toPlainString(),
+                balanceAfter.toPlainString());
+        audit.setNotes(transactionType + " " + amount.toPlainString()
+                + (savedTransaction.getReference() != null ? " (" + savedTransaction.getReference() + ")" : ""));
+        customerAuditRepository.save(audit);
+
+        return CustomerFinanceTransactionDto.fromEntity(savedTransaction);
+    }
+
+    private BigDecimal normalizeMoney(BigDecimal amount) {
+        if (amount == null) {
+            throw new InvalidCustomerDataException("Amount is required");
+        }
+        return amount.setScale(2, java.math.RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal normalizePositiveMoney(BigDecimal amount, String label) {
+        BigDecimal normalized = normalizeMoney(amount);
+        if (normalized.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new InvalidCustomerDataException(label + " amount must be greater than zero");
+        }
+        return normalized;
+    }
+
+    private String resolveCustomerCurrency(Customer customer) {
+        return customer.getCurrency() == null || customer.getCurrency().isBlank()
+                ? "USD"
+                : customer.getCurrency().trim().toUpperCase();
+    }
+
+    private String sanitizeOptional(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     /**

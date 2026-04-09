@@ -3,6 +3,7 @@ package com.svtrucking.logistics.service;
 import com.svtrucking.logistics.dto.ItemDto;
 import com.svtrucking.logistics.dto.ItemFilterDto;
 import com.svtrucking.logistics.dto.SuggestDto;
+import com.svtrucking.logistics.exception.ResourceNotFoundException;
 import com.svtrucking.logistics.mapper.ItemMapper;
 import com.svtrucking.logistics.model.Item;
 import com.svtrucking.logistics.repository.ItemRepository;
@@ -15,6 +16,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ItemService {
@@ -22,10 +25,12 @@ public class ItemService {
   private static final Logger LOG = LoggerFactory.getLogger(ItemService.class);
   private final ItemRepository itemRepository;
   private final ItemMapper mapper;
+  private final JdbcTemplate jdbcTemplate;
 
-  public ItemService(ItemRepository itemRepository, ItemMapper mapper) {
+  public ItemService(ItemRepository itemRepository, ItemMapper mapper, JdbcTemplate jdbcTemplate) {
     this.itemRepository = itemRepository;
     this.mapper = mapper;
+    this.jdbcTemplate = jdbcTemplate;
   }
 
   /** 🔍 Get all items */
@@ -96,13 +101,15 @@ public class ItemService {
   }
 
   /** Save new item, prevent duplicates by itemCode */
+  @Transactional(transactionManager = "jpaTransactionManager")
   public Item saveItem(Item item) {
-    Optional<Item> existing = getItemByCode(item.getItemCode());
-    if (existing.isPresent()) {
-      LOG.warn(
-          "Item with code [{}] already exists. Skipping or handle update manually.",
-          item.getItemCode());
-      return existing.get(); // Or throw exception, or update instead
+    String itemCode = item.getItemCode() != null ? item.getItemCode().trim() : null;
+    if (itemCode != null && !itemCode.isEmpty()) {
+      Optional<Item> existing = getItemByCode(itemCode);
+      if (existing.isPresent()) {
+        throw new IllegalStateException("Item code already exists: " + itemCode);
+      }
+      item.setItemCode(itemCode);
     }
 
     LOG.info(" Saving item [{}]", item.getItemCode());
@@ -110,29 +117,68 @@ public class ItemService {
   }
 
   /** 🔁 Update existing item */
+  @Transactional(transactionManager = "jpaTransactionManager")
   public Optional<Item> updateItem(Long id, Item updatedItem) {
     return itemRepository
         .findById(id)
         .map(
             existing -> {
-              existing.setItemCode(updatedItem.getItemCode());
-              existing.setItemName(updatedItem.getItemName());
-              existing.setItemNameKh(updatedItem.getItemNameKh());
-              existing.setItemType(updatedItem.getItemType());
-              existing.setSize(updatedItem.getSize());
-              existing.setWeight(updatedItem.getWeight());
-              existing.setUnit(updatedItem.getUnit());
-              existing.setQuantity(updatedItem.getQuantity());
-              existing.setPallets(updatedItem.getPallets());
-              existing.setPalletType(updatedItem.getPalletType());
-              existing.setStatus(updatedItem.getStatus());
-              existing.setSortOrder(updatedItem.getSortOrder());
-              return itemRepository.save(existing);
+              String requestedCode =
+                  updatedItem.getItemCode() != null ? updatedItem.getItemCode().trim() : null;
+              if (requestedCode != null && !requestedCode.isEmpty()) {
+                itemRepository
+                    .findByItemCode(requestedCode)
+                    .filter(item -> !item.getId().equals(id))
+                    .ifPresent(
+                        item -> {
+                          throw new IllegalStateException(
+                              "Item code already exists: " + requestedCode);
+                        });
+              }
+
+              // Use direct SQL for updates because the live VPS image has shown
+              // non-persisting JPA merge behavior while still returning a mutated entity.
+              jdbcTemplate.update(
+                  """
+                  UPDATE items
+                     SET item_code = ?,
+                         item_name = ?,
+                         item_name_kh = ?,
+                         item_type = ?,
+                         size = ?,
+                         weight = ?,
+                         unit = ?,
+                         quantity = ?,
+                         pallets = ?,
+                         pallet_type = ?,
+                         status = ?,
+                         sort_order = ?,
+                         updated_at = NOW(6)
+                   WHERE id = ?
+                  """,
+                  requestedCode,
+                  updatedItem.getItemName(),
+                  updatedItem.getItemNameKh(),
+                  updatedItem.getItemType() != null ? updatedItem.getItemType().name() : null,
+                  updatedItem.getSize(),
+                  updatedItem.getWeight(),
+                  updatedItem.getUnit(),
+                  updatedItem.getQuantity(),
+                  updatedItem.getPallets(),
+                  updatedItem.getPalletType(),
+                  updatedItem.getStatus(),
+                  updatedItem.getSortOrder(),
+                  id);
+              return itemRepository.findById(id).orElse(existing);
             });
   }
 
   /** Delete item by ID */
+  @Transactional(transactionManager = "jpaTransactionManager")
   public void deleteItem(Long id) {
+    if (!itemRepository.existsById(id)) {
+      throw new ResourceNotFoundException("Item not found with id: " + id);
+    }
     LOG.info("🗑️ Deleting item with ID {}", id);
     itemRepository.deleteById(id);
   }

@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 public class DriverAppPolicyGuard {
 
   private static final String APP_POLICIES_GROUP = "app.policies";
+  private static final String APP_FEATURES_GROUP = "app.features";
 
   private static final Set<String> ALLOWED_DRAWER_IDS =
       Set.of(
@@ -74,6 +75,10 @@ public class DriverAppPolicyGuard {
 
   public void validate(SettingDef def, Object value) {
     final String groupCode = def.getGroup().getCode();
+    if (APP_FEATURES_GROUP.equalsIgnoreCase(groupCode)) {
+      validateFeature(def.getKeyCode(), value);
+      return;
+    }
     if (!APP_POLICIES_GROUP.equalsIgnoreCase(groupCode)) {
       return;
     }
@@ -83,11 +88,30 @@ public class DriverAppPolicyGuard {
       case "nav.drawer.items" -> validateDrawerItems(value);
       case "nav.bottom.items" -> validateBottomItems(value);
       case "nav.home.quick_actions" -> validateQuickActions(value);
+      case "driver.home.defer_bootstrap_refresh",
+          "driver.home.lazy_load_enabled",
+          "driver.home.quick_actions_always_visible",
+          "driver.home.connect_ws_in_background",
+          "auth.device_approval_required",
+          "auth.login_requires_tracking_session",
+          "auth.auto_approve_latest_login_device",
+          "auth.review_login_button_enabled" -> validateBoolean(key, value);
       case "dispatch.actions.hidden_statuses", "dispatch.actions.allowed_statuses" ->
           validateDispatchStatuses(key, value);
       case "dispatch.actions.require_driver_initiated" -> validateBoolean(key, value);
       default -> {
         // No custom guard for other keys in this group.
+      }
+    }
+  }
+
+  private void validateFeature(String key, Object value) {
+    switch (key) {
+      case "driver.chat.enabled",
+          "driver.incident_report.enabled",
+          "driver.telematics_ui_enabled" -> validateBoolean(key, value);
+      default -> {
+        // No custom feature guard for other keys.
       }
     }
   }

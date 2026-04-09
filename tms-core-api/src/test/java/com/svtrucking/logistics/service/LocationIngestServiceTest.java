@@ -3,6 +3,7 @@ package com.svtrucking.logistics.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.lenient;
 
 import com.svtrucking.logistics.core.service.GeocodingService;
 import com.svtrucking.logistics.dto.LiveDriverDto;
@@ -62,7 +63,7 @@ class LocationIngestServiceTest {
 
     service.initBuffer();
 
-    when(entityManager.getReference(eq(Driver.class), anyLong()))
+    lenient().when(entityManager.getReference(eq(Driver.class), anyLong()))
         .thenAnswer(
             invocation -> {
               Long id = invocation.getArgument(1);
@@ -71,7 +72,7 @@ class LocationIngestServiceTest {
               return driver;
             });
 
-    when(latestRepo.upsertLatest(
+    lenient().when(latestRepo.upsertLatest(
             anyLong(),
             anyDouble(),
             anyDouble(),
@@ -87,7 +88,7 @@ class LocationIngestServiceTest {
             any(),
             any()))
         .thenReturn(1);
-    when(latestRepo.findById(anyLong())).thenReturn(Optional.empty());
+    lenient().when(latestRepo.findById(anyLong())).thenReturn(Optional.empty());
   }
 
   @Test
@@ -248,6 +249,56 @@ class LocationIngestServiceTest {
     assertThat(result.get("driverId")).isEqualTo(driverId);
     assertThat(result.get("latitude")).isEqualTo(lat);
     assertThat(result.get("longitude")).isEqualTo(lng);
+  }
+
+  @Test
+  @DisplayName("zero-zero coordinates are treated as presence only and do not overwrite latest fix")
+  void zeroZeroCoordinatesRefreshPresenceWithoutUpsertingLatest() {
+    long driverId = 654L;
+
+    DriverLocationUpdateDto dto =
+        DriverLocationUpdateDto.builder()
+            .driverId(driverId)
+            .latitude(0.0d)
+            .longitude(0.0d)
+            .batteryLevel(77)
+            .clientTime(System.currentTimeMillis())
+            .build();
+
+    when(latestRepo.updatePresenceIfExists(eq(driverId), eq(77), anyString())).thenReturn(1);
+    when(latestRepo.findById(driverId))
+        .thenReturn(
+            Optional.ofNullable(
+                com.svtrucking.logistics.model.DriverLatestLocation.builder()
+                    .driverId(driverId)
+                    .latitude(11.5564d)
+                    .longitude(104.9282d)
+                    .lastSeen(new Timestamp(System.currentTimeMillis()))
+                    .build()));
+
+    Map<String, Object> result = service.accept(dto);
+
+    assertThat(result).isNotNull();
+    assertThat(result.get("invalidCoordinates")).isEqualTo(Boolean.TRUE);
+    assertThat(result.get("locationAccepted")).isEqualTo(Boolean.FALSE);
+    assertThat(result.get("latitude")).isEqualTo(11.5564d);
+    assertThat(result.get("longitude")).isEqualTo(104.9282d);
+    verify(latestRepo, never())
+        .upsertLatest(
+            anyLong(),
+            anyDouble(),
+            anyDouble(),
+            any(),
+            any(),
+            any(),
+            any(),
+            any(),
+            any(),
+            anyBoolean(),
+            any(),
+            any(),
+            any(),
+            any());
   }
 
   @Test

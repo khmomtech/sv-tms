@@ -34,6 +34,12 @@ public class FirebaseMessagingService {
      * Returns the FCM message-id on success, {@code null} on failure (never
      * throws).
      */
+    /** Returns the first 8 chars of a token for log tracing without exposing the full value. */
+    private static String maskToken(String token) {
+        if (token == null || token.length() < 8) return "****";
+        return token.substring(0, 8) + "…";
+    }
+
     public String sendNotification(String token, String title, String body) {
         if (token == null || token.isBlank()) {
             log.warn("FCM sendNotification skipped: token is blank (title={})", title);
@@ -49,16 +55,16 @@ public class FirebaseMessagingService {
         for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
             try {
                 String messageId = FirebaseMessaging.getInstance().sendAsync(message).get();
-                log.debug("FCM sent: token={}, messageId={}", token, messageId);
+                log.debug("FCM sent: token={}, messageId={}", maskToken(token), messageId);
                 return messageId;
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                log.warn("FCM send interrupted (will not retry): token={}, title={}", token, title);
+                log.warn("FCM send interrupted (will not retry): token={}, title={}", maskToken(token), title);
                 return null; // never throw
             } catch (ExecutionException e) {
                 lastException = e.getCause() instanceof Exception ? (Exception) e.getCause() : e;
                 log.warn("FCM send attempt {}/{} failed: token={}, error={}",
-                        attempt, MAX_ATTEMPTS, token, lastException.getMessage());
+                        attempt, MAX_ATTEMPTS, maskToken(token), lastException.getMessage());
                 if (attempt < MAX_ATTEMPTS) {
                     sleepQuietly(BASE_DELAY_MS * attempt);
                 }
@@ -67,7 +73,7 @@ public class FirebaseMessagingService {
 
         // All attempts exhausted — log and return null; MUST NOT throw
         log.error("FCM send failed after {} attempts: token={}, title={}, cause={}",
-                MAX_ATTEMPTS, token, title,
+                MAX_ATTEMPTS, maskToken(token), title,
                 lastException != null ? lastException.getMessage() : "unknown");
         return null;
     }

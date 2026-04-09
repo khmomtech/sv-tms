@@ -177,9 +177,7 @@ public class VehicleDriverService {
     }
 
     private void initializeVersion(VehicleDriver assignment) {
-        if (assignment != null && assignment.getVersion() == null) {
-            assignment.setVersion(0L);
-        }
+        // version is a primitive long — always 0L by default, no null check needed
     }
 
     private AssignmentResponse toResponse(VehicleDriver assignment) {
@@ -261,7 +259,8 @@ public class VehicleDriverService {
             "JOIN vehicles v ON vd.vehicle_id = v.id ";
 
     @Transactional(readOnly = true)
-    public List<AssignmentResponse> getAssignments(Long driverId, Long vehicleId, Boolean active) {
+    public List<AssignmentResponse> getAssignments(Long driverId, Long vehicleId, Boolean active, int limit) {
+        int safeLimit = Math.min(Math.max(1, limit), 500);
         StringBuilder sql = new StringBuilder(ASSIGNMENT_BASE_SELECT + ASSIGNMENT_BASE_FROM + "WHERE 1=1");
         List<Object> params = new ArrayList<>();
         if (driverId != null) {
@@ -279,7 +278,8 @@ public class VehicleDriverService {
                 sql.append(" AND vd.revoked_at IS NOT NULL");
             }
         }
-        sql.append(" ORDER BY vd.assigned_at DESC");
+        sql.append(" ORDER BY vd.assigned_at DESC LIMIT ?");
+        params.add(safeLimit);
         return jdbcTemplate.query(
                 sql.toString(),
                 ps -> {
@@ -373,7 +373,8 @@ public class VehicleDriverService {
     }
 
     @Transactional(readOnly = true)
-    public List<DriverWithAssignmentResponse> getAllDriversWithAssignments() {
+    public List<DriverWithAssignmentResponse> getAllDriversWithAssignments(int limit) {
+        int safeLimit = Math.min(Math.max(1, limit), 500);
         String sql = """
                   SELECT d.id AS driver_id, d.name AS driver_name, dl.license_number,
                          latest_vd.vehicle_id AS assigned_vehicle_id, v.license_plate AS vehicle_plate,
@@ -405,8 +406,10 @@ public class VehicleDriverService {
                   ) latest_vd ON latest_vd.driver_id = d.id
                   LEFT JOIN vehicles v ON latest_vd.vehicle_id = v.id
                   ORDER BY d.name
+                  LIMIT ?
                 """;
-        return jdbcTemplate.query(sql, (rs, rowNum) -> new DriverWithAssignmentResponse(
+        return jdbcTemplate.query(sql, ps -> ps.setInt(1, safeLimit),
+                (rs, rowNum) -> new DriverWithAssignmentResponse(
                 rs.getLong("driver_id"),
                 rs.getString("driver_name"),
                 rs.getString("license_number"),

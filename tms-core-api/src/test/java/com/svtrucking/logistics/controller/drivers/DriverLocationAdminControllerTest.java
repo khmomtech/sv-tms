@@ -8,6 +8,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.svtrucking.logistics.dto.LiveDriverDto;
 import com.svtrucking.logistics.dto.LocationHistoryDto;
 import com.svtrucking.logistics.service.DriverLocationService;
+import com.svtrucking.logistics.service.DriverOperationsDiagnosticsService;
+import com.svtrucking.logistics.service.DriverTrackingSessionService;
 import com.svtrucking.logistics.service.LiveDriverQueryService;
 import com.svtrucking.logistics.service.LocationIngestService;
 import com.svtrucking.logistics.service.TelematicsProxyService;
@@ -26,6 +28,8 @@ class DriverLocationAdminControllerTest {
   private LiveDriverQueryService liveDriverQueryService;
   private LocationIngestService locationIngestService;
   private TelematicsProxyService telematicsProxyService;
+  private DriverOperationsDiagnosticsService driverOperationsDiagnosticsService;
+  private DriverTrackingSessionService driverTrackingSessionService;
 
   @BeforeEach
   void setUp() {
@@ -33,13 +37,18 @@ class DriverLocationAdminControllerTest {
     liveDriverQueryService = org.mockito.Mockito.mock(LiveDriverQueryService.class);
     locationIngestService = org.mockito.Mockito.mock(LocationIngestService.class);
     telematicsProxyService = org.mockito.Mockito.mock(TelematicsProxyService.class);
+    driverOperationsDiagnosticsService =
+        org.mockito.Mockito.mock(DriverOperationsDiagnosticsService.class);
+    driverTrackingSessionService = org.mockito.Mockito.mock(DriverTrackingSessionService.class);
 
     DriverLocationAdminController controller =
         new DriverLocationAdminController(
             driverLocationService,
             liveDriverQueryService,
             locationIngestService,
-            telematicsProxyService);
+            telematicsProxyService,
+            driverOperationsDiagnosticsService,
+            driverTrackingSessionService);
 
     mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
   }
@@ -119,5 +128,18 @@ class DriverLocationAdminControllerTest {
         .andExpect(jsonPath("$.success").value(true))
         .andExpect(jsonPath("$.data[0].driverId").value(17))
         .andExpect(jsonPath("$.data[0].latitude").value(11.57));
+  }
+
+  @Test
+  void revokeTrackingSessions_returnsRevokedCount() throws Exception {
+    when(driverTrackingSessionService.revokeActiveSessionsForDriver(17L)).thenReturn(2);
+
+    mockMvc
+        .perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post(
+            "/api/admin/drivers/17/tracking-session/revoke"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.success").value(true))
+        .andExpect(jsonPath("$.data.driverId").value(17))
+        .andExpect(jsonPath("$.data.revokedSessions").value(2));
   }
 }

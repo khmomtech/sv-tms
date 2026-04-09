@@ -3,10 +3,16 @@ package com.svtrucking.logistics.controller;
 import com.svtrucking.logistics.core.ApiResponse;
 import com.svtrucking.logistics.dto.CustomerDto;
 import com.svtrucking.logistics.dto.CustomerAddressDto;
+import com.svtrucking.logistics.dto.CustomerFinanceTransactionDto;
 import com.svtrucking.logistics.exception.CustomerNotFoundException;
 import com.svtrucking.logistics.model.Customer;
 import com.svtrucking.logistics.service.CustomerAddressService;
 import com.svtrucking.logistics.service.CustomerService;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotNull;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import org.springframework.security.access.prepost.PreAuthorize;
 import java.util.*;
 import org.springframework.core.io.ByteArrayResource;
@@ -132,6 +138,55 @@ public class CustomerController {
     }
   }
 
+  @GetMapping("/{id}/finance-transactions")
+  @PreAuthorize("@authorizationService.hasPermission('customer:read')")
+  public ResponseEntity<ApiResponse<List<CustomerFinanceTransactionDto>>> getFinanceTransactions(
+      @PathVariable Long id) {
+    try {
+      return ResponseEntity.ok(
+          new ApiResponse<>(
+              true,
+              "Customer finance transactions fetched successfully",
+              customerService.getFinanceTransactions(id)));
+    } catch (CustomerNotFoundException ex) {
+      return ResponseEntity.status(HttpStatus.NOT_FOUND)
+          .body(new ApiResponse<>(false, "Customer not found", null));
+    }
+  }
+
+  @PostMapping("/{id}/opening-balance")
+  @PreAuthorize("@authorizationService.hasPermission('customer:update')")
+  public ResponseEntity<ApiResponse<CustomerFinanceMutationResponse>> applyOpeningBalance(
+      @PathVariable Long id, @Valid @RequestBody CustomerFinanceMutationRequest request) {
+    return mutateFinance(
+        id,
+        () ->
+            customerService.applyOpeningBalance(
+                id, request.amount(), request.reference(), request.note(), request.effectiveDate()));
+  }
+
+  @PostMapping("/{id}/credit-note")
+  @PreAuthorize("@authorizationService.hasPermission('customer:update')")
+  public ResponseEntity<ApiResponse<CustomerFinanceMutationResponse>> applyCreditNote(
+      @PathVariable Long id, @Valid @RequestBody CustomerFinanceMutationRequest request) {
+    return mutateFinance(
+        id,
+        () ->
+            customerService.applyCreditNote(
+                id, request.amount(), request.reference(), request.note(), request.effectiveDate()));
+  }
+
+  @PostMapping("/{id}/debit-note")
+  @PreAuthorize("@authorizationService.hasPermission('customer:update')")
+  public ResponseEntity<ApiResponse<CustomerFinanceMutationResponse>> applyDebitNote(
+      @PathVariable Long id, @Valid @RequestBody CustomerFinanceMutationRequest request) {
+    return mutateFinance(
+        id,
+        () ->
+            customerService.applyDebitNote(
+                id, request.amount(), request.reference(), request.note(), request.effectiveDate()));
+  }
+
   @GetMapping("/filter")
   @PreAuthorize("@authorizationService.hasPermission('customer:read')")
   public ResponseEntity<ApiResponse<Page<Customer>>> filterCustomers(
@@ -245,6 +300,28 @@ public class CustomerController {
     return value == null ? "" : String.valueOf(value).replace(",", " ");
   }
 
+  private ResponseEntity<ApiResponse<CustomerFinanceMutationResponse>> mutateFinance(
+      Long customerId, FinanceMutationSupplier supplier) {
+    try {
+      CustomerFinanceTransactionDto transaction = supplier.apply();
+      Customer customer = customerService.getCustomerById(customerId);
+      return ResponseEntity.ok(
+          new ApiResponse<>(
+              true,
+              "Customer finance transaction saved successfully",
+              new CustomerFinanceMutationResponse(
+                  CustomerDto.fromEntity(customer),
+                  transaction,
+                  customerService.getFinanceTransactions(customerId))));
+    } catch (CustomerNotFoundException ex) {
+      return ResponseEntity.status(HttpStatus.NOT_FOUND)
+          .body(new ApiResponse<>(false, "Customer not found", null));
+    } catch (RuntimeException ex) {
+      return ResponseEntity.badRequest()
+          .body(new ApiResponse<>(false, ex.getMessage(), null));
+    }
+  }
+
   /**
    * Create login account for an existing customer
    * POST /api/admin/customers/{id}/account
@@ -288,4 +365,20 @@ public class CustomerController {
     private String password;
     private String email;
   }
+
+  @FunctionalInterface
+  private interface FinanceMutationSupplier {
+    CustomerFinanceTransactionDto apply();
+  }
+
+  public record CustomerFinanceMutationRequest(
+      @NotNull @DecimalMin(value = "0.00", inclusive = true) BigDecimal amount,
+      String reference,
+      String note,
+      LocalDate effectiveDate) {}
+
+  public record CustomerFinanceMutationResponse(
+      CustomerDto customer,
+      CustomerFinanceTransactionDto transaction,
+      List<CustomerFinanceTransactionDto> history) {}
 }

@@ -56,7 +56,7 @@ public class SafetyCheckService {
   public SafetyCheckDto getToday(Long driverId, Long vehicleId) {
     LocalDate today = LocalDate.now(PHNOM_PENH);
     Optional<SafetyCheck> existing =
-        safetyCheckRepository.findByCheckDateAndDriverIdAndVehicleId(
+        safetyCheckRepository.findLatestByCheckDateAndDriverIdAndVehicleId(
             today, driverId, vehicleId);
 
     if (existing.isPresent()) {
@@ -89,7 +89,7 @@ public class SafetyCheckService {
 
     LocalDate today = LocalDate.now(PHNOM_PENH);
     Optional<SafetyCheck> existing =
-        safetyCheckRepository.findByCheckDateAndVehicleId(today, vehicle.getId());
+        safetyCheckRepository.findLatestByCheckDateAndVehicleId(today, vehicle.getId());
     if (existing.isPresent()) {
       return toDto(existing.get(), true, true);
     }
@@ -169,7 +169,7 @@ public class SafetyCheckService {
 
     SafetyCheck safetyCheck =
         safetyCheckRepository
-            .findByCheckDateAndDriverIdAndVehicleId(
+            .findLatestByCheckDateAndDriverIdAndVehicleId(
                 checkDate, driverId, payload.getVehicleId())
             .orElseGet(
                 () -> {
@@ -834,7 +834,7 @@ public class SafetyCheckService {
     LocalDate checkDate = date != null ? date : LocalDate.now(PHNOM_PENH);
 
     Optional<SafetyCheck> existing =
-        safetyCheckRepository.findByCheckDateAndDriverIdAndVehicleId(
+        safetyCheckRepository.findLatestByCheckDateAndDriverIdAndVehicleId(
             checkDate, driverId, vehicleId);
 
     if (existing.isEmpty()) {

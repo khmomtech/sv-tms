@@ -112,6 +112,47 @@ class LiveDriverQueryServiceTest {
   }
 
   @Test
+  @DisplayName("live driver query excludes invalid zero-zero coordinates")
+  void excludesInvalidZeroZeroCoordinates() {
+    long validDriverId = 30213L;
+    long invalidDriverId = 30214L;
+    Instant now = Instant.now();
+
+    DriverLatestLocation valid =
+        DriverLatestLocation.builder()
+            .driverId(validDriverId)
+            .latitude(11.5564)
+            .longitude(104.9282)
+            .lastSeen(Timestamp.from(now.minusSeconds(5)))
+            .isOnline(true)
+            .build();
+
+    DriverLatestLocation invalid =
+        DriverLatestLocation.builder()
+            .driverId(invalidDriverId)
+            .latitude(0.0)
+            .longitude(0.0)
+            .lastSeen(Timestamp.from(now.minusSeconds(5)))
+            .isOnline(true)
+            .build();
+
+    when(latestRepo.findSince(any())).thenReturn(List.of(valid, invalid));
+    when(driverDirectoryReadService.findByIds(anySet()))
+        .thenReturn(
+            java.util.Map.of(
+                validDriverId,
+                new DriverDirectoryReadService.DriverDirectoryRow(validDriverId, "Valid Driver", "090000001")));
+    when(assignmentReadService.findActiveByDriverIds(anySet())).thenReturn(java.util.Map.of());
+
+    List<LiveDriverDto> out = service.getLiveDrivers(true, 120, null, null, null, null);
+
+    assertThat(out).hasSize(1);
+    assertThat(out.get(0).getDriverId()).isEqualTo(validDriverId);
+    assertThat(out.get(0).getLatitude()).isEqualTo(11.5564);
+    assertThat(out.get(0).getLongitude()).isEqualTo(104.9282);
+  }
+
+  @Test
   @DisplayName("getLatestForDriver exposes telemetry freshness fields")
   void latestForDriverExposesFreshnessFields() {
     long driverId = 50001L;

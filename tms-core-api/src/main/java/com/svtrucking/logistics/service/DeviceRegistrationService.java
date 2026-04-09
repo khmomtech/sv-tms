@@ -197,49 +197,8 @@ public class DeviceRegistrationService {
 
   @Transactional
   public String resolveLoginDeviceStatus(Long driverId, String deviceId) {
-    if (driverId == null || deviceId == null || deviceId.isBlank()) {
-      return "NOT_REGISTERED";
-    }
-    String normalizedDeviceId = deviceId.trim();
-    Optional<DeviceRegister> existing =
-        deviceRepo.findByDriverIdAndDeviceId(driverId, normalizedDeviceId);
-    if (existing.isPresent()) {
-      DeviceStatus status = existing.get().getStatus();
-      if (status == DeviceStatus.APPROVED) {
-        return "APPROVED";
-      }
-      if (status == DeviceStatus.PENDING) {
-        return "PENDING";
-      }
-      if (status == DeviceStatus.REJECTED) {
-        return "REJECTED";
-      }
-      if (status == DeviceStatus.BLOCKED) {
-        return "BLOCKED";
-      }
-      return "UNKNOWN";
-    }
-
-    if (!deviceRepo.existsByDriverIdAndStatus(driverId, DeviceStatus.APPROVED)) {
-      Driver driver = getDriver(driverId);
-      DeviceRegister autoApproved =
-          DeviceRegister.builder()
-              .driver(driver)
-              .deviceId(normalizedDeviceId)
-              .status(DeviceStatus.APPROVED)
-              .approvedBy("SYSTEM_AUTO_FIRST_DEVICE")
-              .registeredAt(LocalDateTime.now())
-              .statusUpdatedAt(LocalDateTime.now())
-              .build();
-      deviceRepo.save(autoApproved);
-      log.info(
-          "Auto-approved first login device for driver {} with deviceId={}",
-          driverId,
-          normalizedDeviceId);
-      return "APPROVED";
-    }
-
-    return "ACTIVE_ON_OTHER_PHONE";
+    return resolveLoginDeviceStatus(
+        DeviceRegisterDto.builder().driverId(driverId).deviceId(deviceId).build());
   }
 
   @Transactional
@@ -328,13 +287,12 @@ public class DeviceRegistrationService {
 
   @Transactional
   public String resolveLoginDeviceStatus(DeviceRegisterDto dto) {
-    System.out.println("DEBUG: entered resolveLoginDeviceStatus");
-    log.warn("resolveLoginDeviceStatus called with dto={}", dto);
+    log.info("resolveLoginDeviceStatus called with dto={}", dto);
     if (dto == null
         || dto.getDriverId() == null
         || dto.getDeviceId() == null
         || dto.getDeviceId().isBlank()) {
-      log.warn("resolveLoginDeviceStatus returning NOT_REGISTERED (invalid input)");
+      log.debug("resolveLoginDeviceStatus: invalid dto, returning NOT_REGISTERED");
       return "NOT_REGISTERED";
     }
 
@@ -349,22 +307,17 @@ public class DeviceRegistrationService {
 
       DeviceStatus status = device.getStatus();
       if (status == DeviceStatus.APPROVED) {
-        log.warn("resolveLoginDeviceStatus device existing status APPROVED");
         return "APPROVED";
       }
       if (status == DeviceStatus.PENDING) {
-        log.warn("resolveLoginDeviceStatus device existing status PENDING");
         return "PENDING";
       }
       if (status == DeviceStatus.REJECTED) {
-        log.warn("resolveLoginDeviceStatus device existing status REJECTED");
         return "REJECTED";
       }
       if (status == DeviceStatus.BLOCKED) {
-        log.warn("resolveLoginDeviceStatus device existing status BLOCKED");
         return "BLOCKED";
       }
-      log.warn("resolveLoginDeviceStatus device existing status UNKNOWN");
       return "UNKNOWN";
     }
 
@@ -392,7 +345,6 @@ public class DeviceRegistrationService {
           "Auto-approved first login device for driver {} with deviceId={}",
           driverId,
           deviceId);
-      log.warn("resolveLoginDeviceStatus auto-approved device for driverId={}", driverId);
       return "APPROVED";
     }
 

@@ -131,6 +131,21 @@ public class UserController {
     }
   }
 
+  @PatchMapping("/{id}/status")
+  @PreAuthorize("@authorizationService.hasPermission('user:update')")
+  public ResponseEntity<?> toggleUserStatus(
+      @PathVariable Long id, @RequestParam boolean enabled) {
+    try {
+      UserDto updated = userService.toggleUserStatus(id, enabled);
+      return ResponseEntity.ok(Map.of(
+          "message", "User " + (enabled ? "enabled" : "disabled") + " successfully",
+          "user", updated));
+    } catch (RuntimeException e) {
+      return ResponseEntity.status(HttpStatus.NOT_FOUND)
+          .body(Map.of(ERROR_MESSAGE, e.getMessage()));
+    }
+  }
+
   // ------------------------------------------------------------------------
   //  DRIVER LOGIN ACCOUNT CRUD (Admin)
   // ------------------------------------------------------------------------

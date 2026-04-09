@@ -27,14 +27,14 @@ public class NotificationSettingsController {
   }
 
   @GetMapping
-  @PreAuthorize("hasAnyRole('ROLE_ADMIN','SUPER_ADMIN','SYSTEM_ADMIN','OPS_MANAGER')")
+  @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN','SYSTEM_ADMIN','OPS_MANAGER')")
   public ResponseEntity<ApiResponse<List<NotificationSetting>>> list() {
     List<NotificationSetting> rows = settingService.listAll();
     return ResponseEntity.ok(ApiResponse.ok("Notification settings loaded", rows));
   }
 
   @PutMapping("/{channel}")
-  @PreAuthorize("hasAnyRole('ROLE_ADMIN','SUPER_ADMIN','SYSTEM_ADMIN','OPS_MANAGER')")
+  @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN','SYSTEM_ADMIN','OPS_MANAGER')")
   public ResponseEntity<ApiResponse<NotificationSetting>> update(
       @PathVariable String channel, @RequestBody NotificationSetting payload) {
     NotificationChannel parsed;

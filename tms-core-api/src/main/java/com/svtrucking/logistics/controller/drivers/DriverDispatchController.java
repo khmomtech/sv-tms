@@ -571,15 +571,46 @@ public class DriverDispatchController {
 
     @PostMapping("/{id}/accept")
     public ResponseEntity<ApiResponse<DispatchDto>> acceptDispatch(@PathVariable Long id) {
-        DispatchDto dto = dispatchService.acceptDispatch(id);
-        return ResponseEntity.ok(new ApiResponse<>(true, "អ្នកបើកបរបានទទួលបញ្ជាដឹកជញ្ជូន។", dto));
+        try {
+            DispatchDto dto = dispatchService.acceptDispatch(id);
+            return ResponseEntity.ok(new ApiResponse<>(true, "អ្នកបើកបរបានទទួលបញ្ជាដឹកជញ្ជូន។", dto));
+        } catch (ResourceNotFoundException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ApiResponse<>(false, ex.getMessage()));
+        } catch (InvalidDispatchDataException ex) {
+            Map<String, String> errors = new HashMap<>();
+            errors.put(ex.getField() != null ? ex.getField() : "_global",
+                    ex.getReason() != null ? ex.getReason() : ex.getMessage());
+            if (ex.getCode() != null) errors.put("code", ex.getCode());
+            // Return 409 Conflict so the client knows the current state has changed
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(new ApiResponse<>(false, ex.getMessage(), null, errors));
+        } catch (SecurityException ex) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ApiResponse<>(false, ex.getMessage()));
+        }
     }
 
     @PostMapping("/{id}/reject")
     public ResponseEntity<ApiResponse<DispatchDto>> rejectDispatch(
             @PathVariable Long id, @RequestParam String reason) {
-        DispatchDto dto = dispatchService.rejectDispatch(id, reason);
-        return ResponseEntity.ok(new ApiResponse<>(true, "អ្នកបើកបរបានបដិសេធបញ្ជាដឹកជញ្ជូន។", dto));
+        try {
+            DispatchDto dto = dispatchService.rejectDispatch(id, reason);
+            return ResponseEntity.ok(new ApiResponse<>(true, "អ្នកបើកបរបានបដិសេធបញ្ជាដឹកជញ្ជូន។", dto));
+        } catch (ResourceNotFoundException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ApiResponse<>(false, ex.getMessage()));
+        } catch (InvalidDispatchDataException ex) {
+            Map<String, String> errors = new HashMap<>();
+            errors.put(ex.getField() != null ? ex.getField() : "_global",
+                    ex.getReason() != null ? ex.getReason() : ex.getMessage());
+            if (ex.getCode() != null) errors.put("code", ex.getCode());
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(new ApiResponse<>(false, ex.getMessage(), null, errors));
+        } catch (SecurityException ex) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ApiResponse<>(false, ex.getMessage()));
+        }
     }
 
     @GetMapping("/proofs/load")

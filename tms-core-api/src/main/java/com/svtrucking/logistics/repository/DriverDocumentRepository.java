@@ -132,12 +132,30 @@ public interface DriverDocumentRepository extends JpaRepository<DriverDocument, 
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate);
 
+    @Query("SELECT dd FROM DriverDocument dd WHERE dd.expiryDate IS NOT NULL " +
+            "AND dd.expiryDate BETWEEN :startDate AND :endDate")
+    Page<DriverDocument> findAllExpiring(
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate,
+            Pageable pageable);
+
     /**
      * All expired documents across all drivers.
      */
     @Query("SELECT dd FROM DriverDocument dd WHERE dd.expiryDate IS NOT NULL " +
             "AND dd.expiryDate < :today ORDER BY dd.expiryDate DESC")
     List<DriverDocument> findAllExpired(@Param("today") LocalDate today);
+
+    @Query("SELECT dd FROM DriverDocument dd WHERE dd.expiryDate IS NOT NULL " +
+            "AND dd.expiryDate < :today")
+    Page<DriverDocument> findAllExpired(@Param("today") LocalDate today, Pageable pageable);
+
+    @Query("SELECT COUNT(dd) FROM DriverDocument dd WHERE dd.expiryDate IS NOT NULL AND dd.expiryDate < :today")
+    long countAllExpired(@Param("today") LocalDate today);
+
+    @Query("SELECT COUNT(dd) FROM DriverDocument dd WHERE dd.expiryDate IS NOT NULL " +
+            "AND dd.expiryDate BETWEEN :startDate AND :endDate")
+    long countAllExpiring(@Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
 
     /** Count all documents with a given category. */
     long countByCategory(String category);

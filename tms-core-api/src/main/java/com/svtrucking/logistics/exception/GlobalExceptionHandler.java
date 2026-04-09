@@ -3,11 +3,13 @@ package com.svtrucking.logistics.exception;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -424,6 +426,18 @@ public class GlobalExceptionHandler {
     return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
   }
 
+  @ExceptionHandler(MissingServletRequestPartException.class)
+  public ResponseEntity<ErrorResponse> handleMissingRequestPart(MissingServletRequestPartException ex) {
+    String message = String.format("Required request part '%s' is missing", ex.getRequestPartName());
+    ErrorResponse error = ErrorResponse.builder()
+        .timestamp(LocalDateTime.now())
+        .status(HttpStatus.BAD_REQUEST.value())
+        .error("Missing Request Part")
+        .message(message)
+        .build();
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+  }
+
   @ExceptionHandler(ConstraintViolationException.class)
   public ResponseEntity<ErrorResponse> handleConstraintViolation(ConstraintViolationException ex) {
     Map<String, String> errors = new HashMap<>();
@@ -466,6 +480,23 @@ public class GlobalExceptionHandler {
         .message("Database is currently unavailable. Please try again later.")
         .build();
     return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(error);
+  }
+
+  @ExceptionHandler(DataIntegrityViolationException.class)
+  public ResponseEntity<ErrorResponse> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
+    Throwable root = ex.getMostSpecificCause() != null ? ex.getMostSpecificCause() : ex;
+    String message = root.getMessage() != null ? root.getMessage() : ex.getMessage();
+    if (message != null && message.length() > 300) {
+      message = message.substring(0, 300);
+    }
+    log.error("Database integrity violation: {}", message, ex);
+    ErrorResponse error = ErrorResponse.builder()
+        .timestamp(LocalDateTime.now())
+        .status(HttpStatus.CONFLICT.value())
+        .error("Conflict")
+        .message(message != null && !message.isBlank() ? message : "Database write conflict")
+        .build();
+    return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
   }
 
   // ============================================================

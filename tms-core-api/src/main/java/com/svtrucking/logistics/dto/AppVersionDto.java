@@ -20,6 +20,9 @@ public class AppVersionDto {
     @JsonProperty("latestVersion")
     String latestVersion;
 
+    @JsonProperty("minSupportedVersion")
+    String minSupportedVersion;
+
     @JsonProperty("mandatoryUpdate")
     boolean mandatoryUpdate;
 
@@ -100,6 +103,7 @@ public class AppVersionDto {
         return AppVersionDto.builder()
                 .id(e.getId())
                 .latestVersion(e.getLatestVersion())
+                .minSupportedVersion(nz(e.getMinSupportedVersion()))
                 .mandatoryUpdate(e.isMandatoryUpdate())
                 .playstoreUrl(e.getPlaystoreUrl())
                 .appstoreUrl(e.getAppstoreUrl())

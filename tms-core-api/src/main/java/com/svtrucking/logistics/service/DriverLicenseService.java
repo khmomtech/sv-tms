@@ -10,6 +10,8 @@ import jakarta.transaction.Transactional;
 
 import java.util.List;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import lombok.RequiredArgsConstructor;
@@ -254,18 +256,11 @@ public class DriverLicenseService {
    *
    * @return A list of driver licenses as DTOs.
    */
-  public List<DriverLicenseDto> getAllLicenses() {
-    return licenseRepository.findAll().stream().map(DriverLicenseDto::fromEntity).toList();
+  public Page<DriverLicenseDto> getAllLicenses(Pageable pageable) {
+    return licenseRepository.findAll(pageable).map(DriverLicenseDto::fromEntity);
   }
 
-  /**
-   * Gets all licenses including deleted ones (for admin).
-   *
-   * @return A list of all driver licenses as DTOs.
-   */
-  public List<DriverLicenseDto> getAllLicensesIncludingDeleted() {
-    return licenseRepository.findAllByOrderByIdDesc().stream()
-        .map(DriverLicenseDto::fromEntity)
-        .toList();
+  public Page<DriverLicenseDto> getAllLicensesIncludingDeleted(Pageable pageable) {
+    return licenseRepository.findAllByOrderByIdDesc(pageable).map(DriverLicenseDto::fromEntity);
   }
 }

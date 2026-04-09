@@ -1,12 +1,12 @@
 package com.svtrucking.logistics.controller;
 
+import com.svtrucking.logistics.dto.UserDto;
 import com.svtrucking.logistics.dto.UserPermissionSummaryDto;
-import com.svtrucking.logistics.model.Permission;
-import com.svtrucking.logistics.model.User;
 import com.svtrucking.logistics.security.AuthenticatedUserUtil;
 import com.svtrucking.logistics.service.UserPermissionService;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -32,47 +32,53 @@ public class UserPermissionController {
     this.authenticatedUserUtil = authenticatedUserUtil;
   }
 
+  /**
+   * @deprecated Direct user-permission assignment removed in V29. Assign permissions via roles:
+   *             POST /api/admin/roles/{roleId}/permissions/{permissionId}
+   */
   @PostMapping("/assign")
-  @PreAuthorize("@authorizationService.hasPermission('user:update')")
-  public ResponseEntity<String> assignPermissionToUser(
+  @Deprecated
+  public ResponseEntity<Map<String, String>> assignPermissionToUser(
       @RequestParam Long userId, @RequestParam Long permissionId) {
-    boolean success = userPermissionService.assignPermissionToUser(userId, permissionId);
-    if (success) {
-      return ResponseEntity.ok("Permission assigned successfully");
-    } else {
-      return ResponseEntity.badRequest().body("Failed to assign permission");
-    }
+    return ResponseEntity.status(HttpStatus.GONE).body(Map.of(
+        "error", "Direct user-permission assignment was removed in V29.",
+        "action", "Use POST /api/admin/roles/{roleId}/permissions/{permissionId} instead."));
   }
 
+  /**
+   * @deprecated Direct user-permission assignment removed in V29. Assign permissions via roles.
+   */
   @PostMapping("/assign-by-name")
-  @PreAuthorize("@authorizationService.hasPermission('user:update')")
-  public ResponseEntity<String> assignPermissionToUserByName(
+  @Deprecated
+  public ResponseEntity<Map<String, String>> assignPermissionToUserByName(
       @RequestParam Long userId, @RequestParam String permissionName) {
-    boolean success = userPermissionService.assignPermissionToUser(userId, permissionName);
-    if (success) {
-      return ResponseEntity.ok("Permission assigned successfully");
-    } else {
-      return ResponseEntity.badRequest().body("Failed to assign permission");
-    }
+    return ResponseEntity.status(HttpStatus.GONE).body(Map.of(
+        "error", "Direct user-permission assignment was removed in V29.",
+        "action", "Use POST /api/admin/roles/{roleId}/permissions/{permissionId} instead."));
   }
 
+  /**
+   * @deprecated Direct user-permission removal removed in V29. Manage permissions via roles.
+   */
   @DeleteMapping("/remove")
-  @PreAuthorize("@authorizationService.hasPermission('user:update')")
-  public ResponseEntity<String> removePermissionFromUser(
+  @Deprecated
+  public ResponseEntity<Map<String, String>> removePermissionFromUser(
       @RequestParam Long userId, @RequestParam Long permissionId) {
-    boolean success = userPermissionService.removePermissionFromUser(userId, permissionId);
-    if (success) {
-      return ResponseEntity.ok("Permission removed successfully");
-    } else {
-      return ResponseEntity.badRequest().body("Failed to remove permission");
-    }
+    return ResponseEntity.status(HttpStatus.GONE).body(Map.of(
+        "error", "Direct user-permission removal was removed in V29.",
+        "action", "Use DELETE /api/admin/roles/{roleId}/permissions/{permissionId} instead."));
   }
 
+  /**
+   * @deprecated Direct user permissions no longer exist. Use /user/{userId}/effective instead.
+   */
   @GetMapping("/user/{userId}")
+  @Deprecated
   @PreAuthorize("@authorizationService.hasPermission('user:read')")
-  public ResponseEntity<Set<Permission>> getUserPermissions(@PathVariable Long userId) {
-    Set<Permission> permissions = userPermissionService.getUserPermissions(userId);
-    return ResponseEntity.ok(permissions);
+  public ResponseEntity<Map<String, String>> getUserPermissions(@PathVariable Long userId) {
+    return ResponseEntity.status(HttpStatus.GONE).body(Map.of(
+        "error", "Direct user permissions were removed in V29.",
+        "action", "Use GET /api/admin/user-permissions/user/" + userId + "/effective instead."));
   }
 
   @GetMapping("/user/{userId}/has-permission")
@@ -85,8 +91,10 @@ public class UserPermissionController {
 
   @GetMapping("/users-with-permission")
   @PreAuthorize("@authorizationService.hasPermission('user:read')")
-  public ResponseEntity<List<User>> getUsersWithPermission(@RequestParam String permissionName) {
-    List<User> users = userPermissionService.getUsersWithPermission(permissionName);
+  public ResponseEntity<List<UserDto>> getUsersWithPermission(@RequestParam String permissionName) {
+    List<UserDto> users = userPermissionService.getUsersWithPermission(permissionName).stream()
+        .map(UserDto::fromEntity)
+        .toList();
     return ResponseEntity.ok(users);
   }
 

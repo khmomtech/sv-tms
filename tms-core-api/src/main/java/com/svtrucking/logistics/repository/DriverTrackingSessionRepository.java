@@ -10,6 +10,12 @@ import org.springframework.stereotype.Repository;
 public interface DriverTrackingSessionRepository extends JpaRepository<DriverTrackingSession, String> {
   Optional<DriverTrackingSession> findBySessionIdAndRevokedAtIsNull(String sessionId);
 
-    List<DriverTrackingSession> findByDriverIdAndDeviceIdAndRevokedAtIsNullOrderByIssuedAtDesc(
+  List<DriverTrackingSession> findByDriverIdAndDeviceIdAndRevokedAtIsNullOrderByIssuedAtDesc(
       Long driverId, String deviceId);
+
+  List<DriverTrackingSession> findByDriverIdAndRevokedAtIsNullOrderByIssuedAtDesc(Long driverId);
+
+  List<DriverTrackingSession> findByRevokedAtIsNullOrderByLastSeenDesc();
+
+  Optional<DriverTrackingSession> findFirstByDriverIdOrderByUpdatedAtDesc(Long driverId);
 }

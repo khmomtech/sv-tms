@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -17,6 +18,7 @@ import com.svtrucking.logistics.repository.DriverRepository;
 import com.svtrucking.logistics.repository.DriverTrackingSessionRepository;
 import com.svtrucking.logistics.repository.UserRepository;
 import com.svtrucking.logistics.security.JwtUtil;
+import io.jsonwebtoken.Claims;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -107,6 +109,40 @@ class DriverTrackingSessionServiceTest {
   }
 
   @Test
+  void refreshSession_acceptsExpiredTrackingTokenWhenSessionIsStillActive() {
+    Driver driver = new Driver();
+    driver.setId(200L);
+
+    DriverTrackingSession session =
+        DriverTrackingSession.builder()
+            .sessionId("sess-123")
+            .driver(driver)
+            .deviceId("ios-01")
+            .issuedAt(LocalDateTime.now().minusHours(1))
+            .expiresAt(LocalDateTime.now().plusHours(1))
+            .lastSeen(LocalDateTime.now().minusMinutes(5))
+            .build();
+
+    Claims claims = org.mockito.Mockito.mock(Claims.class);
+    when(claims.getSubject()).thenReturn("driver1");
+    when(jwtUtil.extractTokenType("expired-tracking")).thenReturn("tracking");
+    when(jwtUtil.extractAccessClaimsAllowExpired("expired-tracking")).thenReturn(claims);
+    when(jwtUtil.extractSessionIdClaim("expired-tracking")).thenReturn("sess-123");
+    when(jwtUtil.extractDriverIdClaim("expired-tracking")).thenReturn(200L);
+    when(jwtUtil.extractDeviceIdClaim("expired-tracking")).thenReturn("ios-01");
+    when(trackingSessionRepository.findBySessionIdAndRevokedAtIsNull("sess-123"))
+        .thenReturn(Optional.of(session));
+    when(jwtUtil.generateTrackingToken(any(), eq(200L), eq("ios-01"), eq("sess-123")))
+        .thenReturn("rotated-tracking");
+
+    TrackingSessionResponse response = service.refreshSession("expired-tracking");
+
+    assertThat(response.getTrackingToken()).isEqualTo("rotated-tracking");
+    assertThat(response.getSessionId()).isEqualTo("sess-123");
+    verify(trackingSessionRepository).save(any(DriverTrackingSession.class));
+  }
+
+  @Test
   void validateLocationWriteOrThrow_acceptsAccessTokenForBackwardCompatibility() {
     when(jwtUtil.extractTokenType("access-token")).thenReturn("access");
 
@@ -158,6 +194,40 @@ class DriverTrackingSessionServiceTest {
     ArgumentCaptor<DriverTrackingSession> captor = ArgumentCaptor.forClass(DriverTrackingSession.class);
     verify(trackingSessionRepository).save(captor.capture());
     assertThat(captor.getValue().getLastSeen()).isNotNull();
+    assertThat(captor.getValue().getExpiresAt()).isAfter(LocalDateTime.now());
+  }
+
+  @Test
+  void revokeActiveSessionsForDriver_revokesAllActiveSessions() {
+    Driver driver = new Driver();
+    driver.setId(777L);
+
+    DriverTrackingSession s1 =
+        DriverTrackingSession.builder()
+            .sessionId("sess-1")
+            .driver(driver)
+            .deviceId("dev-a")
+            .issuedAt(LocalDateTime.now().minusHours(2))
+            .expiresAt(LocalDateTime.now().plusHours(2))
+            .build();
+    DriverTrackingSession s2 =
+        DriverTrackingSession.builder()
+            .sessionId("sess-2")
+            .driver(driver)
+            .deviceId("dev-b")
+            .issuedAt(LocalDateTime.now().minusHours(1))
+            .expiresAt(LocalDateTime.now().plusHours(3))
+            .build();
+
+    when(trackingSessionRepository.findByDriverIdAndRevokedAtIsNullOrderByIssuedAtDesc(777L))
+        .thenReturn(List.of(s1, s2));
+
+    int revoked = service.revokeActiveSessionsForDriver(777L);
+
+    assertThat(revoked).isEqualTo(2);
+    assertThat(s1.getRevokedAt()).isNotNull();
+    assertThat(s2.getRevokedAt()).isNotNull();
+    verify(trackingSessionRepository).saveAll(List.of(s1, s2));
   }
 
   @Test
@@ -246,6 +316,24 @@ class DriverTrackingSessionServiceTest {
 
     assertThat(ex.getStatusCode().value()).isEqualTo(403);
     assertThat(ex.getReason()).contains("Device not approved for tracking");
+  }
+
+  @Test
+  void validateLocationWriteOrThrow_rejectsRevokedTrackingSessionAsForbidden() {
+    when(jwtUtil.extractTokenType("tracking-token")).thenReturn("tracking");
+    when(jwtUtil.hasScope("tracking-token", "LOCATION_WRITE")).thenReturn(true);
+    when(jwtUtil.extractDriverIdClaim("tracking-token")).thenReturn(321L);
+    when(jwtUtil.extractSessionIdClaim("tracking-token")).thenReturn("sess-missing");
+    when(trackingSessionRepository.findBySessionIdAndRevokedAtIsNull("sess-missing"))
+        .thenReturn(Optional.empty());
+
+    ResponseStatusException ex =
+        assertThrows(
+            ResponseStatusException.class,
+            () -> service.validateLocationWriteOrThrow("tracking-token", 321L, "sess-missing"));
+
+    assertThat(ex.getStatusCode().value()).isEqualTo(403);
+    assertThat(ex.getReason()).contains("Tracking session not active");
   }
 
   @Test

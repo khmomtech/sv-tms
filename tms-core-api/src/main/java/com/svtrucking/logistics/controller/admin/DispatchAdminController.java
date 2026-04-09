@@ -12,6 +12,7 @@ import com.svtrucking.logistics.dto.response.DispatchStatusUpdateResponse;
 import com.svtrucking.logistics.enums.DispatchStatus;
 import com.svtrucking.logistics.modules.notification.dto.CreateNotificationRequest;
 import com.svtrucking.logistics.modules.notification.service.DriverNotificationService;
+import com.svtrucking.logistics.modules.notification.service.NotificationDispatchResult;
 import com.svtrucking.logistics.dto.request.ReopenDispatchRequest;
 import com.svtrucking.logistics.security.PermissionNames;
 import com.svtrucking.logistics.service.DispatchService;
@@ -617,9 +618,9 @@ public class DispatchAdminController {
 
     @PostMapping("/{id}/notify-assigned-driver")
     public ResponseEntity<ApiResponse<DispatchDto>> notifyAssignedDriver(@PathVariable Long id) {
-        // Fetch dispatch without changing assignment; only notify if a driver is
-        // already assigned
-        DispatchDto result = dispatchService.getDispatchById(id);
+        // Promote PENDING -> ASSIGNED before notifying so dispatch state matches
+        // the fact that the driver has now been actively notified.
+        DispatchDto result = dispatchService.assignNotifyDriverOnly(id);
 
         if (result == null || result.getDriverId() == null) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -627,14 +628,28 @@ public class DispatchAdminController {
         }
 
         String ref = firstNonBlank(result.getTransportOrderId(), result.getId().toString(), "-");
-        safeNotify(
-                result.getDriverId(),
-                "ការដឹកជញ្ជូនថ្មីត្រូវបានផ្តល់ជូន",
-                "អ្នកត្រូវបានផ្តល់ការដឹកជញ្ជូនថ្មី៖ " + ref,
-                "DISPATCH",
-                String.valueOf(result.getId()));
+        NotificationDispatchResult notificationResult = notificationService.sendNotification(
+                CreateNotificationRequest.builder()
+                        .driverId(result.getDriverId())
+                        .title("New shipment assigned")
+                        .message("You have been assigned a new shipment: " + ref)
+                        .type("DISPATCH")
+                        .referenceId(String.valueOf(result.getId()))
+                        .actionLabel("View shipment")
+                        .actionUrl("/dispatches/" + result.getId())
+                        .sender("system")
+                        .build());
 
-        return ResponseEntity.ok(new ApiResponse<>(true, "បានជូនដំណឹងទៅអ្នកបើកបរដោយជោគជ័យ។", result));
+        String message = notificationResult.hasLiveDelivery()
+                ? "Driver notified and shipment marked as Assigned."
+                : "Shipment marked as Assigned. Notification was saved for the driver, but live delivery is currently unavailable.";
+
+        return ResponseEntity.ok(new ApiResponse<>(true, message, result,
+                notificationResult.hasLiveDelivery()
+                        ? null
+                        : java.util.Map.of(
+                                "notificationRecorded", notificationResult.hasRecordedDelivery(),
+                                "liveDelivery", false)));
     }
 
     @PostMapping("/{id}/assign-truck")

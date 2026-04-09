@@ -71,7 +71,7 @@ public class DispatchResponse {
                         dispatch.getTransportOrder().getCustomer() != null ?
                         dispatch.getTransportOrder().getCustomer().getName() : null)
                 .driverId(dispatch.getDriver() != null ? dispatch.getDriver().getId() : null)
-                .driverName(dispatch.getDriver() != null ? dispatch.getDriver().getName() : null)
+                .driverName(dispatch.getDriver() != null ? dispatch.getDriver().getFullName() : null)
                 .driverPhone(dispatch.getDriver() != null ? dispatch.getDriver().getPhone() : null)
                 .vehicleId(dispatch.getVehicle() != null ? dispatch.getVehicle().getId() : null)
                 .vehicleLicensePlate(dispatch.getVehicle() != null ? 

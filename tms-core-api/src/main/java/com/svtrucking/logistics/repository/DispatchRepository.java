@@ -126,7 +126,11 @@ public interface DispatchRepository
                         WHERE d.routeCode LIKE CONCAT(:prefix, '-%')
                         ORDER BY d.routeCode DESC
                         """)
-        Optional<String> findLastRouteCodeStartingWith(@Param("prefix") String prefix);
+        List<String> findRouteCodesStartingWithOrderByRouteCodeDesc(@Param("prefix") String prefix);
+
+        default Optional<String> findLastRouteCodeStartingWith(@Param("prefix") String prefix) {
+                return findRouteCodesStartingWithOrderByRouteCodeDesc(prefix).stream().findFirst();
+        }
 
         // Alternative (entity return, no native, let service map to String):
         // Optional<Dispatch> findTopByRouteCodeStartingWithOrderByRouteCodeDesc(String

@@ -2,27 +2,37 @@ package com.svtrucking.logistics.repository;
 
 import com.svtrucking.logistics.model.VehicleDriver;
 import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface VehicleDriverRepository extends JpaRepository<VehicleDriver, Long> {
 
-    @Query("SELECT vd FROM VehicleDriver vd WHERE vd.driver.id = :driverId AND vd.revokedAt IS"
-            + " NULL")
-    Optional<VehicleDriver> findActiveByDriverId(@Param("driverId") Long driverId);
+    List<VehicleDriver> findByDriver_IdAndRevokedAtIsNullOrderByAssignedAtDescIdDesc(Long driverId);
 
-    @Query("SELECT vd FROM VehicleDriver vd WHERE vd.vehicle.id = :vehicleId AND vd.revokedAt IS NULL")
-    Optional<VehicleDriver> findActiveByVehicleId(@Param("vehicleId") Long vehicleId);
+    List<VehicleDriver> findByVehicle_IdAndRevokedAtIsNullOrderByAssignedAtDescIdDesc(Long vehicleId);
 
-    @Query("SELECT vd FROM VehicleDriver vd WHERE vd.driver.id = :driverId AND vd.vehicle.id = :vehicleId AND vd.revokedAt IS NULL")
-    Optional<VehicleDriver> findActiveByDriverIdAndVehicleId(
-            @Param("driverId") Long driverId,
-            @Param("vehicleId") Long vehicleId);
+    List<VehicleDriver> findByDriver_IdAndVehicle_IdAndRevokedAtIsNullOrderByAssignedAtDescIdDesc(
+            Long driverId,
+            Long vehicleId);
+
+    default Optional<VehicleDriver> findActiveByDriverId(Long driverId) {
+        return findByDriver_IdAndRevokedAtIsNullOrderByAssignedAtDescIdDesc(driverId).stream().findFirst();
+    }
+
+    default Optional<VehicleDriver> findActiveByVehicleId(Long vehicleId) {
+        return findByVehicle_IdAndRevokedAtIsNullOrderByAssignedAtDescIdDesc(vehicleId).stream().findFirst();
+    }
+
+    default Optional<VehicleDriver> findActiveByDriverIdAndVehicleId(Long driverId, Long vehicleId) {
+        return findByDriver_IdAndVehicle_IdAndRevokedAtIsNullOrderByAssignedAtDescIdDesc(driverId, vehicleId)
+                .stream()
+                .findFirst();
+    }
 
     @Query("SELECT vd FROM VehicleDriver vd WHERE vd.driver.id IN :driverIds AND vd.revokedAt IS NULL")
     List<VehicleDriver> findActiveByDriverIdIn(@Param("driverIds") java.util.Set<Long> driverIds);
