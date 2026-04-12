@@ -13,12 +13,12 @@
 
 set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-BUNDLE="$SCRIPT_DIR/sv-tms-github.bundle"
+REPO_DIR="$SCRIPT_DIR"
 REMOTE="https://YOUR_GITHUB_USERNAME:YOUR_GITHUB_TOKEN_HERE@github.com/svtrucking/sv-tms.git"
 
-# Verify bundle exists
-if [[ ! -f "$BUNDLE" ]]; then
-  echo "❌  Bundle not found: $BUNDLE"
+# Verify repository exists
+if [[ ! -d "$REPO_DIR/.git" ]]; then
+  echo "❌  Git repository not found: $REPO_DIR/.git"
   echo "    Make sure you are running this from the sv-tms project folder."
   exit 1
 fi
@@ -30,14 +30,14 @@ echo "  Target: https://github.com/svtrucking/sv-tms"
 echo "================================================================"
 echo ""
 
-TMPDIR_PUSH="$(mktemp -d)"
-trap 'rm -rf "$TMPDIR_PUSH"' EXIT
+cd "$REPO_DIR"
 
-echo "▶ Cloning from bundle..."
-git clone "$BUNDLE" "$TMPDIR_PUSH/sv-tms"
-
-cd "$TMPDIR_PUSH/sv-tms"
-git remote set-url origin "$REMOTE"
+echo "▶ Configuring remote..."
+if git remote get-url origin >/dev/null 2>&1; then
+  git remote set-url origin "$REMOTE"
+else
+  git remote add origin "$REMOTE"
+fi
 
 echo "▶ Pushing to GitHub (this may take 1-2 minutes)..."
 git push -u origin main --force

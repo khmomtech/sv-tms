@@ -83,13 +83,17 @@ sv-driver-app-firebase-adminsdk.json
 coverage/
 test-results/
 playwright-report/
+.playwright-cli/
 .coverage
 .pytest_cache/
 .tox/
 
 # Backup files
+*.old
 *.bak
 *.backup
+*.orig
+* copy.*
 *~
 
 # Archives
@@ -147,7 +151,15 @@ nbproject/
 
 # Application specific
 uploads/
+tms-core-api/uploads/
+tms-auth-api/uploads/
+tms-driver-app-api/uploads/
+tms-safety-api/uploads/
 backups/
+.local-dev/
+.local-run/
+spool/
+**/spool/
 *.sql.gz
 knblogdb_*.sql
 svlogistics_tms_db_*.sql
@@ -159,6 +171,7 @@ svtms_*_backup.sql
 pubspec.lock
 .flutter-plugins
 .flutter-plugins-dependencies
+Pods/
 
 # Java specific
 *.class
@@ -181,3 +194,6 @@ backend-*.log
 infra/deploy_key
 infra/.env
 **/.git_bak
+
+# Claude Code — developer-local overrides (never share, contains absolute paths)
+.claude/settings.local.json

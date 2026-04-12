@@ -95,7 +95,7 @@ const API = 'https://api.github.com';
 
 const SKIP_DIRS  = new Set(['.git', 'node_modules', 'target', 'build', 'dist', '__pycache__', '.gradle', '.idea', '.vscode', 'out', 'bin', '.angular', 'vendor', 'Pods', '.dart_tool', '.pub-cache']);
 const SKIP_EXTS  = new Set(['.class', '.jar', '.war', '.ear', '.zip', '.tar', '.gz', '.bz2', '.7z', '.rar', '.DS_Store', '.ico_cache', '.bundle', '.apk', '.ipa', '.exe', '.dll', '.so', '.dylib', '.pdf', '.png', '.jpg', '.jpeg', '.gif', '.ico', '.mp4', '.mp3', '.mov', '.avi']);
-const SKIP_FILES = new Set(['.DS_Store', 'Thumbs.db', 'OPEN_IN_CHROME_TO_PUSH.html', 'sv-tms-github.bundle', 'PUSH_TO_GITHUB.sh', 'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml']);
+const SKIP_FILES = new Set(['.DS_Store', 'Thumbs.db', 'OPEN_IN_CHROME_TO_PUSH.html', 'PUSH_TO_GITHUB.sh', 'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml']);
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB max per file (GitHub blob API limit is 100MB but large files are slow)
 
 let allFiles = [];
