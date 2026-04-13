@@ -3,6 +3,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, HostListener, inject, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { RouterModule, ActivatedRoute } from '@angular/router';
 
 import type { Item } from '../../../models/item.model';
@@ -20,10 +21,11 @@ interface SortConfig {
   standalone: true,
   templateUrl: './item.component.html',
   styleUrls: ['./item.component.css'],
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, TranslateModule],
 })
 export class ItemComponent implements OnInit {
   private confirm = inject(ConfirmService);
+  private translate = inject(TranslateService);
   items: Item[] = [];
   filteredItems: Item[] = [];
   selectedItem: Item = this.createDefaultItem();
@@ -38,6 +40,9 @@ export class ItemComponent implements OnInit {
   totalPages = 1;
   Math = Math;
   isLoading = false;
+  showFilters = true;
+  errorMessage = '';
+  successMessage = '';
   sortConfig: SortConfig = { column: '', direction: '' };
 
   // Page size options
@@ -115,6 +120,22 @@ export class ItemComponent implements OnInit {
 
   get totalItems(): number {
     return this.filteredItems.length;
+  }
+
+  get totalInventoryCount(): number {
+    return this.items.length;
+  }
+
+  get activeItemsCount(): number {
+    return this.items.filter((item) => item.status === 1).length;
+  }
+
+  get inactiveItemsCount(): number {
+    return this.items.filter((item) => item.status !== 1).length;
+  }
+
+  get hasActiveFilters(): boolean {
+    return !!(this.keyword.trim() || this.filterStatus.trim() || this.filterType.trim());
   }
 
   get startItem(): number {
@@ -196,7 +217,7 @@ export class ItemComponent implements OnInit {
 
   private applySorting(): void {
     if (!this.sortConfig.column || !this.sortConfig.direction) {
-      this.filteredItems = [...this.items];
+      this.filteredItems = [...this.filteredItems];
     } else {
       this.filteredItems.sort((a, b) => {
         const aValue = this.getSortValue(a, this.sortConfig.column);
@@ -261,6 +282,7 @@ export class ItemComponent implements OnInit {
 
   loadItems(): void {
     this.isLoading = true;
+    this.errorMessage = '';
     this.itemService.getAllItems().subscribe({
       next: (res) => {
         this.items = res || [];
@@ -270,6 +292,7 @@ export class ItemComponent implements OnInit {
       },
       error: (err) => {
         console.error('Load items error:', err);
+        this.errorMessage = err.message || 'Failed to load items.';
         this.isLoading = false;
       },
     });
@@ -303,12 +326,27 @@ export class ItemComponent implements OnInit {
     this.searchItems();
   }
 
+  toggleFilters(): void {
+    this.showFilters = !this.showFilters;
+  }
+
+  isItemFormValid(): boolean {
+    return !!(
+      this.selectedItem.itemCode?.trim() &&
+      this.selectedItem.itemName?.trim() &&
+      typeof this.selectedItem.quantity === 'number' &&
+      this.selectedItem.quantity > 0
+    );
+  }
+
   toggleColumnVisibility(column: string): void {
     this.visibleColumns[column as keyof typeof this.visibleColumns] =
       !this.visibleColumns[column as keyof typeof this.visibleColumns];
   }
 
   openItemModal(item?: Item): void {
+    this.errorMessage = '';
+    this.successMessage = '';
     this.selectedItem = item ? { ...item } : this.createDefaultItem();
     this.isModalOpen = true;
   }
@@ -318,7 +356,14 @@ export class ItemComponent implements OnInit {
   }
 
   saveItem(): void {
+    if (!this.isItemFormValid()) {
+      this.errorMessage = this.translate.instant('items.messages.form_invalid');
+      return;
+    }
+
     this.isLoading = true;
+    this.errorMessage = '';
+    this.successMessage = '';
     const op = this.selectedItem.id
       ? this.itemService.updateItem(this.selectedItem.id, this.selectedItem)
       : this.itemService.createItem(this.selectedItem);
@@ -327,10 +372,14 @@ export class ItemComponent implements OnInit {
       next: () => {
         this.loadItems();
         this.closeModal();
+        this.successMessage = this.selectedItem.id
+          ? this.translate.instant('items.messages.updated_success')
+          : this.translate.instant('items.messages.created_success');
         this.isLoading = false;
       },
       error: (err) => {
         console.error('Save error:', err);
+        this.errorMessage = err.message || 'Failed to save item.';
         this.isLoading = false;
       },
     });
@@ -341,13 +390,17 @@ export class ItemComponent implements OnInit {
     if (!(await this.confirm.confirm('Delete this item?'))) return;
 
     this.isLoading = true;
+    this.errorMessage = '';
+    this.successMessage = '';
     this.itemService.deleteItem(id).subscribe({
       next: () => {
         this.loadItems();
+        this.successMessage = this.translate.instant('items.messages.deleted_success');
         this.isLoading = false;
       },
       error: (err) => {
         console.error('Delete error:', err);
+        this.errorMessage = err.message || 'Failed to delete item.';
         this.isLoading = false;
       },
     });
@@ -357,16 +410,20 @@ export class ItemComponent implements OnInit {
     if (!(await this.confirm.confirm('Delete all selected items?'))) return;
 
     this.isLoading = true;
+    this.errorMessage = '';
+    this.successMessage = '';
     const deletions = this.selectedIds.map((id) => firstValueFrom(this.itemService.deleteItem(id)));
 
     Promise.all(deletions)
       .then(() => {
         this.loadItems();
         this.selectedIds = [];
+        this.successMessage = this.translate.instant('items.messages.bulk_deleted_success');
         this.isLoading = false;
       })
       .catch((err) => {
         console.error('Bulk delete failed:', err);
+        this.errorMessage = err.message || 'Failed to delete selected items.';
         this.isLoading = false;
       });
   }
@@ -387,6 +444,10 @@ export class ItemComponent implements OnInit {
 
   getColumnDisplayName(key: string): string {
     return key.replace(/([A-Z])/g, ' $1').trim();
+  }
+
+  formatItemType(type?: string | null): string {
+    return type ? type.replace(/_/g, ' ') : 'Uncategorized';
   }
 
   @HostListener('document:click', ['$event'])

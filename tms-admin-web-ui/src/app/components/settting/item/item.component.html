@@ -1,104 +1,100 @@
 <div class="container p-4 mx-auto max-w-7xl">
   <div class="flex flex-col gap-6">
+    <div
+      *ngIf="errorMessage"
+      class="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+    >
+      {{ errorMessage }}
+    </div>
+
+    <div
+      *ngIf="successMessage"
+      class="rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700"
+    >
+      {{ successMessage }}
+    </div>
+
     <!-- Header -->
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-      <h2 class="text-2xl font-bold text-gray-900">Item Management</h2>
+      <h2 class="text-2xl font-bold text-gray-900">{{ 'items.page_title' | translate }}</h2>
       <div class="flex gap-2">
         <button
           (click)="openItemModal()"
           class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
         >
           <i class="mr-2 fas fa-plus"></i>
-          Add Item
+          {{ 'items.new_item' | translate }}
         </button>
       </div>
     </div>
 
     <!-- Filters & Controls -->
-    <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-      <div class="flex flex-col gap-4 lg:flex-row lg:items-end">
-        <!-- Search and Filters -->
-        <div class="flex flex-col gap-4 sm:flex-row sm:flex-1">
-          <div class="flex-1 min-w-0">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Search</label>
+    <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+      <div class="flex items-center justify-between border-b border-gray-200 px-5 py-3">
+        <h3 class="text-xl font-semibold text-gray-900">{{ 'items.search_filter' | translate }}</h3>
+        <button
+          (click)="toggleFilters()"
+          class="inline-flex items-center rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+        >
+          <i class="fas fa-filter mr-2"></i>
+          {{ (showFilters ? 'items.hide_filters' : 'items.show_filters') | translate }}
+        </button>
+      </div>
+
+      <div *ngIf="showFilters" class="px-5 py-4">
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div>
+            <label class="mb-1.5 block text-sm font-semibold text-gray-700">{{ 'common.search' | translate }}</label>
             <div class="relative">
-              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <div class="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
                 <i class="fas fa-search text-gray-400"></i>
               </div>
               <input
                 [(ngModel)]="keyword"
-                (input)="searchItems()"
-                placeholder="Search by code, name..."
-                class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                [placeholder]="'items.placeholders.search' | translate"
+                class="block w-full rounded-xl border border-gray-300 bg-white py-2.5 pl-11 pr-4 text-base text-gray-700 placeholder-gray-400 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/10"
               />
             </div>
           </div>
 
-          <div class="sm:w-40">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+          <div>
+            <label class="mb-1.5 block text-sm font-semibold text-gray-700">{{ 'common.status' | translate }}</label>
             <select
               [(ngModel)]="filterStatus"
-              (change)="searchItems()"
-              class="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              class="block w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-base text-gray-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/10"
             >
-              <option value="">All Status</option>
-              <option value="1">Active</option>
-              <option value="0">Inactive</option>
+              <option value="">{{ 'items.filters.all_status' | translate }}</option>
+              <option value="1">{{ 'items.status.active' | translate }}</option>
+              <option value="0">{{ 'items.status.inactive' | translate }}</option>
             </select>
           </div>
 
-          <div class="sm:w-48">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Type</label>
+          <div>
+            <label class="mb-1.5 block text-sm font-semibold text-gray-700">{{ 'common.type' | translate }}</label>
             <select
               [(ngModel)]="filterType"
-              (change)="searchItems()"
-              class="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              class="block w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-base text-gray-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/10"
             >
-              <option value="">All Types</option>
+              <option value="">{{ 'items.filters.all_types' | translate }}</option>
               <option *ngFor="let t of availableTypes" [value]="t">{{ t }}</option>
             </select>
           </div>
-
-          <div class="flex gap-2">
-            <button
-              (click)="clearFilters()"
-              class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              <i class="fas fa-times"></i>
-            </button>
-          </div>
         </div>
 
-        <!-- Column Visibility Toggle -->
-        <div class="lg:w-auto">
-          <label class="block text-sm font-medium text-gray-700 mb-1">Columns</label>
-          <div class="relative">
-            <button
-              (click)="toggleDropdown('columns')"
-              class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              <i class="fas fa-columns"></i>
-              <i class="ml-2 fas fa-chevron-down"></i>
-            </button>
-            <div
-              *ngIf="dropdownOpen === 'columns'"
-              class="absolute right-0 z-10 mt-2 w-56 bg-white shadow-lg rounded-md ring-1 ring-black ring-opacity-5"
-            >
-              <div class="p-2">
-                <div *ngFor="let col of visibleColumns | keyvalue" class="flex items-center">
-                  <input
-                    type="checkbox"
-                    [checked]="col.value"
-                    (change)="toggleColumnVisibility(col.key)"
-                    class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <label class="ml-2 block text-sm text-gray-900 capitalize">
-                    {{ getColumnDisplayName(col.key) }}
-                  </label>
-                </div>
-              </div>
-            </div>
-          </div>
+        <div class="mt-4 flex flex-wrap items-center gap-3">
+          <button
+            (click)="searchItems()"
+            class="inline-flex items-center rounded-xl bg-blue-600 px-5 py-2.5 text-base font-semibold text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          >
+            <i class="fas fa-search mr-3"></i>
+            {{ 'common.search' | translate }}
+          </button>
+          <button
+            (click)="clearFilters()"
+            class="inline-flex items-center rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-base font-semibold text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          >
+            {{ 'common.reset' | translate }}
+          </button>
         </div>
       </div>
     </div>
@@ -110,14 +106,14 @@
     >
       <div class="flex items-center gap-4">
         <span class="text-sm font-medium text-gray-700">
-          {{ selectedIds.length }} item{{ selectedIds.length > 1 ? 's' : '' }} selected
+          {{ selectedIds.length }} {{ 'items.selected_count' | translate:{ count: selectedIds.length } }}
         </span>
         <button
           (click)="deleteSelectedItems()"
           class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
         >
           <i class="fas fa-trash-alt mr-2"></i>
-          Delete Selected
+          {{ 'items.delete_selected' | translate }}
         </button>
       </div>
     </div>
@@ -128,19 +124,19 @@
       <div *ngIf="isLoading" class="flex items-center justify-center py-12">
         <div class="flex items-center space-x-2">
           <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-          <span class="text-gray-600">Loading items...</span>
+          <span class="text-gray-600">{{ 'items.loading' | translate }}</span>
         </div>
       </div>
 
       <!-- Empty State -->
       <div *ngIf="!isLoading && totalItems === 0" class="text-center py-12">
         <i class="fas fa-box-open text-gray-400 text-4xl mb-4"></i>
-        <h3 class="text-lg font-medium text-gray-900 mb-2">No items found</h3>
+        <h3 class="text-lg font-medium text-gray-900 mb-2">{{ 'items.empty.title' | translate }}</h3>
         <p class="text-gray-500 mb-4">
           {{
             keyword || filterStatus || filterType
-              ? 'Try adjusting your filters or search terms.'
-              : 'Get started by adding your first item.'
+              ? ('items.empty.adjust_filters' | translate)
+              : ('items.empty.get_started' | translate)
           }}
         </p>
         <button
@@ -149,12 +145,12 @@
           class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
         >
           <i class="fas fa-plus mr-2"></i>
-          Add Item
+          {{ 'items.new_item' | translate }}
         </button>
       </div>
 
       <!-- Table -->
-      <div *ngIf="!isLoading && totalItems > 0" class="overflow-x-auto">
+      <div *ngIf="!isLoading && totalItems > 0" class="table-container overflow-x-auto">
         <table class="min-w-full divide-y divide-gray-200">
           <thead class="bg-gray-50">
             <tr>
@@ -189,7 +185,7 @@
                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
               >
                 <div class="flex items-center space-x-1">
-                  <span>Code</span>
+                  <span>{{ 'items.table.code' | translate }}</span>
                   <i [class]="getSortIcon('itemCode')"></i>
                 </div>
               </th>
@@ -199,7 +195,7 @@
                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
               >
                 <div class="flex items-center space-x-1">
-                  <span>Name</span>
+                  <span>{{ 'common.name' | translate }}</span>
                   <i [class]="getSortIcon('itemName')"></i>
                 </div>
               </th>
@@ -209,7 +205,7 @@
                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
               >
                 <div class="flex items-center space-x-1">
-                  <span>Khmer Name</span>
+                  <span>{{ 'items.table.khmer_name' | translate }}</span>
                   <i [class]="getSortIcon('itemNameKh')"></i>
                 </div>
               </th>
@@ -219,7 +215,7 @@
                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
               >
                 <div class="flex items-center space-x-1">
-                  <span>Type</span>
+                  <span>{{ 'common.type' | translate }}</span>
                   <i [class]="getSortIcon('itemType')"></i>
                 </div>
               </th>
@@ -229,7 +225,7 @@
                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
               >
                 <div class="flex items-center space-x-1">
-                  <span>Quantity</span>
+                  <span>{{ 'items.table.quantity' | translate }}</span>
                   <i [class]="getSortIcon('quantity')"></i>
                 </div>
               </th>
@@ -239,7 +235,7 @@
                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
               >
                 <div class="flex items-center space-x-1">
-                  <span>Unit</span>
+                  <span>{{ 'items.table.unit' | translate }}</span>
                   <i [class]="getSortIcon('unit')"></i>
                 </div>
               </th>
@@ -249,7 +245,7 @@
                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
               >
                 <div class="flex items-center space-x-1">
-                  <span>Size</span>
+                  <span>{{ 'items.table.size' | translate }}</span>
                   <i [class]="getSortIcon('size')"></i>
                 </div>
               </th>
@@ -259,7 +255,7 @@
                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
               >
                 <div class="flex items-center space-x-1">
-                  <span>Weight</span>
+                  <span>{{ 'items.table.weight' | translate }}</span>
                   <i [class]="getSortIcon('weight')"></i>
                 </div>
               </th>
@@ -269,7 +265,7 @@
                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
               >
                 <div class="flex items-center space-x-1">
-                  <span>Pallets</span>
+                  <span>{{ 'items.table.pallets' | translate }}</span>
                   <i [class]="getSortIcon('pallets')"></i>
                 </div>
               </th>
@@ -279,7 +275,7 @@
                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
               >
                 <div class="flex items-center space-x-1">
-                  <span>Pallet Type</span>
+                  <span>{{ 'items.table.pallet_type' | translate }}</span>
                   <i [class]="getSortIcon('palletType')"></i>
                 </div>
               </th>
@@ -289,7 +285,7 @@
                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
               >
                 <div class="flex items-center space-x-1">
-                  <span>Sort</span>
+                  <span>{{ 'items.table.sort_order' | translate }}</span>
                   <i [class]="getSortIcon('sortOrder')"></i>
                 </div>
               </th>
@@ -299,14 +295,14 @@
                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
               >
                 <div class="flex items-center space-x-1">
-                  <span>Status</span>
+                  <span>{{ 'common.status' | translate }}</span>
                   <i [class]="getSortIcon('status')"></i>
                 </div>
               </th>
               <th
                 class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
               >
-                Actions
+                {{ 'common.actions' | translate }}
               </th>
             </tr>
           </thead>
@@ -352,7 +348,7 @@
                     'bg-gray-100 text-gray-800': !item.itemType,
                   }"
                 >
-                  {{ item.itemType || 'N/A' }}
+                  {{ item.itemType || ('common.not_available' | translate) }}
                 </span>
               </td>
               <td
@@ -404,20 +400,20 @@
                     item.status === 1 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                   "
                 >
-                  {{ item.status === 1 ? 'Active' : 'Inactive' }}
+                  {{ item.status === 1 ? ('items.status.active' | translate) : ('items.status.inactive' | translate) }}
                 </span>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <div class="relative">
                   <button
                     (click)="toggleDropdown(item.id!); $event.stopPropagation()"
-                    class="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100"
+                    class="toggle-dropdown text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100"
                   >
                     <i class="fas fa-ellipsis-v"></i>
                   </button>
                   <div
                     *ngIf="dropdownOpen === item.id"
-                    class="absolute right-0 z-10 mt-2 w-48 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5"
+                    class="dropdown-menu absolute right-0 z-10 mt-2 w-48 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5"
                   >
                     <div class="py-1">
                       <button
@@ -425,14 +421,14 @@
                         class="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                       >
                         <i class="fas fa-edit mr-3"></i>
-                        Edit
+                        {{ 'common.edit' | translate }}
                       </button>
                       <button
                         (click)="deleteItem(item.id!)"
                         class="flex items-center w-full px-4 py-2 text-sm text-red-700 hover:bg-red-100"
                       >
                         <i class="fas fa-trash-alt mr-3"></i>
-                        Delete
+                        {{ 'common.delete' | translate }}
                       </button>
                     </div>
                   </div>
@@ -452,7 +448,7 @@
       <div class="flex items-center justify-between">
         <!-- Page Size Selector -->
         <div class="flex items-center space-x-2">
-          <label class="text-sm text-gray-700">Show:</label>
+          <label class="text-sm text-gray-700">{{ 'common.show' | translate }}:</label>
           <select
             #pageSizeSelect
             [(ngModel)]="pageSize"
@@ -461,14 +457,12 @@
           >
             <option *ngFor="let size of pageSizeOptions" [value]="size">{{ size }}</option>
           </select>
-          <span class="text-sm text-gray-700">per page</span>
+          <span class="text-sm text-gray-700">{{ 'items.per_page' | translate }}</span>
         </div>
 
         <!-- Pagination Info -->
         <div class="text-sm text-gray-700">
-          Showing <span class="font-medium">{{ startItem }}</span> to
-          <span class="font-medium">{{ endItem }}</span> of
-          <span class="font-medium">{{ totalItems }}</span> results
+          {{ 'items.pagination.showing' | translate:{ start: startItem, end: endItem, total: totalItems } }}
         </div>
 
         <!-- Page Navigation -->
@@ -547,13 +541,13 @@
           <div class="sm:flex sm:items-start">
             <div class="mt-3 text-center sm:mt-0 sm:text-left w-full">
               <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4" id="modal-title">
-                {{ selectedItem.id ? 'Edit' : 'Create' }} Item
+                {{ (selectedItem.id ? 'items.modal.edit_item' : 'items.modal.create_item') | translate }}
               </h3>
 
               <form #itemForm="ngForm" (ngSubmit)="saveItem()" class="space-y-4">
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
-                    <label class="block text-sm font-medium text-gray-700">Item Code *</label>
+                    <label class="block text-sm font-medium text-gray-700">{{ 'items.form.item_code' | translate }} *</label>
                     <input
                       name="itemCode"
                       [(ngModel)]="selectedItem.itemCode"
@@ -562,7 +556,7 @@
                     />
                   </div>
                   <div>
-                    <label class="block text-sm font-medium text-gray-700">Item Name *</label>
+                    <label class="block text-sm font-medium text-gray-700">{{ 'items.form.item_name' | translate }} *</label>
                     <input
                       name="itemName"
                       [(ngModel)]="selectedItem.itemName"
@@ -571,7 +565,7 @@
                     />
                   </div>
                   <div>
-                    <label class="block text-sm font-medium text-gray-700">Khmer Name</label>
+                    <label class="block text-sm font-medium text-gray-700">{{ 'items.form.khmer_name' | translate }}</label>
                     <input
                       name="itemNameKh"
                       [(ngModel)]="selectedItem.itemNameKh"
@@ -579,18 +573,18 @@
                     />
                   </div>
                   <div>
-                    <label class="block text-sm font-medium text-gray-700">Item Type</label>
+                    <label class="block text-sm font-medium text-gray-700">{{ 'items.form.item_type' | translate }}</label>
                     <select
                       name="itemType"
                       [(ngModel)]="selectedItem.itemType"
                       class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     >
-                      <option value="">Select Type</option>
+                      <option value="">{{ 'items.form.select_type' | translate }}</option>
                       <option *ngFor="let type of availableTypes" [value]="type">{{ type }}</option>
                     </select>
                   </div>
                   <div>
-                    <label class="block text-sm font-medium text-gray-700">Quantity *</label>
+                    <label class="block text-sm font-medium text-gray-700">{{ 'items.table.quantity' | translate }} *</label>
                     <input
                       name="quantity"
                       type="number"
@@ -600,7 +594,7 @@
                     />
                   </div>
                   <div>
-                    <label class="block text-sm font-medium text-gray-700">Unit</label>
+                    <label class="block text-sm font-medium text-gray-700">{{ 'items.table.unit' | translate }}</label>
                     <input
                       name="unit"
                       [(ngModel)]="selectedItem.unit"
@@ -608,7 +602,7 @@
                     />
                   </div>
                   <div>
-                    <label class="block text-sm font-medium text-gray-700">Size</label>
+                    <label class="block text-sm font-medium text-gray-700">{{ 'items.table.size' | translate }}</label>
                     <input
                       name="size"
                       [(ngModel)]="selectedItem.size"
@@ -616,7 +610,7 @@
                     />
                   </div>
                   <div>
-                    <label class="block text-sm font-medium text-gray-700">Weight</label>
+                    <label class="block text-sm font-medium text-gray-700">{{ 'items.table.weight' | translate }}</label>
                     <input
                       name="weight"
                       [(ngModel)]="selectedItem.weight"
@@ -624,7 +618,7 @@
                     />
                   </div>
                   <div>
-                    <label class="block text-sm font-medium text-gray-700">Pallets</label>
+                    <label class="block text-sm font-medium text-gray-700">{{ 'items.table.pallets' | translate }}</label>
                     <input
                       name="pallets"
                       [(ngModel)]="selectedItem.pallets"
@@ -632,7 +626,7 @@
                     />
                   </div>
                   <div>
-                    <label class="block text-sm font-medium text-gray-700">Pallet Type</label>
+                    <label class="block text-sm font-medium text-gray-700">{{ 'items.table.pallet_type' | translate }}</label>
                     <input
                       name="palletType"
                       [(ngModel)]="selectedItem.palletType"
@@ -640,7 +634,7 @@
                     />
                   </div>
                   <div>
-                    <label class="block text-sm font-medium text-gray-700">Sort Order</label>
+                    <label class="block text-sm font-medium text-gray-700">{{ 'items.table.sort_order' | translate }}</label>
                     <input
                       name="sortOrder"
                       type="number"
@@ -649,14 +643,14 @@
                     />
                   </div>
                   <div>
-                    <label class="block text-sm font-medium text-gray-700">Status</label>
+                    <label class="block text-sm font-medium text-gray-700">{{ 'common.status' | translate }}</label>
                     <select
                       name="status"
                       [(ngModel)]="selectedItem.status"
                       class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     >
-                      <option [ngValue]="1">Active</option>
-                      <option [ngValue]="0">Inactive</option>
+                      <option [ngValue]="1">{{ 'items.status.active' | translate }}</option>
+                      <option [ngValue]="0">{{ 'items.status.inactive' | translate }}</option>
                     </select>
                   </div>
                 </div>
@@ -668,21 +662,21 @@
           <button
             type="submit"
             (click)="saveItem()"
-            [disabled]="isLoading"
+            [disabled]="isLoading || !isItemFormValid()"
             class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50"
           >
             <span *ngIf="isLoading" class="inline-flex items-center">
               <i class="animate-spin fas fa-spinner mr-2"></i>
-              Saving...
+              {{ 'items.messages.saving' | translate }}
             </span>
-            <span *ngIf="!isLoading">{{ selectedItem.id ? 'Update' : 'Create' }}</span>
+            <span *ngIf="!isLoading">{{ (selectedItem.id ? 'items.actions.update' : 'items.actions.create') | translate }}</span>
           </button>
           <button
             type="button"
             (click)="closeModal()"
             class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
           >
-            Cancel
+            {{ 'common.cancel' | translate }}
           </button>
         </div>
       </div>
