@@ -31,12 +31,17 @@ class CertificatePinningConfig {
   /// # Method 3: From certificate file
   /// openssl x509 -in certificate.crt -fingerprint -sha256 -noout
   /// ```
+  // IMPORTANT — Let's Encrypt certs rotate every 90 days.
+  // Leaf cert below expires 2026-06-23. Before that date:
+  //   1. Run: echo | openssl s_client -connect svtms.svtrucking.biz:443 2>/dev/null | openssl x509 -fingerprint -sha256 -noout
+  //   2. Replace the first entry with the new fingerprint.
+  //   3. Keep the intermediate CA pin (second entry) as backup — it changes less often.
+  //   4. Ship a new app release before the cert expires.
   static const List<String> productionCertificates = [
-    // TODO: Add production server certificate SHA-256 fingerprints
-    // Example format: 'AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99'
-    
-    // Example for common CAs (replace with your actual certificates):
-    // 'E7:2E:4E:4B:E6:7D:8E:7E:9A:0E:6C:7D:F6:3E:8E:4E:7E:9A:0E:6C:7D:F6:3E:8E:4E:7E:9A:0E:6C:7D:F6:3E',
+    // Leaf cert — svtms.svtrucking.biz (Let's Encrypt, expires 2026-06-23)
+    'D9:65:50:BE:8C:17:E3:77:33:D8:BD:23:33:CA:D3:89:98:F4:C2:2C:A9:AA:89:0A:3B:A1:3B:4F:B0:03:3C:B5',
+    // Intermediate CA — Let's Encrypt E8 (backup pin; survives leaf rotation)
+    '83:62:4F:D3:38:C8:D9:B0:23:C1:8A:67:CB:7A:9C:05:19:DA:43:D1:17:75:B4:C6:CB:DA:D4:5C:3D:99:7C:52',
   ];
   
   // ============================================================

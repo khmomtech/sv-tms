@@ -31,9 +31,9 @@ Run in this order:
 4. dynamic driver-policy smoke
 
 ```bash
-./deploy/post_deploy_microservices_routing_smoke_vps.sh ...
-./deploy/post_deploy_openapi_split_smoke_vps.sh ...
-./deploy/post_deploy_dynamic_driver_policy_smoke_vps.sh ...
+infra/scripts/post_deploy_smoke.sh ...
+infra/scripts/post_deploy_smoke.sh ...
+infra/scripts/post_deploy_smoke.sh ...
 ```
 
 Deployment is failed if any marker is missing:
@@ -68,7 +68,7 @@ Deployment is failed if any marker is missing:
 ## Safe Rollback (If Needed)
 
 ```bash
-sudo /opt/sv-tms/deploy/prod_rollback_vps.sh
+bash DEPLOY_TO_VPS.sh  # or: /rollback <service>
 sudo systemctl restart tms-auth-api
 sudo systemctl restart tms-driver-app-api
 sudo systemctl reload nginx
@@ -77,6 +77,6 @@ sudo systemctl reload nginx
 ## Source Of Truth
 
 For detailed ops commands always use:
-- `/Users/sotheakh/Documents/develop/sv-tms/docs/deployment/VPS_MAINTENANCE_AND_MONITORING_RUNBOOK.md`
-- `/Users/sotheakh/Documents/develop/sv-tms/deploy/README_DEPLOY.md`
-- `/Users/sotheakh/Documents/develop/sv-tms/deploy/DEPLOYMENT_HANDBOOK.md`
+- `docs/deployment/VPS_MAINTENANCE_AND_MONITORING_RUNBOOK.md`
+- `infra/README.md`
+- `infra/README.md`

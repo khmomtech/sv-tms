@@ -102,6 +102,9 @@
           <div class="flex-1">
             <div class="font-medium text-gray-900">{{ getDriverDisplayName(driver) }}</div>
             <div *ngIf="driver.phone" class="text-sm text-gray-500">{{ driver.phone }}</div>
+            <div *ngIf="getDriverPlate(driver)" class="text-sm text-gray-500">
+              Plate: {{ getDriverPlate(driver) }}
+            </div>
           </div>
           <div
             *ngIf="showStatus && driver.status"
@@ -138,6 +141,9 @@
         </div>
         <div *ngIf="selectedDriver.phone" class="text-xs text-gray-500">
           {{ selectedDriver.phone }}
+        </div>
+        <div *ngIf="getDriverPlate(selectedDriver)" class="text-xs text-gray-500">
+          Plate: {{ getDriverPlate(selectedDriver) }}
         </div>
       </div>
       <button

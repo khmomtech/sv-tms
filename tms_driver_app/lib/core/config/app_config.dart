@@ -10,6 +10,8 @@ class AppConfig {
       String.fromEnvironment('API_BASE_URL', defaultValue: '');
   static const String _envWsBaseUrl =
       String.fromEnvironment('WS_BASE_URL', defaultValue: '');
+  static const bool reviewerMode =
+      bool.fromEnvironment('REVIEWER_MODE', defaultValue: false);
 
   // API Configuration
   static String get apiBaseUrl {
@@ -33,7 +35,7 @@ class AppConfig {
   static bool get enablePerformanceLogging => !kReleaseMode;
   static bool get enableCrashReporting => kReleaseMode;
   static bool get requireApprovedDevice =>
-      kReleaseMode ||
+      (kReleaseMode && !reviewerMode) ||
       const bool.fromEnvironment(
         'REQUIRE_DEVICE_APPROVAL',
         defaultValue: false,

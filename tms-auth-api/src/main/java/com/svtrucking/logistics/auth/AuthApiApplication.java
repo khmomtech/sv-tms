@@ -8,6 +8,7 @@ import com.svtrucking.logistics.config.LocalizationConfig;
 import com.svtrucking.logistics.config.PasswordEncoderConfig;
 import com.svtrucking.logistics.repository.DeviceRegisterRepository;
 import com.svtrucking.logistics.repository.DriverRepository;
+import com.svtrucking.logistics.repository.AppVersionRepository;
 import com.svtrucking.logistics.repository.PasswordResetTokenRepository;
 import com.svtrucking.logistics.repository.PermissionRepository;
 import com.svtrucking.logistics.repository.RefreshTokenRepository;
@@ -18,10 +19,12 @@ import com.svtrucking.logistics.security.JwtAuthFilter;
 import com.svtrucking.logistics.security.JwtUtil;
 import com.svtrucking.logistics.service.CustomUserDetailsService;
 import com.svtrucking.logistics.service.DeviceRegistrationService;
+import com.svtrucking.logistics.service.AppVersionService;
 import com.svtrucking.logistics.service.PasswordResetService;
 import com.svtrucking.logistics.service.RefreshTokenService;
 import com.svtrucking.logistics.service.UserPermissionService;
 import com.svtrucking.logistics.service.LocalizedMessageService;
+import com.svtrucking.logistics.security.DriverAppVersionEnforcementFilter;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Import;
@@ -36,6 +39,7 @@ import org.springframework.boot.autoconfigure.domain.EntityScan;
     UserRepository.class,
     RoleRepository.class,
     DriverRepository.class,
+    AppVersionRepository.class,
     DeviceRegisterRepository.class,
     RefreshTokenRepository.class,
     PermissionRepository.class,
@@ -54,6 +58,8 @@ import org.springframework.boot.autoconfigure.domain.EntityScan;
     ApiKeyFilter.class,
     CustomUserDetailsService.class,
     DeviceRegistrationService.class,
+    AppVersionService.class,
+    DriverAppVersionEnforcementFilter.class,
     RefreshTokenService.class,
     UserPermissionService.class,
     PasswordResetService.class

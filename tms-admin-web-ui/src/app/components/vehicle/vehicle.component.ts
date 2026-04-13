@@ -9,7 +9,12 @@ import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { ConfirmService } from '@services/confirm.service';
 
-import { VehicleType, VehicleStatus } from '../../models/enums/vehicle.enums';
+import {
+  VehicleOwnership,
+  VehicleStatus,
+  VehicleType,
+  TruckSize,
+} from '../../models/enums/vehicle.enums';
 import type { Vehicle } from '../../models/vehicle.model';
 import { VehicleService } from '../../services/vehicle.service';
 import { NotificationService } from '../../services/notification.service';
@@ -33,6 +38,7 @@ export class VehicleComponent implements OnInit {
   selectedVehicle: Vehicle = this.getEmptyVehicle();
   isModalOpen = false;
   isEditing = false;
+  originalVehicleStatus?: VehicleStatus;
 
   dropdownOpen: number | null = null;
   modalErrorMessage = '';
@@ -59,6 +65,8 @@ export class VehicleComponent implements OnInit {
   private readonly vehicleStatusValues = Object.values(VehicleStatus) as VehicleStatus[];
   vehicleStatuses = this.vehicleStatusValues;
   vehicleTypes = Object.values(VehicleType);
+  vehicleOwnerships = Object.values(VehicleOwnership);
+  truckSizes = Object.values(TruckSize);
 
   // Expose Math for template
   Math = Math;
@@ -171,7 +179,8 @@ export class VehicleComponent implements OnInit {
 
   openVehicleModal(vehicle?: Vehicle): void {
     this.isEditing = !!vehicle;
-    this.selectedVehicle = vehicle ? { ...vehicle } : this.getEmptyVehicle();
+    this.selectedVehicle = vehicle ? this.normalizeVehicle({ ...vehicle }) : this.getEmptyVehicle();
+    this.originalVehicleStatus = this.normalizeStatus(this.selectedVehicle.status);
     this.isModalOpen = true;
     this.modalErrorMessage = '';
   }
@@ -191,6 +200,7 @@ export class VehicleComponent implements OnInit {
   closeModal(): void {
     this.isModalOpen = false;
     this.selectedVehicle = this.getEmptyVehicle();
+    this.originalVehicleStatus = undefined;
     this.modalErrorMessage = '';
     this.cdr.markForCheck();
   }
@@ -198,17 +208,17 @@ export class VehicleComponent implements OnInit {
   saveVehicle(): void {
     if (!this.selectedVehicle) return;
 
+    const payload = this.buildVehiclePayload();
+
     // Validate status transition for existing vehicles
     if (this.isEditing) {
-      const originalVehicle = this.vehicles.find((v) => v.id === this.selectedVehicle.id);
       if (
-        originalVehicle &&
-        originalVehicle.status !== this.selectedVehicle.status &&
-        !this.canTransitionTo(originalVehicle.status, this.selectedVehicle.status)
+        this.originalVehicleStatus &&
+        !this.canTransitionTo(this.originalVehicleStatus, payload.status)
       ) {
         this.modalErrorMessage = `Invalid status transition: Cannot change from ${this.getStatusLabel(
-          originalVehicle.status,
-        )} to ${this.getStatusLabel(this.selectedVehicle.status)}. Please check the status lifecycle rules.`;
+          this.originalVehicleStatus,
+        )} to ${this.getStatusLabel(payload.status)}. Please check the status lifecycle rules.`;
         this.cdr.detectChanges();
         return;
       }
@@ -217,12 +227,19 @@ export class VehicleComponent implements OnInit {
     this.modalErrorMessage = '';
 
     const saveObs = this.isEditing
-      ? this.vehicleService.updateVehicle(this.selectedVehicle)
-      : this.vehicleService.addVehicle(this.selectedVehicle);
+      ? this.vehicleService.updateVehicle(payload)
+      : this.vehicleService.addVehicle(payload);
 
-    (saveObs as import('rxjs').Observable<Vehicle>).subscribe(
-      (vehicle) => {
-        if (!this.isEditing && vehicle?.id) {
+    saveObs.subscribe(
+      (response) => {
+        if (!response.success || !response.data) {
+          this.setModalError(response.message || 'Vehicle request failed.');
+          return;
+        }
+
+        const vehicle = this.normalizeVehicle(response.data);
+
+        if (!this.isEditing && vehicle.id) {
           // Show success notification, then redirect
           this.notification.success('Vehicle created successfully!');
           this.closeModal();
@@ -266,8 +283,13 @@ export class VehicleComponent implements OnInit {
       return;
     }
     this.vehicleService.deleteVehicle(vehicleId).subscribe(
-      () => {
+      (response) => {
+        if (!response.success) {
+          this.setListError(response.message || 'Error deleting vehicle.');
+          return;
+        }
         this.dropdownOpen = null;
+        this.notification.success('Vehicle deleted successfully!');
         this.fetchVehiclesWithFilters();
         this.cdr.markForCheck();
       },
@@ -451,33 +473,28 @@ export class VehicleComponent implements OnInit {
    * Get filtered status options based on current status (for editing)
    */
   getFilteredStatusOptions(): VehicleStatus[] {
-    if (!this.isEditing || !this.selectedVehicle.status) {
+    if (!this.isEditing || !this.originalVehicleStatus) {
       // New vehicle - show all statuses
       return this.vehicleStatuses;
     }
-    const currentStatus = this.normalizeStatus(this.selectedVehicle.status);
-    if (!currentStatus) {
-      return this.vehicleStatuses;
-    }
-    const allowed = this.getAvailableStatusTransitions(currentStatus);
+    const allowed = this.getAvailableStatusTransitions(this.originalVehicleStatus);
     // Remove duplicates and maintain order
-    return Array.from(new Set([currentStatus, ...allowed]));
+    return Array.from(new Set([this.originalVehicleStatus, ...allowed]));
   }
 
   /**
    * Check if status option should be disabled
    */
   isStatusDisabled(status: VehicleStatus): boolean {
-    if (!this.isEditing || !this.selectedVehicle.status) return false;
-    return !this.canTransitionTo(this.selectedVehicle.status, status);
+    if (!this.isEditing || !this.originalVehicleStatus) return false;
+    return !this.canTransitionTo(this.originalVehicleStatus, status);
   }
 
   /**
    * Get status transition warning message
    */
   getStatusTransitionWarning(newStatus: VehicleStatus | string | undefined): string {
-    const oldStatus = this.selectedVehicle.status;
-    const normalizedOld = this.normalizeStatus(oldStatus);
+    const normalizedOld = this.originalVehicleStatus;
     const normalizedNew = this.normalizeStatus(newStatus);
     if (!normalizedOld || !normalizedNew || normalizedOld === normalizedNew) return '';
 
@@ -558,10 +575,12 @@ export class VehicleComponent implements OnInit {
   private getEmptyVehicle(): Vehicle {
     return {
       licensePlate: '',
+      vin: '',
       manufacturer: '',
       model: '',
       type: VehicleType.TRUCK,
       status: VehicleStatus.ACTIVE,
+      ownership: VehicleOwnership.OWNED,
       mileage: 0,
       fuelConsumption: 0,
       lastInspectionDate: undefined,
@@ -570,7 +589,7 @@ export class VehicleComponent implements OnInit {
       maxWeight: 0,
       maxVolume: 0,
       qtyPalletsCapacity: 0,
-      truckSize: undefined,
+      truckSize: TruckSize.MEDIUM_TRUCK,
       assignedZoneId: undefined,
       assignedZoneName: '',
       assignedZone: '',
@@ -592,7 +611,41 @@ export class VehicleComponent implements OnInit {
       yearMade: vehicle.yearMade ?? vehicle.year,
       qtyPalletsCapacity: vehicle.qtyPalletsCapacity ?? vehicle.palletCapacity,
       parentVehicleId: vehicle.parentVehicleId ?? vehicle.assignedVehicleId,
+      assignedZone: vehicle.assignedZone ?? vehicle.assignedZoneName ?? '',
       assignedZoneName: vehicle.assignedZoneName ?? vehicle.assignedZone,
+    };
+  }
+
+  isTruckType(type: VehicleType | string | undefined): boolean {
+    return type === VehicleType.TRUCK;
+  }
+
+  onVehicleTypeChange(): void {
+    if (!this.isTruckType(this.selectedVehicle.type)) {
+      this.selectedVehicle.truckSize = undefined;
+      return;
+    }
+
+    if (!this.selectedVehicle.truckSize) {
+      this.selectedVehicle.truckSize = TruckSize.MEDIUM_TRUCK;
+    }
+  }
+
+  private buildVehiclePayload(): Vehicle {
+    const normalizedType = this.selectedVehicle.type;
+    const assignedZone = this.selectedVehicle.assignedZone?.trim() || undefined;
+
+    return {
+      ...this.selectedVehicle,
+      licensePlate: this.selectedVehicle.licensePlate.trim(),
+      vin: this.selectedVehicle.vin?.trim() || undefined,
+      manufacturer: this.selectedVehicle.manufacturer.trim(),
+      model: this.selectedVehicle.model.trim(),
+      assignedZone,
+      assignedZoneName: assignedZone ?? '',
+      assignedZoneId: undefined,
+      truckSize: this.isTruckType(normalizedType) ? this.selectedVehicle.truckSize : undefined,
+      year: this.selectedVehicle.yearMade,
     };
   }
 

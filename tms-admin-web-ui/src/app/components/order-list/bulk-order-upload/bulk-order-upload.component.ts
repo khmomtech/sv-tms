@@ -4,6 +4,7 @@ import type { HttpEvent, HttpErrorResponse } from '@angular/common/http';
 import { HttpClient, HttpEventType } from '@angular/common/http';
 import { Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { Workbook } from 'exceljs';
 
 import { environment } from '../../../environments/environment';
@@ -83,7 +84,7 @@ interface UploadResultSummary {
 @Component({
   selector: 'app-bulk-order-upload',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, TranslateModule],
   templateUrl: './bulk-order-upload.component.html',
   styleUrls: ['./bulk-order-upload.component.scss'],
 })
@@ -132,6 +133,72 @@ export class BulkOrderUploadComponent {
     'Status',
   ];
 
+  get selectedFileSizeLabel(): string {
+    if (!this.selectedFile) return '0 KB';
+    const bytes = this.selectedFile.size;
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  }
+
+  get expectedColumns(): string[] {
+    return this.requiredHeaders;
+  }
+
+  get uploadStatusKey(): string {
+    if (this.isUploading) return 'bulkOrderUpload.status.processing';
+    if (!this.selectedFile) return 'bulkOrderUpload.status.no_file_selected';
+    if (this.serverErrors.length > 0 || this.serverMessages.length > 0 || this.uploadError) {
+      return 'bulkOrderUpload.status.needs_attention';
+    }
+    if (this.hasValidationErrors) return 'bulkOrderUpload.status.needs_attention';
+    return 'bulkOrderUpload.status.ready_to_upload';
+  }
+
+  get uploadStatusToneClasses(): string {
+    if (this.isUploading) return 'bg-blue-50 text-blue-700 border-blue-200';
+    if (!this.selectedFile) return 'bg-slate-50 text-slate-700 border-slate-200';
+    if (this.serverErrors.length > 0 || this.serverMessages.length > 0 || this.uploadError || this.hasValidationErrors) {
+      return 'bg-amber-50 text-amber-800 border-amber-200';
+    }
+    return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+  }
+
+  get uploadActionHint(): string {
+    if (this.isUploading) return this.t('bulkOrderUpload.action_hint.uploading');
+    if (!this.selectedFile) return this.t('bulkOrderUpload.action_hint.choose_file_first');
+    if (this.hasValidationErrors) return this.t('bulkOrderUpload.action_hint.fix_rows_first');
+    if (this.serverErrors.length > 0 || this.serverMessages.length > 0) {
+      return this.t('bulkOrderUpload.action_hint.fix_backend_issues');
+    }
+    return this.t('bulkOrderUpload.action_hint.ready');
+  }
+
+  get submitLabel(): string {
+    if (this.isUploading) return this.t('bulkDispatchUpload.uploading');
+    if (!this.selectedFile) return this.t('bulkOrderUpload.submit.choose_file');
+    if (this.hasValidationErrors) return this.t('bulkOrderUpload.submit.review_rows');
+    return this.t('bulkOrderUpload.submit.upload_now');
+  }
+
+  private normalizeImportStatus(value: unknown): string {
+    const normalized = (value ?? '').toString().trim().toUpperCase();
+    if (!normalized || normalized === 'PENDDING') {
+      return 'PENDING';
+    }
+    return normalized;
+  }
+
+  private buildHeaderIndexMap(headers: string[]): Map<string, number> {
+    const indexMap = new Map<string, number>();
+    headers.forEach((header, index) => {
+      if (header && !indexMap.has(header)) {
+        indexMap.set(header, index + 1);
+      }
+    });
+    return indexMap;
+  }
+
   recentUploads: {
     fileName: string;
     uploadedAt: Date;
@@ -142,22 +209,29 @@ export class BulkOrderUploadComponent {
   // Bulk upload endpoint
   private readonly uploadUrl = `${environment.baseUrl}/api/admin/transportorders/import-bulk`;
   private readonly serverFieldLabels: Record<string, string> = {
-    deliveryDate: 'Delivery date',
-    customerCode: 'Customer code',
-    toDestination: 'Destination',
-    tripNo: 'Trip number',
-    status: 'Status',
-    truckNumber: 'Truck number',
-    truckTripCount: 'Truck trip count',
-    fromLocation: 'From destination',
-    toLocation: 'To destination',
-    itemCode: 'Item code',
-    quantity: 'Quantity',
-    uom: 'Unit of measurement',
-    orderReference: 'Order reference',
+    deliveryDate: 'bulkOrderUpload.field_labels.delivery_date',
+    customerCode: 'bulkOrderUpload.field_labels.customer_code',
+    toDestination: 'bulkOrderUpload.field_labels.destination',
+    tripNo: 'bulkOrderUpload.field_labels.trip_number',
+    status: 'bulkOrderUpload.field_labels.status',
+    truckNumber: 'bulkOrderUpload.field_labels.truck_number',
+    truckTripCount: 'bulkOrderUpload.field_labels.truck_trip_count',
+    fromLocation: 'bulkOrderUpload.field_labels.from_destination',
+    toLocation: 'bulkOrderUpload.field_labels.to_destination',
+    itemCode: 'bulkOrderUpload.field_labels.item_code',
+    quantity: 'bulkOrderUpload.field_labels.quantity',
+    uom: 'bulkOrderUpload.field_labels.unit_of_measurement',
+    orderReference: 'bulkOrderUpload.field_labels.order_reference',
   };
 
-  constructor(private http: HttpClient) {}
+  constructor(
+    private http: HttpClient,
+    private translate: TranslateService,
+  ) {}
+
+  t(key: string, params?: Record<string, unknown>): string {
+    return this.translate.instant(key, params);
+  }
 
   get canUpload(): boolean {
     return !!this.selectedFile && !this.isUploading && !this.hasValidationErrors;
@@ -176,34 +250,45 @@ export class BulkOrderUploadComponent {
     return this.toIssueBadges(counts);
   }
 
+  get filteredServerMessages(): string[] {
+    return this.serverMessages.filter((message) => !this.isGenericServerMessage(message));
+  }
+
+  get hasStructuredServerFeedback(): boolean {
+    return this.serverErrors.length > 0 || this.filteredServerMessages.length > 0;
+  }
+
   get guidanceMessages(): string[] {
-    if (this.serverErrors.length > 0 || this.serverMessages.length > 0) {
+    if (this.hasStructuredServerFeedback) {
       return [
-        'Nothing was saved. Fix the listed rows in the Excel file, then upload the corrected file again.',
-        'If the problem mentions customer, vehicle, address, or item not found, update the master data first.',
+        this.t('bulkOrderUpload.guidance.nothing_saved'),
+        this.t('bulkOrderUpload.guidance.master_data_first'),
       ];
     }
 
     if (this.hasValidationErrors) {
       return [
-        'Fix the highlighted rows before upload. The upload button stays disabled until all client-side issues are resolved.',
+        this.t('bulkOrderUpload.guidance.fix_highlighted_rows'),
       ];
     }
 
     if (this.selectedFile) {
       if (this.validationSummary) {
         return [
-          `This file contains ${this.validationSummary.totalRows} row(s) and ${this.validationSummary.totalTrips} grouped batch(es).`,
-          'Preview looks valid. Upload will still run a stricter backend validation before saving.',
+          this.t('bulkOrderUpload.guidance.file_contains', {
+            rows: this.validationSummary.totalRows,
+            groups: this.validationSummary.totalTrips,
+          }),
+          this.t('bulkOrderUpload.guidance.preview_valid'),
         ];
       }
       return [
-        'Preview looks valid. Upload will still run a stricter backend validation before saving.',
+        this.t('bulkOrderUpload.guidance.preview_valid'),
       ];
     }
 
     return [
-      'Use the official template without changing header order. Upload supports .xlsx files up to 5 MB.',
+      this.t('bulkOrderUpload.guidance.template_support'),
     ];
   }
 
@@ -212,10 +297,10 @@ export class BulkOrderUploadComponent {
       return [];
     }
 
-    if (this.serverErrors.length > 0 || this.serverMessages.length > 0) {
+    if (this.hasStructuredServerFeedback) {
       return [
-        'Fix the listed row or master-data issues in the Excel file, then upload again.',
-        'Nothing was saved while validation errors are present.',
+        this.t('bulkOrderUpload.hints.fix_row_or_master_data'),
+        this.t('bulkOrderUpload.hints.nothing_saved_validation'),
       ];
     }
 
@@ -223,28 +308,28 @@ export class BulkOrderUploadComponent {
 
     if (normalized.includes('cannot reach') || normalized.includes('network')) {
       return [
-        'Check that the frontend proxy, auth API, and core API are all running.',
-        'Use the same host consistently in local dev, for example localhost for both browser and APIs or 127.0.0.1 for both.',
+        this.t('bulkOrderUpload.hints.check_services'),
+        this.t('bulkOrderUpload.hints.use_same_host'),
       ];
     }
 
     if (normalized.includes('cors') || normalized.includes('origin') || normalized.includes('blocked')) {
       return [
-        'This usually means the browser origin is not allowed by the backend.',
-        'Restart the local APIs after CORS changes and use the same host consistently in the browser and proxy target.',
+        this.t('bulkOrderUpload.hints.cors_origin'),
+        this.t('bulkOrderUpload.hints.restart_after_cors'),
       ];
     }
 
     if (normalized.includes('permission') || normalized.includes('forbidden')) {
       return [
-        'Sign in with an account that has admin order-import access.',
-        'If the session is stale, sign out and sign in again before retrying.',
+        this.t('bulkOrderUpload.hints.admin_access'),
+        this.t('bulkOrderUpload.hints.sign_in_again'),
       ];
     }
 
     return [
-      'If the problem keeps happening, check the backend logs for the matching request time.',
-      'No data is saved when the import request fails.',
+      this.t('bulkOrderUpload.hints.check_backend_logs'),
+      this.t('bulkOrderUpload.hints.no_data_saved'),
     ];
   }
 
@@ -282,6 +367,12 @@ export class BulkOrderUploadComponent {
     fileInput.click();
   }
 
+  clearSelectedFile(): void {
+    this.selectedFile = null;
+    this.selectedFileName = '';
+    this.resetClientState();
+  }
+
   private async handleSelectedFile(file: File): Promise<void> {
     const validationError = this.validateFile(file);
     this.resetClientState();
@@ -313,24 +404,23 @@ export class BulkOrderUploadComponent {
       const uom = (row['UoM'] ?? '').toString().trim();
       const uoMPallet = (row['UoMPallet'] ?? '').toString().trim();
       const loadingPlace = (row['LoadingPlace'] ?? '').toString().trim();
-      const status = (row['Status'] ?? '').toString().trim();
+      const status = this.normalizeImportStatus(row['Status']);
 
       // client-side validation
       let errorParts: string[] = [];
       if (!deliveryDate || !datePattern.test(deliveryDate))
-        errorParts.push('Invalid date (dd.MM.yyyy)');
-      if (!customerCode) errorParts.push('Missing customerCode');
-      if (!tripNo) errorParts.push('Missing tripNo');
-      if (!truckNumber) errorParts.push('Missing truckNumber');
+        errorParts.push(this.t('bulkOrderUpload.errors.invalid_date'));
+      if (!customerCode) errorParts.push(this.t('bulkOrderUpload.errors.missing_customer_code'));
+      if (!tripNo) errorParts.push(this.t('bulkOrderUpload.errors.missing_trip_no'));
+      if (!truckNumber) errorParts.push(this.t('bulkOrderUpload.errors.missing_truck_number'));
       if (!truckTripCount || !/^\d+$/.test(truckTripCount))
-        errorParts.push('TruckTripCount must be a whole number');
-      if (!fromDestination) errorParts.push('Missing fromDestination');
-      if (!toDestination) errorParts.push('Missing toDestination');
-      if (!itemCode) errorParts.push('Missing itemCode');
-      if (!itemName) errorParts.push('Missing itemName');
-      if (isNaN(qty) || qty <= 0) errorParts.push('Qty must be > 0');
-      if (!uom) errorParts.push('Missing UoM');
-      if (!status) errorParts.push('Missing status');
+        errorParts.push(this.t('bulkOrderUpload.errors.invalid_truck_trip_count'));
+      if (!fromDestination) errorParts.push(this.t('bulkOrderUpload.errors.missing_from_destination'));
+      if (!toDestination) errorParts.push(this.t('bulkOrderUpload.errors.missing_to_destination'));
+      if (!itemCode) errorParts.push(this.t('bulkOrderUpload.errors.missing_item_code'));
+      if (!itemName) errorParts.push(this.t('bulkOrderUpload.errors.missing_item_name'));
+      if (isNaN(qty) || qty <= 0) errorParts.push(this.t('bulkOrderUpload.errors.invalid_qty'));
+      if (!uom) errorParts.push(this.t('bulkOrderUpload.errors.missing_uom'));
 
       const error = errorParts.join('; ');
 
@@ -366,7 +456,7 @@ export class BulkOrderUploadComponent {
     const tripMap: Record<string, TripGroup> = {};
 
     for (const row of this.parsedRows) {
-      const key = `${row.deliveryDate}_${row.customerCode}_${row.toDestination}_${row.tripNo}`;
+      const key = `${row.deliveryDate}_${row.customerCode}_${row.toDestination}_${row.truckTripCount}`;
 
       if (!tripMap[key]) {
         tripMap[key] = {
@@ -420,16 +510,17 @@ export class BulkOrderUploadComponent {
             if (body.success) {
               const importSnapshot = this.buildUploadResultSummary();
               this.uploadSuccess = true;
-              this.uploadSuccessMessage = body.message || '✅ Upload completed successfully.';
+              this.uploadSuccessMessage =
+                body.message || this.t('bulkOrderUpload.messages.upload_completed');
               this.autoSuffixMap =
                 body.data && !Array.isArray(body.data) && typeof body.data === 'object'
                   ? (body.data as Record<string, string>)
                   : {};
               this.recentUploads.unshift({
-                fileName: this.selectedFile?.name || 'Unknown',
+                fileName: this.selectedFile?.name || this.t('bulkOrderUpload.common.unknown'),
                 uploadedAt: new Date(),
                 status: 'SUCCESS',
-                message: body.message || 'Upload complete',
+                message: body.message || this.t('bulkOrderUpload.messages.upload_complete'),
               });
               this.uploadError = '';
               // reset
@@ -443,12 +534,13 @@ export class BulkOrderUploadComponent {
               this.lastUploadSummary = importSnapshot;
             } else {
               // Non-422 errors would still land here sometimes; show message
-              this.uploadError = body.message || 'Upload failed';
+              this.uploadError = body.message || this.t('bulkOrderUpload.messages.upload_failed');
               this.uploadSuccessMessage = '';
             }
           }
         },
         error: (error: HttpErrorResponse) => {
+          this.isUploading = false;
           this.uploadSuccessMessage = '';
           const payload = this.getApiErrorPayload(error);
           const { importErrors, messages } = this.extractServerIssues([
@@ -461,9 +553,13 @@ export class BulkOrderUploadComponent {
             const resp = error.error as ApiResponse<unknown>;
             this.markServerErrors(importErrors);
             this.serverMessages = messages;
-            this.uploadError =
-              resp.message ||
-              `❌ Import blocked. ${importErrors.length || messages.length} issue(s) found. Nothing was saved.`;
+            const normalizedMessage = this.normalizeServerMessage(resp.message || '');
+            this.uploadError = this.hasStructuredServerFeedback
+              ? this.buildValidationStyleFailureMessage(normalizedMessage)
+              : normalizedMessage ||
+                this.t('bulkOrderUpload.messages.import_blocked', {
+                  count: importErrors.length || messages.length,
+                });
           } else {
             this.markServerErrors(importErrors);
             this.serverMessages = messages;
@@ -471,7 +567,7 @@ export class BulkOrderUploadComponent {
           }
 
           this.recentUploads.unshift({
-            fileName: this.selectedFile?.name || 'Unknown',
+            fileName: this.selectedFile?.name || this.t('bulkOrderUpload.common.unknown'),
             uploadedAt: new Date(),
             status: 'FAILED',
             message: this.uploadError,
@@ -539,15 +635,30 @@ export class BulkOrderUploadComponent {
       },
       {} as Record<string, ImportError[]>,
     );
+    if (errs.length > 0) {
+      this.showPreview = false;
+      setTimeout(() => {
+        document.getElementById('orders-upload-server-errors')?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+        });
+      }, 0);
+    }
   }
 
   getServerFieldLabel(field: string): string {
-    return this.serverFieldLabels[field] || this.humanizeToken(field);
+    const translationKey = this.serverFieldLabels[field];
+    if (translationKey) {
+      return this.t(translationKey);
+    }
+    return this.humanizeToken(field);
   }
 
   getReadableServerProblem(error: ImportError): string {
     const label = this.getServerFieldLabel(error.field);
-    const suffix = error.value ? ` Value: ${error.value}.` : '';
+    const suffix = error.value
+      ? ` ${this.t('bulkOrderUpload.value_label', { value: error.value })}`
+      : '';
     return `${label}: ${error.message}.${suffix}`;
   }
 
@@ -612,30 +723,41 @@ export class BulkOrderUploadComponent {
       ...messages,
       typeof error.error === 'string' ? error.error : '',
     ]);
+    const normalizedMessage = this.normalizeServerMessage(directMessage);
+
+    if (this.looksLikeValidationOrMasterDataIssue(normalizedMessage, messages)) {
+      return this.buildValidationStyleFailureMessage(normalizedMessage);
+    }
 
     if (error.status === 0) {
-      return '❌ Upload failed because the server could not be reached. Check the local frontend proxy and backend services, then try again.';
+      return this.t('bulkOrderUpload.messages.server_unreachable');
     }
 
     if (error.status === 403) {
       if (this.messageLooksLikeCors(directMessage)) {
-        return '❌ Upload was blocked by browser/API access rules (CORS or origin mismatch). Use the same local host consistently and restart the local APIs if needed.';
+        return this.t('bulkOrderUpload.messages.cors_blocked');
       }
-      return '❌ Upload was rejected because this session does not have permission to import orders.';
+      return this.t('bulkOrderUpload.messages.permission_denied');
     }
 
     if (error.status === 500) {
-      if (directMessage) {
-        return `❌ Upload failed because the server hit an internal error. ${directMessage}`;
+      if (normalizedMessage) {
+        return this.t('bulkOrderUpload.messages.internal_error_with_detail', {
+          message: normalizedMessage,
+        });
       }
-      return '❌ Upload failed because the server hit an internal error. Nothing was saved. Check backend logs and try again.';
+      return this.t('bulkOrderUpload.messages.internal_error');
     }
 
-    if (directMessage) {
-      return `❌ Upload failed. ${directMessage}`;
+    if (normalizedMessage) {
+      return this.t('bulkOrderUpload.messages.upload_failed_with_message', {
+        message: normalizedMessage,
+      });
     }
 
-    return `❌ Upload failed with HTTP ${error.status || 'unknown error'}. Nothing was saved.`;
+    return this.t('bulkOrderUpload.messages.http_error', {
+      status: error.status || this.t('bulkOrderUpload.common.unknown_error'),
+    });
   }
 
   private pickFirstNonEmptyMessage(messages: Array<string | null | undefined>): string {
@@ -646,6 +768,50 @@ export class BulkOrderUploadComponent {
       }
     }
     return '';
+  }
+
+  private normalizeServerMessage(message: string): string {
+    const trimmed = message.trim();
+    if (!trimmed) {
+      return '';
+    }
+
+    const genericMessages = new Set([
+      'An unexpected error occurred',
+      'Bulk import failed',
+      'Upload failed',
+    ]);
+
+    return genericMessages.has(trimmed) ? '' : trimmed;
+  }
+
+  private isGenericServerMessage(message: string): boolean {
+    return this.normalizeServerMessage(message) === '';
+  }
+
+  private looksLikeValidationOrMasterDataIssue(
+    directMessage: string,
+    messages: string[],
+  ): boolean {
+    const pool = [directMessage, ...messages]
+      .map((value) => value.trim())
+      .filter(Boolean);
+
+    return pool.some((value) =>
+      /(not found|missing required headers|invalid template headers|invalid status|required|quantity must|order already exists|customer|vehicle|item|address|destination|template)/i.test(
+        value,
+      ),
+    );
+  }
+
+  private buildValidationStyleFailureMessage(detail: string): string {
+    if (!detail) {
+      return this.t('bulkOrderUpload.messages.validation_issue_fallback');
+    }
+
+    return this.t('bulkOrderUpload.messages.validation_issue_with_detail', {
+      message: detail,
+    });
   }
 
   private messageLooksLikeCors(message: string): boolean {
@@ -683,10 +849,10 @@ export class BulkOrderUploadComponent {
       this.acceptedMimeTypes.includes(file.type) ||
       file.type.includes('spreadsheetml');
     const isExcel = hasValidExtension && hasExcelMime;
-    if (!isExcel) return '⚠️ Please upload a valid .xlsx Excel file.';
+    if (!isExcel) return this.t('bulkOrderUpload.messages.invalid_excel');
 
     const fileSizeMB = file.size / (1024 * 1024);
-    if (fileSizeMB > 5) return '⚠️ File size exceeds 5MB limit (max 5MB).';
+    if (fileSizeMB > 5) return this.t('bulkOrderUpload.messages.file_too_large');
 
     return '';
   }
@@ -699,40 +865,42 @@ export class BulkOrderUploadComponent {
       await workbook.xlsx.load(buffer);
       const worksheet = workbook.worksheets[0];
       if (!worksheet) {
-        this.uploadError = '⚠️ No worksheet found in the uploaded file.';
+        this.uploadError = this.t('bulkOrderUpload.messages.no_worksheet');
         this.selectedFile = null;
         this.selectedFileName = '';
         return null;
       }
 
       const headerVals =
-        (worksheet.getRow(1).values as Array<string | number | null | undefined>) || [];
+        ((worksheet.getRow(1).values as Array<string | number | null | undefined>) || []).slice(1);
       const headers: string[] = headerVals.map((h) =>
         typeof h === 'string' ? h.trim() : h != null ? String(h).trim() : '',
       );
       const normalizedHeaders = headers.filter(Boolean);
-      const missingHeaders = this.requiredHeaders.filter(
-        (required) => !normalizedHeaders.includes(required),
-      );
-      const hasExpectedHeaderOrder = this.requiredHeaders.every(
-        (header, index) => normalizedHeaders[index] === header,
-      );
-      if (missingHeaders.length > 0 || !hasExpectedHeaderOrder) {
+      const missingHeaders = this.requiredHeaders.filter((required) => !normalizedHeaders.includes(required));
+      if (missingHeaders.length > 0) {
         this.uploadError = missingHeaders.length
-          ? `⚠️ Missing required columns: ${missingHeaders.join(', ')}. Please use the official template.`
-          : '⚠️ Invalid column order. Please use the official template without changing the header layout.';
+          ? this.t('bulkOrderUpload.messages.missing_columns', {
+              columns: missingHeaders.join(', '),
+            })
+          : this.t('bulkOrderUpload.messages.invalid_column_order');
         this.selectedFile = null;
         this.selectedFileName = '';
         return null;
       }
 
+      const headerIndexMap = this.buildHeaderIndexMap(headers);
+
       worksheet.eachRow((row, rowNumber) => {
         if (rowNumber === 1) return;
         const obj: Record<string, string | number> = {};
         let hasNonEmptyValue = false;
-        for (let c = 1; c <= this.requiredHeaders.length; c++) {
-          const key = this.requiredHeaders[c - 1];
-          const normalizedValue = this.normalizeExcelCellValue(row.getCell(c).value, key);
+        for (const key of this.requiredHeaders) {
+          const columnIndex = headerIndexMap.get(key);
+          const normalizedValue = this.normalizeExcelCellValue(
+            columnIndex ? row.getCell(columnIndex).value : null,
+            key,
+          );
           if (normalizedValue !== '') {
             hasNonEmptyValue = true;
           }
@@ -741,14 +909,14 @@ export class BulkOrderUploadComponent {
         if (hasNonEmptyValue) json.push(obj);
       });
     } catch {
-      this.uploadError = '⚠️ Failed to read Excel file. Please verify it is a valid .xlsx file.';
+      this.uploadError = this.t('bulkOrderUpload.messages.failed_to_read');
       this.selectedFile = null;
       this.selectedFileName = '';
       return null;
     }
 
     if (json.length === 0) {
-      this.uploadError = '⚠️ No data rows found. Please fill at least one row in the template.';
+      this.uploadError = this.t('bulkOrderUpload.messages.no_data_rows');
       this.selectedFile = null;
       this.selectedFileName = '';
       return null;
@@ -771,7 +939,7 @@ export class BulkOrderUploadComponent {
     const totalTrips = new Set(
       validRowsOnly.map(
         (row) =>
-          `${row.deliveryDate}_${row.customerCode}_${row.toDestination}_${row.tripNo}`,
+          `${row.deliveryDate}_${row.customerCode}_${row.toDestination}_${row.truckTripCount}`,
       ),
     ).size;
 
@@ -873,7 +1041,13 @@ export class BulkOrderUploadComponent {
   // Download server errors as CSV for quick fixing
   downloadErrorsCSV(): void {
     if (!this.serverErrors.length) return;
-    const header = ['Row', 'GroupKey', 'Field', 'Value', 'Message'];
+    const header = [
+      this.t('bulkOrderUpload.row'),
+      this.t('bulkOrderUpload.group_key'),
+      this.t('bulkOrderUpload.field'),
+      this.t('bulkOrderUpload.value'),
+      this.t('bulkOrderUpload.message'),
+    ];
     const rows = this.serverErrors.map((e) => [
       e.row,
       `"${(e.groupKey ?? '').replace(/"/g, '""')}"`,

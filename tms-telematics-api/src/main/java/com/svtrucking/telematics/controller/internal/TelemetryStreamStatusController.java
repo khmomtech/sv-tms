@@ -42,6 +42,8 @@ public class TelemetryStreamStatusController {
 
         // Add consumer thread status
         status.put("consumer", streamConsumer.getConsumerStatus());
+        status.put("approximateLagEntries", streamConsumer.getApproximateLagEntries().orElse(null));
+        status.put("currentStreamLastId", streamConsumer.getCurrentStreamLastId().orElse(null));
 
         Optional<StreamInfo.XInfoStream> info = getStreamInfo(STREAM_NAME);
         if (info.isPresent()) {

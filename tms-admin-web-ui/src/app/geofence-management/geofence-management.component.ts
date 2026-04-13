@@ -5,6 +5,7 @@ import { GoogleMap, GoogleMapsModule, MapInfoWindow } from '@angular/google-maps
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { FormsModule } from '@angular/forms';
+import { TranslateModule } from '@ngx-translate/core';
 import { Subject } from 'rxjs';
 import { takeUntil, debounceTime, distinctUntilChanged } from 'rxjs/operators';
 
@@ -46,6 +47,7 @@ interface GeofenceFilter {
     ...DIALOG_IMPORTS,
     GoogleMapsModule,
     FormsModule,
+    TranslateModule,
     FilterBarComponent,
   ],
   templateUrl: './geofence-management.component.html',
@@ -84,6 +86,8 @@ export class GeofenceManagementComponent implements OnInit, AfterViewInit, OnDes
   exportSelectedMenuOpen = false;
   exportAllMenuOpen = false;
   openRowMenuId: number | null = null;
+  showEventsPanel = false;
+  showMapPanel = true;
 
   readonly permissions = PERMISSIONS;
 
@@ -1290,6 +1294,41 @@ export class GeofenceManagementComponent implements OnInit, AfterViewInit, OnDes
         console.error('Failed to update geofence', error);
         this.notify('Failed to update geofence', 'error');
       },
+    });
+  }
+
+  toggleGeofenceActive(geofence: Geofence): void {
+    if (!this.canUpdate()) return;
+
+    const nextActive = !geofence.active;
+    const actionLabel = nextActive ? 'Activate' : 'Deactivate';
+
+    const dialogRef = this.dialog.open(ConfirmationDialogComponent, {
+      data: {
+        title: `${actionLabel} Geofence`,
+        message: `${actionLabel} "${geofence.name}"?`,
+        confirmText: actionLabel,
+        cancelText: 'Cancel',
+      },
+    });
+
+    dialogRef.afterClosed().subscribe((confirmed: boolean) => {
+      if (!confirmed) return;
+
+      this.geofenceService
+        .updateGeofence(geofence.id, this.geofenceToRequest({ ...geofence, active: nextActive }))
+        .subscribe({
+          next: () => {
+            this.recordActivity('updated', geofence.name, geofence.id);
+            this.notify(`Geofence ${nextActive ? 'activated' : 'deactivated'} successfully`, 'success');
+            this.loadGeofences();
+            this.infoWindowContent = null;
+          },
+          error: (error) => {
+            console.error(`Failed to ${nextActive ? 'activate' : 'deactivate'} geofence`, error);
+            this.notify(`Failed to ${nextActive ? 'activate' : 'deactivate'} geofence`, 'error');
+          },
+        });
     });
   }
 

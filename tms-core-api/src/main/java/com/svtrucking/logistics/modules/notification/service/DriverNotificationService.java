@@ -51,7 +51,7 @@ public class DriverNotificationService {
   private boolean notificationQueueFallbackToFcm;
 
   /** Send to a single driver (queue + persist row). */
-  public void sendNotification(CreateNotificationRequest req) {
+  public NotificationDispatchResult sendNotification(CreateNotificationRequest req) {
     Long driverId = req.getDriverId();
     String title =
         Optional.ofNullable(req.getTitle()).filter(s -> !s.isBlank()).orElse("SV Trucking");
@@ -74,28 +74,38 @@ public class DriverNotificationService {
     entity.setCreatedAt(now);
     // isRead stays default false
     notificationRepository.save(entity);
+    boolean persisted = entity.getId() != null;
 
     // 🛰 WebSocket push for active driver app sessions
+    boolean websocketDelivered = false;
     if (driverId != null) {
       try {
         messagingTemplate.convertAndSend(
             "/topic/driver-notification/" + driverId,
             convertToDTO(entity));
+        websocketDelivered = true;
       } catch (Exception e) {
         log.warn("WebSocket push failed for driver {}: {}", driverId, e.getMessage(), e);
       }
     }
 
-    publishNotificationEvent(
-        entity.getDriverId(),
-        title,
-        body,
-        req.getType(),
-        req.getReferenceId(),
-        req.getTopic(),
-        req.getSender());
+    boolean eventPublished = false;
+    try {
+      publishNotificationEvent(
+          entity.getDriverId(),
+          title,
+          body,
+          req.getType(),
+          req.getReferenceId(),
+          req.getTopic(),
+          req.getSender());
+      eventPublished = true;
+    } catch (Exception e) {
+      log.warn("Notification event publish failed for driver {}: {}", driverId, e.getMessage(), e);
+    }
 
     // Enqueue for delivery (MQ-first). If queue is unavailable, optionally fall back to FCM.
+    boolean queued = false;
     if (notificationQueueEnabled) {
       NotificationPayload payload = NotificationPayload.builder()
           .driverId(driverId)
@@ -111,16 +121,34 @@ public class DriverNotificationService {
           .attemptCount(0)
           .build();
 
-      boolean queued = queueService.enqueue(payload);
+      if (queueService == null) {
+        log.warn("Notification queue is enabled but NotificationQueueService is unavailable; using fallback delivery");
+      } else {
+        queued = queueService.enqueue(payload);
+      }
+
       if (queued) {
-        return;
+        return new NotificationDispatchResult(
+            persisted,
+            websocketDelivered,
+            eventPublished,
+            true,
+            false);
       }
       log.warn("Notification queue enqueue failed; falling back to direct send (FCM) for driver={}", driverId);
     }
 
+    boolean pushDelivered = false;
     if (notificationQueueFallbackToFcm) {
-      sendDirectToFcm(driverId, title, body, req);
+      pushDelivered = sendDirectToFcm(driverId, title, body, req);
     }
+
+    return new NotificationDispatchResult(
+        persisted,
+        websocketDelivered,
+        eventPublished,
+        queued,
+        pushDelivered);
   }
 
   /**
@@ -128,15 +156,15 @@ public class DriverNotificationService {
    * Delegates to the configured {@link PushProvider} so the delivery channel
    * (FCM, Kafka, none) respects {@code notification.push.provider}.
    */
-  private void sendDirectToFcm(Long driverId, String title, String body, CreateNotificationRequest req) {
+  private boolean sendDirectToFcm(Long driverId, String title, String body, CreateNotificationRequest req) {
     if (driverId == null) {
-      return;
+      return false;
     }
 
     String token = resolveDriverToken(driverId);
     if (token == null || token.isBlank()) {
       log.warn("[Notify] No device token for driver {}; skipping fallback send", driverId);
-      return;
+      return false;
     }
 
     NotificationPayload payload = NotificationPayload.builder()
@@ -157,6 +185,7 @@ public class DriverNotificationService {
     if (!sent) {
       log.warn("[Notify] Fallback direct send failed for driver={}, type={}", driverId, req.getType());
     }
+    return sent;
   }
 
   private String resolveDriverToken(Long driverId) {

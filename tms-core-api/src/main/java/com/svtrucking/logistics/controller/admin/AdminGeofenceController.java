@@ -73,15 +73,19 @@ public class AdminGeofenceController {
     // ─── Endpoints ────────────────────────────────────────────────────────────
 
     /**
-     * GET /api/admin/geofences?companyId={id}
-     * Returns all active geofences for the given company.
-     * Frontend live-map calls this on startup to render zones on the map.
+     * GET /api/admin/geofences?companyId={id}&includeInactive={true|false}
+     * Returns geofences for the given company.
+     * Admin screens can opt into inactive rows so soft-deleted zones remain manageable.
      */
     @GetMapping
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_SUPERADMIN','ROLE_MANAGER','all_functions')")
     public ResponseEntity<List<GeofenceDto>> listGeofences(
-            @RequestParam Long companyId) {
-        List<Geofence> geofences = Optional.ofNullable(geofenceRepository.findByCompanyIdAndActiveTrue(companyId))
+            @RequestParam Long companyId,
+            @RequestParam(defaultValue = "false") boolean includeInactive) {
+        List<Geofence> geofences = Optional.ofNullable(
+                        includeInactive
+                                ? geofenceRepository.findByCompanyId(companyId)
+                                : geofenceRepository.findByCompanyIdAndActiveTrue(companyId))
                 .orElse(List.of());
         List<GeofenceDto> dtos = geofences.stream().map(this::toDto).toList();
         return ResponseEntity.ok(dtos);

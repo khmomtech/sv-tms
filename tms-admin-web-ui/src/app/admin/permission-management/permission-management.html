@@ -1,126 +1,153 @@
 <div class="container p-6 mx-auto">
+  <!-- Header -->
   <div class="flex items-center justify-between mb-6">
     <h2 class="text-3xl font-bold">Permission Management</h2>
-    <div class="text-sm text-gray-600">
-      <span
-        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800"
-      >
-        {{ permissions.length }} permission{{ permissions.length !== 1 ? 's' : '' }}
-      </span>
-    </div>
+    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+      {{ permissions.length }} permission{{ permissions.length !== 1 ? 's' : '' }}
+    </span>
   </div>
 
-  <!-- Action buttons -->
-  <div class="flex flex-wrap gap-4 mb-6">
+  <!-- Toolbar: search + resource filter + create -->
+  <div class="flex flex-wrap items-center gap-4 mb-6">
+    <mat-form-field appearance="outline" class="flex-1 min-w-[200px]">
+      <mat-label>Search permissions</mat-label>
+      <input matInput [formControl]="searchControl" placeholder="Name, resource, action…" autocomplete="off" />
+      <mat-icon matPrefix class="text-gray-400">search</mat-icon>
+      <button *ngIf="searchControl.value" mat-icon-button matSuffix (click)="searchControl.setValue('')">
+        <mat-icon>close</mat-icon>
+      </button>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="min-w-[180px]">
+      <mat-label>Resource type</mat-label>
+      <mat-select [formControl]="resourceFilter">
+        <mat-option value="">All resources</mat-option>
+        <mat-option *ngFor="let r of availableResources" [value]="r">{{ r }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <button
+      *ngIf="searchControl.value || resourceFilter.value"
+      (click)="clearFilters()"
+      mat-stroked-button
+      class="whitespace-nowrap"
+    >
+      <mat-icon class="text-base">filter_alt_off</mat-icon>
+      Clear filters
+    </button>
+
     <button
       (click)="openCreateDialog()"
       type="button"
-      class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition flex items-center gap-2"
+      class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition flex items-center gap-2 whitespace-nowrap"
     >
       <mat-icon fontIcon="add" class="text-base"></mat-icon>
       Create Permission
     </button>
   </div>
 
+  <!-- Loading state -->
+  <div *ngIf="isLoading" class="flex justify-center py-12">
+    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+  </div>
+
   <!-- Permissions table -->
-  <div class="bg-white border rounded-lg shadow overflow-hidden">
+  <div *ngIf="!isLoading" class="bg-white border rounded-lg shadow overflow-hidden">
     <div class="overflow-x-auto">
       <table class="min-w-full divide-y divide-gray-200">
         <thead class="bg-gray-50">
           <tr>
-            <th
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
-              ID
-            </th>
-            <th
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
-              Name
-            </th>
-            <th
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
-              Description
-            </th>
-            <th
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
-              Resource Type
-            </th>
-            <th
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
-              Action Type
-            </th>
-            <th
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
-              Actions
-            </th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Resource</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
           </tr>
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
           <tr
-            *ngFor="let permission of permissions"
+            *ngFor="let permission of filteredPermissions"
             class="hover:bg-gray-50"
             [class.bg-yellow-50]="permission.name === 'all_functions'"
           >
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-              {{ permission.id }}
+            <!-- Name -->
+            <td class="px-6 py-4 whitespace-nowrap">
+              <div class="flex items-center gap-2">
+                <span
+                  *ngIf="permission.name === 'all_functions'"
+                  class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-yellow-100 text-yellow-800"
+                >
+                  <mat-icon fontIcon="star" class="text-xs mr-0.5" style="font-size:12px;width:12px;height:12px;"></mat-icon>
+                  SUPER
+                </span>
+                <code class="text-sm font-mono text-gray-900">{{ permission.name }}</code>
+              </div>
             </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
-              <span
-                *ngIf="permission.name === 'all_functions'"
-                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-yellow-100 text-yellow-800 mr-2"
-              >
-                <mat-icon fontIcon="star" class="text-xs mr-1"></mat-icon>
-                SUPERADMIN
+
+            <!-- Resource -->
+            <td class="px-6 py-4 whitespace-nowrap">
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                {{ permission.resourceType || '—' }}
               </span>
-              {{ permission.name }}
             </td>
-            <td class="px-6 py-4 text-sm text-gray-900">{{ permission.description || '-' }}</td>
+
+            <!-- Action -->
             <td class="px-6 py-4 whitespace-nowrap">
               <span
-                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                [class]="permission.actionType === 'delete' ? 'bg-red-100 text-red-700' :
+                          permission.actionType === 'create' ? 'bg-green-100 text-green-700' :
+                          permission.actionType === 'update' ? 'bg-orange-100 text-orange-700' :
+                          'bg-gray-100 text-gray-600'"
               >
-                {{ permission.resourceType }}
+                {{ permission.actionType || '—' }}
               </span>
             </td>
-            <td class="px-6 py-4 whitespace-nowrap">
-              <span
-                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
-              >
-                {{ permission.actionType }}
-              </span>
+
+            <!-- Description -->
+            <td class="px-6 py-4 text-sm text-gray-500 max-w-xs truncate" [matTooltip]="permission.description || ''">
+              {{ permission.description || '—' }}
             </td>
+
+            <!-- Actions -->
             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-              <div class="flex gap-2">
+              <div class="flex gap-1">
                 <button
                   (click)="openEditDialog(permission)"
-                  class="text-indigo-600 hover:text-indigo-900 p-1 rounded"
-                  title="Edit permission"
+                  class="text-indigo-600 hover:text-indigo-900 p-1.5 rounded hover:bg-indigo-50 transition"
+                  matTooltip="Edit permission"
                 >
                   <mat-icon fontIcon="edit" class="text-base"></mat-icon>
                 </button>
                 <button
                   (click)="deletePermission(permission)"
-                  class="text-red-600 hover:text-red-900 p-1 rounded"
-                  title="Delete permission"
+                  class="text-red-500 hover:text-red-700 p-1.5 rounded hover:bg-red-50 transition"
+                  [disabled]="permission.name === 'all_functions'"
+                  matTooltip="{{ permission.name === 'all_functions' ? 'Cannot delete system permission' : 'Delete permission' }}"
                 >
                   <mat-icon fontIcon="delete" class="text-base"></mat-icon>
                 </button>
               </div>
             </td>
           </tr>
-          <tr *ngIf="permissions.length === 0" class="hover:bg-gray-50">
-            <td colspan="6" class="px-6 py-8 text-center text-sm text-gray-500">
-              <mat-icon fontIcon="security" class="text-4xl text-gray-300 mb-2"></mat-icon>
-              <div>No permissions found</div>
+
+          <!-- Empty state -->
+          <tr *ngIf="filteredPermissions.length === 0">
+            <td colspan="5" class="px-6 py-12 text-center text-sm text-gray-500">
+              <mat-icon fontIcon="security" class="text-4xl text-gray-300 block mx-auto mb-2"></mat-icon>
+              <div *ngIf="searchControl.value || resourceFilter.value">
+                No permissions match the current filters
+              </div>
+              <div *ngIf="!searchControl.value && !resourceFilter.value">No permissions found</div>
             </td>
           </tr>
         </tbody>
       </table>
+    </div>
+
+    <!-- Footer -->
+    <div *ngIf="filteredPermissions.length > 0" class="px-6 py-3 bg-gray-50 border-t text-xs text-gray-500">
+      Showing {{ filteredPermissions.length }} of {{ permissions.length }} permission{{ permissions.length !== 1 ? 's' : '' }}
     </div>
   </div>
 </div>

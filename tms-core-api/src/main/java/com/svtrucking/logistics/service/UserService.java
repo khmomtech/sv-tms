@@ -120,6 +120,16 @@ public class UserService {
     userRepository.save(user);
   }
 
+  /** Enable or disable a user account */
+  @Transactional
+  @CacheEvict(value = "userDetails", allEntries = true)
+  public UserDto toggleUserStatus(Long id, boolean enabled) {
+    User user = userRepository.findById(id)
+        .orElseThrow(() -> new RuntimeException("User not found with ID: " + id));
+    user.setEnabled(enabled);
+    return UserDto.fromEntity(userRepository.save(user));
+  }
+
   /** Delete user by ID */
   @Transactional
   @CacheEvict(value = "userDetails", allEntries = true)

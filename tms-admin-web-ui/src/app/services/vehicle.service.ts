@@ -255,12 +255,25 @@ export class VehicleService {
   }
 
   /** ➕ Create new vehicle */
-  addVehicle(vehicle: Vehicle): Observable<Vehicle> {
-    // Ensure vehicle.status is one of VehicleStatus
-    return this.http.post<Vehicle>('/api/admin/vehicles', {
-      ...vehicle,
-      status: vehicle.status, // should be one of VehicleStatus enum values
-    });
+  addVehicle(vehicle: Vehicle): Observable<ApiResponse<Vehicle>> {
+    return this.http
+      .post<ApiResponse<Vehicle>>(
+        this.apiUrl,
+        {
+          ...vehicle,
+          status: vehicle.status,
+        },
+        {
+          headers: this.getHeaders(),
+        },
+      )
+      .pipe(
+        timeout(this.REQUEST_TIMEOUT_MS),
+        tap(() => {
+          this.cacheService.invalidatePattern(/^vehicles:/);
+        }),
+        catchError(this.handleError.bind(this)),
+      );
   }
 
   /** 🛠️ Setup complete vehicle with documents and maintenance */

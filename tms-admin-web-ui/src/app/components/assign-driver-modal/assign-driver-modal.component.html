@@ -11,11 +11,13 @@
         [placeholder]="'Search driver by name or phone...'"
         [required]="true"
         [showStatus]="true"
+        [enableLiveSearch]="true"
         [errorMessage]="
           form.get('driverId')?.invalid && form.get('driverId')?.touched
             ? 'Driver selection is required.'
             : ''
         "
+        (searchQuery)="onDriverSearch($event)"
         formControlName="driverId"
       ></app-driver-autocomplete>
 

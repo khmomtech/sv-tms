@@ -1,0 +1,48 @@
+[Unit]
+Description=SV-TMS DevOps AI Agent
+Documentation=file:///opt/sv-tms/repo/infra/agent/README.md
+After=docker.service network-online.target
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/sv-tms/repo/infra/agent
+
+# ── Configuration ──────────────────────────────────────────────────────────
+# Override any of these in /etc/systemd/system/svtms-agent.service.d/override.conf
+Environment="STACK_ROOT=/opt/sv-tms/repo"
+Environment="COMPOSE_FILE=/opt/sv-tms/repo/infra/docker-compose.prod.yml"
+Environment="OVERRIDE_FILE=/opt/sv-tms/repo/infra/docker-compose.build-override.yml"
+Environment="ENV_FILE=/opt/sv-tms/repo/infra/.env"
+Environment="LOG_FILE=/var/log/svtms-agent/agent.log"
+Environment="STATE_FILE=/var/lib/svtms-agent/state.json"
+Environment="POLL_INTERVAL=60"
+Environment="RESTART_COOLDOWN=120"
+Environment="MAX_RESTARTS=3"
+Environment="DISK_WARN_PCT=85"
+Environment="DISK_CRIT_PCT=92"
+Environment="SWAP_WARN_PCT=80"
+# Set notification targets in override.conf — do NOT commit secrets here:
+# Environment="AGENT_WEBHOOK_URL=https://hooks.example.com/..."
+# Environment="AGENT_TELEGRAM_TOKEN=bot123..."
+# Environment="AGENT_TELEGRAM_CHAT_ID=-100..."
+
+# ── Process ────────────────────────────────────────────────────────────────
+ExecStartPre=/bin/mkdir -p /var/log/svtms-agent /var/lib/svtms-agent
+ExecStart=/usr/bin/python3 /opt/sv-tms/repo/infra/agent/svtms_agent.py --daemon
+Restart=always
+RestartSec=10
+
+# ── Resource limits ────────────────────────────────────────────────────────
+MemoryMax=128M
+CPUQuota=10%
+
+# ── Logging ───────────────────────────────────────────────────────────────
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=svtms-agent
+
+[Install]
+WantedBy=multi-user.target

@@ -253,6 +253,10 @@ public class AuthController {
 
       DeviceRegisterDto loginDevice = extractLoginDevice(request, loginRequest, driver.getId());
       String deviceId = loginDevice.getDeviceId();
+      if (loginDevice.getAppVersion() != null && !loginDevice.getAppVersion().isBlank()) {
+        driver.setAppVersion(loginDevice.getAppVersion().trim());
+        driverRepository.save(driver);
+      }
 
       // If skipDeviceCheck is enabled, do not require deviceId and bypass device approval checks.
       if (!effectiveSkipDeviceCheck && !effectiveDriverLoginBypassEnabled) {
@@ -265,11 +269,8 @@ public class AuthController {
         if (effectiveReviewerBypassEnabled && provided != null && provided.equalsIgnoreCase(reviewerUsername)) {
           log.info("Reviewer bypass enabled - skipping device approval for {}", provided);
         } else {
-          log.warn("DeviceRegistrationService impl class {}", deviceRegistrationService.getClass().getName());
+          log.info("Using DeviceRegistrationService implementation: {}", deviceRegistrationService.getClass().getName());
           String deviceStatus = deviceRegistrationService.resolveLoginDeviceStatus(loginDevice);
-          String deviceStatusByIds = deviceRegistrationService.resolveLoginDeviceStatus(driver.getId(), deviceId);
-          log.warn("Device status for driverId={}, deviceId={} via dto is {}", driver.getId(), deviceId, deviceStatus);
-          log.warn("Device status for driverId={}, deviceId={} via ids is {}", driver.getId(), deviceId, deviceStatusByIds);
           if (deviceStatus == null) {
             log.warn(
                 "Device status resolver returned null for driverId={} deviceId={}. Defaulting to NOT_REGISTERED",
@@ -716,7 +717,35 @@ public class AuthController {
     return val == null || val.trim().isEmpty();
   }
 
-  private record LocalDevAccount(String username, String password, String email, RoleType roleType) {}
+  private static final class LocalDevAccount {
+    private final String username;
+    private final String password;
+    private final String email;
+    private final RoleType roleType;
+
+    private LocalDevAccount(String username, String password, String email, RoleType roleType) {
+      this.username = username;
+      this.password = password;
+      this.email = email;
+      this.roleType = roleType;
+    }
+
+    private String username() {
+      return username;
+    }
+
+    private String password() {
+      return password;
+    }
+
+    private String email() {
+      return email;
+    }
+
+    private RoleType roleType() {
+      return roleType;
+    }
+  }
 
   private static final Map<String, LocalDevAccount> LOCAL_DEV_ACCOUNTS = Map.of(
       "superadmin", new LocalDevAccount("superadmin", "super123", "superadmin@svtms.com", RoleType.SUPERADMIN),

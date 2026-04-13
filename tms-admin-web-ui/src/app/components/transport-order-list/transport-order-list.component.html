@@ -11,7 +11,7 @@
       <button
         (click)="errorMessage = null"
         class="ml-2 font-bold hover:text-red-900"
-        aria-label="Close error message"
+        [attr.aria-label]="'orders.aria.close_error' | translate"
       >
         ✕
       </button>
@@ -19,120 +19,154 @@
 
     <!-- Title and Add Button -->
     <div class="flex items-center justify-between mb-4">
-      <h2 class="text-3xl font-bold">{{ pageTitle || 'Shipment Order' }}</h2>
+      <h2 class="text-3xl font-bold">{{ getTranslatedPageTitle() }}</h2>
       <button
         *ngIf="!hideAddButton"
         class="flex items-center px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700"
         (click)="navigateToCreateOrder()"
       >
         <mat-icon class="mr-2">add</mat-icon>
-        Add
+        {{ 'orders.new_order' | translate }}
       </button>
     </div>
 
-    <!-- Filter Toggle -->
-    <button
-      *ngIf="!hideFilterToggle"
-      (click)="toggleFilters()"
-      class="mb-4 text-blue-600 hover:underline"
-    >
-      {{ showFilters ? 'Hide Filters' : 'Show Filters' }}
-    </button>
-
     <!-- Filters Panel -->
-    <div
-      *ngIf="showFilters && !hideFilterToggle"
-      class="flex flex-wrap items-center gap-4 p-4 mb-4 rounded-lg shadow bg-gray-50"
-    >
-      <div>
-        <label class="text-sm font-medium">From:</label>
-        <input
-          type="date"
-          [(ngModel)]="fromDate"
-          (ngModelChange)="onDateChange()"
-          class="p-2 border rounded-lg"
-        />
-      </div>
-      <div>
-        <label class="text-sm font-medium">To:</label>
-        <input
-          type="date"
-          [(ngModel)]="toDate"
-          (ngModelChange)="onDateChange()"
-          class="p-2 border rounded-lg"
-        />
-      </div>
-      <div>
-        <label class="text-sm font-medium">Status:</label>
-        <select
-          [(ngModel)]="statusFilter"
-          (ngModelChange)="applyFilters()"
-          class="p-2 border rounded-lg"
-        >
-          <option value="">All</option>
-          <option *ngFor="let status of statusOptions" [value]="status">{{ status }}</option>
-        </select>
-      </div>
-      <div>
-        <label class="text-sm font-medium">Sort:</label>
-        <select
-          [(ngModel)]="sortOrder"
-          (ngModelChange)="sortOrders()"
-          class="p-2 border rounded-lg"
-        >
-          <option value="desc">Newest First</option>
-          <option value="asc">Oldest First</option>
-        </select>
-      </div>
-      <div class="flex items-center gap-2">
-        <input
-          type="text"
-          [(ngModel)]="searchQuery"
-          (input)="onSearchInputChange()"
-          placeholder="Search orders..."
-          class="p-2 border rounded-lg"
-        />
-        <button
-          (click)="clearFilters()"
-          class="px-4 py-2 text-white bg-gray-500 rounded-lg hover:bg-gray-600"
-        >
-          Clear
+    <section *ngIf="!hideFilterToggle" class="orders-filter-card mb-4">
+      <div class="orders-filter-header">
+        <h3 class="orders-filter-title">{{ 'orders.search_filter' | translate }}</h3>
+        <button type="button" (click)="toggleFilters()" class="orders-filter-toggle">
+          <mat-icon>filter_list</mat-icon>
+          <span>{{
+            showFilters ? ('orders.hide_filters' | translate) : ('orders.show_filters' | translate)
+          }}</span>
         </button>
       </div>
-    </div>
+
+      <div *ngIf="showFilters" class="orders-filter-body">
+        <div class="orders-filter-grid">
+          <div class="orders-filter-field">
+            <label for="order-status-filter" class="orders-filter-label">{{
+              'common.status' | translate
+            }}</label>
+            <select
+              id="order-status-filter"
+              [(ngModel)]="statusFilter"
+              (ngModelChange)="applyFilters()"
+              class="orders-filter-input"
+            >
+              <option value="">{{ 'orders.filters.all_status' | translate }}</option>
+              <option *ngFor="let status of statusOptions" [value]="status">
+                {{ getTranslatedStatus(status) }}
+              </option>
+            </select>
+          </div>
+
+          <div class="orders-filter-field orders-filter-field--wide">
+            <label for="order-search-filter" class="orders-filter-label">{{
+              'common.search' | translate
+            }}</label>
+            <input
+              id="order-search-filter"
+              type="text"
+              [(ngModel)]="searchQuery"
+              (input)="onSearchInputChange()"
+              [placeholder]="'orders.placeholders.search' | translate"
+              class="orders-filter-input"
+            />
+          </div>
+
+          <div class="orders-filter-field">
+            <label for="order-sort-filter" class="orders-filter-label">{{
+              'orders.filters.sort' | translate
+            }}</label>
+            <select
+              id="order-sort-filter"
+              [(ngModel)]="sortOrder"
+              (ngModelChange)="sortOrders()"
+              class="orders-filter-input"
+            >
+              <option value="desc">{{ 'orders.filters.newest_first' | translate }}</option>
+              <option value="asc">{{ 'orders.filters.oldest_first' | translate }}</option>
+            </select>
+          </div>
+
+          <div class="orders-filter-field">
+            <label for="order-from-date" class="orders-filter-label">{{
+              'orders.filters.start_date' | translate
+            }}</label>
+            <input
+              id="order-from-date"
+              type="date"
+              [(ngModel)]="fromDate"
+              (ngModelChange)="onDateChange()"
+              class="orders-filter-input"
+            />
+          </div>
+
+          <div class="orders-filter-field">
+            <label for="order-to-date" class="orders-filter-label">{{
+              'orders.filters.end_date' | translate
+            }}</label>
+            <input
+              id="order-to-date"
+              type="date"
+              [(ngModel)]="toDate"
+              (ngModelChange)="onDateChange()"
+              class="orders-filter-input"
+            />
+          </div>
+        </div>
+
+        <div class="orders-filter-actions">
+          <button type="button" (click)="applyFilters()" class="orders-filter-search-btn">
+            <mat-icon>search</mat-icon>
+            <span>{{ 'common.search' | translate }}</span>
+          </button>
+          <button type="button" (click)="clearFilters()" class="orders-filter-reset-btn">
+            {{ 'common.reset' | translate }}
+          </button>
+        </div>
+      </div>
+    </section>
 
     <!-- Loading -->
     <div *ngIf="isLoading" class="py-4 text-center">
-      <span class="font-medium text-blue-600">Loading orders...</span>
+      <span class="font-medium text-blue-600">{{ 'orders.loading' | translate }}</span>
     </div>
 
-    <!-- Orders Table Wrapper (horizontal scroll only) -->
-    <div class="overflow-x-auto">
-      <table class="w-full min-w-[1100px] bg-white rounded-lg shadow-lg" *ngIf="!isLoading">
-        <thead class="text-white bg-blue-600">
+    <!-- Orders Table -->
+    <div
+      *ngIf="!isLoading && orders.length > 0"
+      class="overflow-hidden bg-white border border-gray-200 rounded-lg shadow-sm"
+    >
+      <div class="overflow-x-auto">
+        <table class="w-full min-w-[1100px] dispatch-table">
+          <thead class="bg-gray-50 border-b border-gray-200">
           <tr>
-            <th class="p-3 whitespace-nowrap">No</th>
-            <th class="p-3 whitespace-nowrap">Order Date</th>
-            <th class="p-3 whitespace-nowrap">Delivery Date</th>
-            <th class="p-3 whitespace-nowrap">Customer</th>
-            <th class="p-3 whitespace-nowrap">From</th>
-            <th class="p-3 whitespace-nowrap">To</th>
-            <th class="p-3 whitespace-nowrap">Status</th>
-            <th class="p-3 whitespace-nowrap">Origin</th>
-            <th class="p-3 whitespace-nowrap">Requires Driver</th>
-            <th class="p-3 whitespace-nowrap">Actions</th>
+            <th class="px-4 py-3 text-xs font-semibold tracking-wider text-left text-gray-500 uppercase whitespace-nowrap">{{ 'orders.table.no' | translate }}</th>
+            <th class="px-4 py-3 text-xs font-semibold tracking-wider text-left text-gray-500 uppercase whitespace-nowrap">{{ 'orders.table.order_date' | translate }}</th>
+            <th class="px-4 py-3 text-xs font-semibold tracking-wider text-left text-gray-500 uppercase whitespace-nowrap">{{ 'orders.table.delivery_date' | translate }}</th>
+            <th class="px-4 py-3 text-xs font-semibold tracking-wider text-left text-gray-500 uppercase whitespace-nowrap">{{ 'orders.table.customer' | translate }}</th>
+            <th class="px-4 py-3 text-xs font-semibold tracking-wider text-left text-gray-500 uppercase whitespace-nowrap">{{ 'common.from' | translate }}</th>
+            <th class="px-4 py-3 text-xs font-semibold tracking-wider text-left text-gray-500 uppercase whitespace-nowrap">{{ 'common.to' | translate }}</th>
+            <th class="px-4 py-3 text-xs font-semibold tracking-wider text-left text-gray-500 uppercase whitespace-nowrap">{{ 'common.status' | translate }}</th>
+            <th class="px-4 py-3 text-xs font-semibold tracking-wider text-left text-gray-500 uppercase whitespace-nowrap">{{ 'orders.table.origin' | translate }}</th>
+            <th class="px-4 py-3 text-xs font-semibold tracking-wider text-left text-gray-500 uppercase whitespace-nowrap">{{
+              'orders.table.requires_driver' | translate
+            }}</th>
+            <th class="px-4 py-3 text-xs font-semibold tracking-wider text-left text-gray-500 uppercase whitespace-nowrap">{{ 'common.actions' | translate }}</th>
           </tr>
         </thead>
 
-        <tbody>
+        <tbody class="divide-y divide-gray-200 bg-white">
           <tr
             *ngFor="let order of orders; let i = index; trackBy: trackByOrderId"
-            class="border-b hover:bg-gray-100"
+            class="hover:bg-gray-50"
           >
             <!-- No (or ID link if you prefer ID as first column) -->
-            <td class="p-3 text-center whitespace-nowrap">
+            <td class="px-4 py-4 text-sm whitespace-nowrap">
               <a
-                class="text-blue-600 underline hover:text-blue-800"
+                class="font-medium text-blue-600 hover:text-blue-800"
                 [href]="'/orders/' + order.id"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -141,17 +175,17 @@
             </td>
 
             <!-- Dates -->
-            <td class="p-3 text-center whitespace-nowrap">
+            <td class="px-4 py-4 text-sm text-gray-700 whitespace-nowrap">
               {{ order.orderDate ? (order.orderDate | date: 'dd-MMM-yyyy') : '-' }}
             </td>
-            <td class="p-3 text-center whitespace-nowrap">
+            <td class="px-4 py-4 text-sm text-gray-700 whitespace-nowrap">
               {{ order.deliveryDate ? (order.deliveryDate | date: 'dd-MMM-yyyy') : '-' }}
             </td>
 
             <!-- Customer -->
-            <td class="p-3 text-center whitespace-nowrap">
+            <td class="px-4 py-4 text-sm whitespace-nowrap">
               <a
-                class="text-blue-600 underline hover:text-blue-800"
+                class="font-medium text-blue-600 hover:text-blue-800"
                 [href]="'/customers/' + order.customerId"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -160,7 +194,7 @@
             </td>
 
             <!-- From (Pickup) -->
-            <td class="p-3 text-center whitespace-nowrap">
+            <td class="px-4 py-4 text-sm text-gray-700 whitespace-nowrap">
               <ng-container *ngIf="getPickupStops(order) as pickups">
                 <ng-container *ngFor="let stop of pickups; let idx = index; trackBy: trackByStop">
                   <ng-container *ngIf="stop.address as addr">
@@ -177,8 +211,9 @@
                       class="text-green-700 underline hover:text-green-900"
                       [attr.title]="addr.name || addr.latitude + ', ' + addr.longitude"
                       [attr.aria-label]="
-                        'Open pickup in Google Maps: ' +
-                        (addr.name || addr.latitude + ', ' + addr.longitude)
+                        'orders.aria.open_pickup_map' | translate: {
+                          location: addr.name || addr.latitude + ', ' + addr.longitude,
+                        }
                       "
                     >
                       {{
@@ -198,7 +233,7 @@
             </td>
 
             <!-- To (Drop) -->
-            <td class="p-3 text-center whitespace-nowrap">
+            <td class="px-4 py-4 text-sm text-gray-700 whitespace-nowrap">
               <ng-container *ngIf="getDropStops(order) as drops">
                 <ng-container *ngFor="let stop of drops; let idx = index; trackBy: trackByStop">
                   <ng-container *ngIf="stop.address as addr">
@@ -215,8 +250,9 @@
                       class="text-blue-700 underline hover:text-blue-900"
                       [attr.title]="addr.name || addr.latitude + ', ' + addr.longitude"
                       [attr.aria-label]="
-                        'Open dropoff in Google Maps: ' +
-                        (addr.name || addr.latitude + ', ' + addr.longitude)
+                        'orders.aria.open_dropoff_map' | translate: {
+                          location: addr.name || addr.latitude + ', ' + addr.longitude,
+                        }
                       "
                     >
                       {{
@@ -236,35 +272,39 @@
             </td>
 
             <!-- Status (badge) -->
-            <td class="p-3 text-center whitespace-nowrap">
+            <td class="px-4 py-4 text-sm whitespace-nowrap">
               <span
                 class="status-badge"
                 [ngClass]="getStatusBadgeClass(order.status)"
                 role="status"
-                [attr.aria-label]="'Order status: ' + formatStatusDisplay(order.status)"
+                [attr.aria-label]="
+                  'orders.aria.order_status' | translate: { status: getTranslatedStatus(order.status) }
+                "
               >
-                {{ formatStatusDisplay(order.status) }}
+                {{ getTranslatedStatus(order.status) }}
               </span>
             </td>
 
             <!-- Origin -->
-            <td class="p-3 text-center whitespace-nowrap">{{ order.origin || '-' }}</td>
+            <td class="px-4 py-4 text-sm text-gray-700 whitespace-nowrap">{{ order.origin || '-' }}</td>
 
             <!-- Requires Driver -->
-            <td class="p-3 text-center whitespace-nowrap">
+            <td class="px-4 py-4 text-sm whitespace-nowrap">
               <span *ngIf="order.requiresDriver; else noDriver" class="text-sm text-green-700"
-                >Yes</span
+                >{{ 'orders.yes' | translate }}</span
               >
-              <ng-template #noDriver><span class="text-sm text-yellow-700">No</span></ng-template>
+              <ng-template #noDriver
+                ><span class="text-sm text-yellow-700">{{ 'orders.no' | translate }}</span>
+              </ng-template>
             </td>
 
             <!-- Actions -->
-            <td class="relative p-3 whitespace-nowrap">
+            <td class="relative px-4 py-4 text-sm whitespace-nowrap">
               <button
                 (click)="toggleDropdown(order.id)"
                 (keydown.enter)="toggleDropdown(order.id)"
                 (keydown.space)="toggleDropdown(order.id)"
-                aria-label="Order actions menu"
+                [attr.aria-label]="'orders.aria.actions_menu' | translate"
                 [attr.aria-expanded]="dropdownOpen === order.id"
                 aria-haspopup="menu"
                 class="px-2 py-1 bg-gray-200 rounded-lg hover:bg-gray-300"
@@ -275,7 +315,7 @@
               <div
                 *ngIf="dropdownOpen === order.id"
                 role="menu"
-                aria-label="Order actions"
+                [attr.aria-label]="'orders.aria.actions' | translate"
                 class="absolute right-0 z-50 w-48 bg-white border border-gray-200 rounded-lg shadow-lg"
               >
                 <a
@@ -286,7 +326,7 @@
                   rel="noopener noreferrer"
                   class="flex items-center w-full px-4 py-2 text-gray-700 hover:bg-gray-100"
                 >
-                  <i class="mr-2 fas fa-eye" aria-hidden="true"></i> View
+                  <i class="mr-2 fas fa-eye" aria-hidden="true"></i> {{ 'common.view_details' | translate }}
                 </a>
                 <a
                   role="menuitem"
@@ -296,7 +336,7 @@
                   rel="noopener noreferrer"
                   class="flex items-center w-full px-4 py-2 text-gray-700 hover:bg-gray-100"
                 >
-                  <i class="mr-2 fas fa-edit" aria-hidden="true"></i> Edit
+                  <i class="mr-2 fas fa-edit" aria-hidden="true"></i> {{ 'common.edit' | translate }}
                 </a>
                 <button
                   *ngIf="order.status === 'PENDING'"
@@ -310,7 +350,11 @@
                     [class.animate-spin]="isActionInProgress(order.id)"
                     aria-hidden="true"
                   ></i>
-                  {{ isActionInProgress(order.id) ? 'Processing...' : 'Approve' }}
+                  {{
+                    isActionInProgress(order.id)
+                      ? ('orders.actions.processing' | translate)
+                      : ('orders.actions.approve' | translate)
+                  }}
                 </button>
                 <button
                   *ngIf="order.status === 'PENDING'"
@@ -324,7 +368,11 @@
                     [class.animate-spin]="isActionInProgress(order.id)"
                     aria-hidden="true"
                   ></i>
-                  {{ isActionInProgress(order.id) ? 'Processing...' : 'Reject' }}
+                  {{
+                    isActionInProgress(order.id)
+                      ? ('orders.actions.processing' | translate)
+                      : ('orders.actions.reject' | translate)
+                  }}
                 </button>
                 <button
                   (click)="dispatchOrder(order.id!)"
@@ -337,7 +385,11 @@
                     [class.animate-spin]="isActionInProgress(order.id)"
                     aria-hidden="true"
                   ></i>
-                  {{ isActionInProgress(order.id) ? 'Processing...' : 'Dispatch' }}
+                  {{
+                    isActionInProgress(order.id)
+                      ? ('orders.actions.processing' | translate)
+                      : ('orders.actions.dispatch' | translate)
+                  }}
                 </button>
                 <button
                   (click)="loadOrder(order.id!)"
@@ -350,7 +402,11 @@
                     [class.animate-spin]="isActionInProgress(order.id)"
                     aria-hidden="true"
                   ></i>
-                  {{ isActionInProgress(order.id) ? 'Processing...' : 'Load' }}
+                  {{
+                    isActionInProgress(order.id)
+                      ? ('orders.actions.processing' | translate)
+                      : ('orders.actions.load' | translate)
+                  }}
                 </button>
                 <button
                   (click)="markAsCompleted(order.id!)"
@@ -363,44 +419,146 @@
                     [class.animate-spin]="isActionInProgress(order.id)"
                     aria-hidden="true"
                   ></i>
-                  {{ isActionInProgress(order.id) ? 'Processing...' : 'Complete' }}
+                  {{
+                    isActionInProgress(order.id)
+                      ? ('orders.actions.processing' | translate)
+                      : ('orders.actions.complete' | translate)
+                  }}
                 </button>
               </div>
             </td>
           </tr>
         </tbody>
-      </table>
+        </table>
+      </div>
     </div>
 
     <!-- Empty state: show when no orders returned and not loading -->
     <div *ngIf="!isLoading && (!orders || orders.length === 0)" class="empty-state p-8 text-center">
       <div class="empty-icon mb-4">📦</div>
-      <h3 class="text-lg font-semibold mb-2">No orders found</h3>
-      <p class="text-sm text-gray-600 mb-4">Try adjusting filters or create a new order.</p>
+      <h3 class="text-lg font-semibold mb-2">{{ 'orders.empty.title' | translate }}</h3>
+      <p class="text-sm text-gray-600 mb-4">{{ 'orders.empty.description' | translate }}</p>
       <div>
         <button
           (click)="navigateToCreateOrder()"
           class="px-4 py-2 bg-green-600 text-white rounded-lg"
         >
-          Create Order
+          {{ 'orders.create_order' | translate }}
         </button>
       </div>
     </div>
 
     <!-- Pagination -->
-    <div class="flex items-center justify-center gap-2 mt-6" *ngIf="totalPages > 1">
-      <button
-        *ngFor="let page of pages"
-        class="px-3 py-1 border rounded-lg"
-        [ngClass]="{
-          'bg-blue-600 text-white': page === currentPage,
-          'bg-white text-gray-800': page !== currentPage,
-        }"
-        [disabled]="page === currentPage"
-        (click)="goToPage(page)"
-      >
-        {{ page + 1 }}
-      </button>
+    <div
+      *ngIf="!isLoading"
+      class="flex flex-wrap items-center justify-between gap-4 p-4 mt-6 bg-white border border-gray-200 rounded-lg shadow-sm"
+    >
+      <div class="text-sm text-gray-700">
+        <ng-container *ngIf="totalElements > 0; else noRecords">
+          {{
+            'orders.pagination.showing_results'
+              | translate
+                : {
+                    from: resultFrom,
+                    to: resultTo,
+                    total: totalElements,
+                  }
+          }}
+        </ng-container>
+        <ng-template #noRecords>
+          <span class="text-gray-500">{{ 'orders.pagination.no_records' | translate }}</span>
+        </ng-template>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2">
+          <label class="text-sm text-gray-700">{{ 'orders.pagination.rows_per_page' | translate }}</label>
+          <select
+            class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            [ngModel]="pageSize"
+            (ngModelChange)="onPageSizeChange($event)"
+          >
+            <option *ngFor="let size of pageSizes" [ngValue]="size">{{ size }}</option>
+          </select>
+        </div>
+
+        <nav class="inline-flex gap-1 rounded-lg shadow-sm" aria-label="Pagination">
+          <button
+            type="button"
+            class="relative inline-flex items-center px-2 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-l-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:z-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            [disabled]="currentPage === 0 || totalPages <= 1 || isLoading"
+            (click)="firstPage()"
+            [title]="'common.first' | translate"
+          >
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path
+                fill-rule="evenodd"
+                d="M15.707 15.707a1 1 0 01-1.414 0l-5-5a1 1 0 010-1.414l5-5a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 010 1.414zm-6 0a1 1 0 01-1.414 0l-5-5a1 1 0 010-1.414l5-5a1 1 0 011.414 1.414L5.414 10l4.293 4.293a1 1 0 010 1.414z"
+                clip-rule="evenodd"
+              />
+            </svg>
+          </button>
+
+          <button
+            type="button"
+            class="relative inline-flex items-center px-2 py-2 text-sm font-medium text-gray-500 bg-white border-t border-b border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:z-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            [disabled]="currentPage === 0 || totalPages <= 1 || isLoading"
+            (click)="prevPage()"
+            [title]="'common.prev' | translate"
+          >
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path
+                fill-rule="evenodd"
+                d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
+                clip-rule="evenodd"
+              />
+            </svg>
+          </button>
+
+          <span
+            class="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border-t border-b border-gray-300"
+          >
+            {{ 'orders.pagination.page_of' | translate: { page: currentPage + 1, total: totalPages || 1 } }}
+          </span>
+
+          <button
+            type="button"
+            class="relative inline-flex items-center px-2 py-2 text-sm font-medium text-gray-500 bg-white border-t border-b border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:z-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            [disabled]="currentPage + 1 >= totalPages || totalPages <= 1 || isLoading"
+            (click)="nextPage()"
+            [title]="'common.next' | translate"
+          >
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path
+                fill-rule="evenodd"
+                d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                clip-rule="evenodd"
+              />
+            </svg>
+          </button>
+
+          <button
+            type="button"
+            class="relative inline-flex items-center px-2 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-r-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:z-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            [disabled]="currentPage + 1 >= totalPages || totalPages <= 1 || isLoading"
+            (click)="lastPage()"
+            [title]="'common.last' | translate"
+          >
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path
+                fill-rule="evenodd"
+                d="M10.293 15.707a1 1 0 010-1.414L14.586 10l-4.293-4.293a1 1 0 111.414-1.414l5 5a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0z"
+                clip-rule="evenodd"
+              />
+              <path
+                fill-rule="evenodd"
+                d="M4.293 15.707a1 1 0 010-1.414L8.586 10 4.293 5.707a1 1 0 011.414-1.414l5 5a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0z"
+                clip-rule="evenodd"
+              />
+            </svg>
+          </button>
+        </nav>
+      </div>
     </div>
 
     <!-- projected footer (rows/paging) from parent pages -->

@@ -92,10 +92,10 @@ class WebSocketService {
       final rawToken = _normalizeToken(token);
       _currentToken = rawToken;
       if (rawToken == null || rawToken.isEmpty) {
-        _authInvalid = true;
-        onError?.call('No valid token; abort WS connect');
-        SessionManager.instance
-            .markAuthInvalid(reason: 'stomp_initial_token_missing');
+        _authInvalid = false;
+        onError?.call('No valid token available for WebSocket yet');
+        debugPrint('[WS] Missing token at connect-time; delaying reconnect instead of forcing logout');
+        _autoReconnect();
         return;
       }
 
@@ -226,9 +226,10 @@ class WebSocketService {
 
   void _handleError(Object error) {
     final msg = error.toString();
+    final lower = msg.toLowerCase();
     debugPrint('[WS] Error: $msg');
-    onError?.call(msg);
     if (_looksUnauthorized(msg)) {
+      onError?.call(msg);
       _consecutiveUnauthorizedErrors++;
       if (_consecutiveUnauthorizedErrors > _maxUnauthorizedRetries) {
         _activateDegradedMode('unauthorized');
@@ -238,6 +239,19 @@ class WebSocketService {
       _softReauth(reason: 'ws_error_unauthorized');
       return;
     }
+    if (lower.contains('502') ||
+        lower.contains('503') ||
+        lower.contains('504') ||
+        lower.contains('bad gateway') ||
+        lower.contains('gateway timeout') ||
+        lower.contains('service unavailable') ||
+        lower.contains('was not upgraded to websocket') ||
+        lower.contains('sockjs')) {
+      onError?.call('WebSocket temporarily unavailable');
+      _activateDegradedMode('upstream_unavailable');
+      return;
+    }
+    onError?.call(msg);
     _autoReconnect();
   }
 
@@ -526,9 +540,21 @@ class WebSocketService {
 
         if ((resp.statusCode == 401 || resp.statusCode == 403) &&
             retriedAfter401) {
-          // After a failed refresh & retry, force logout to avoid infinite loops
-          SessionManager.instance
-              .markAuthInvalid(reason: 'rest_auth_failed_after_retry');
+          final bodyLower = resp.body.toLowerCase();
+          final confirmedInvalid = bodyLower.contains('revoked') ||
+              bodyLower.contains('invalid refresh') ||
+              bodyLower.contains('invalid token') ||
+              bodyLower.contains('token invalid') ||
+              bodyLower.contains('stale_tracking_token') ||
+              bodyLower.contains('not a refresh token');
+          if (confirmedInvalid) {
+            SessionManager.instance
+                .markAuthInvalid(reason: 'rest_auth_failed_after_retry');
+          } else {
+            debugPrint(
+              '[REST] Auth retry still failing, but session is not confirmed revoked; keeping driver signed in.',
+            );
+          }
           return;
         }
 

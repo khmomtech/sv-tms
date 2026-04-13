@@ -4,6 +4,7 @@
 /* eslint-disable @typescript-eslint/consistent-type-imports */
 import { CommonModule } from '@angular/common';
 import { Component, HostListener, type OnDestroy, type OnInit } from '@angular/core';
+import { TranslateModule } from '@ngx-translate/core';
 import {
   FormsModule,
   ReactiveFormsModule,
@@ -14,7 +15,7 @@ import {
 import { RouterModule } from '@angular/router';
 import { ToastrService } from 'ngx-toastr';
 // @ts-ignore: IDE/TS server may not resolve workspace node_modules in editor
-import { finalize, forkJoin } from 'rxjs';
+import { catchError, finalize, forkJoin, of } from 'rxjs';
 // @ts-ignore: IDE/TS server may not resolve workspace node_modules in editor
 import Swal from 'sweetalert2';
 
@@ -52,6 +53,7 @@ import { SafetyChecklistComponent } from '../safety-checklist/safety-checklist.c
     FormsModule,
     ReactiveFormsModule,
     RouterModule,
+    TranslateModule,
     ChangeDriverModalComponent,
     AssignDriverModalComponent,
     AssignTruckModalComponent,
@@ -91,6 +93,7 @@ export class DispatchListComponent implements OnInit, OnDestroy {
   isEditing = false;
   selectedDispatch: Dispatch | null = null;
   dropdownOpen: number | null = null;
+  filtersVisible = false;
 
   // ==== load/unload proofs ====
   selectedDispatchForLoadProof: any = null;
@@ -158,6 +161,8 @@ export class DispatchListComponent implements OnInit, OnDestroy {
 
   Math = Math;
 
+  readonly statusOptions = Object.values(DispatchStatus);
+
   constructor(
     private dispatchService: DispatchService,
     private driverService: DriverService,
@@ -195,11 +200,27 @@ export class DispatchListComponent implements OnInit, OnDestroy {
     }, 350);
   }
 
-  // Get driver name from ID
-  getDriverName(driverId: number | undefined | null): string {
-    if (!driverId) return 'Not assigned';
-    const driver = this.drivers.find((d) => d.id === driverId);
-    return driver ? driver.name : `Driver #${driverId}`;
+  getDriverDisplayName(dispatch: Dispatch): string {
+    if (!dispatch.driverId) return 'Not assigned';
+
+    const apiName = (dispatch.driverName ?? '').trim();
+    if (apiName) {
+      return apiName;
+    }
+
+    const driver = this.drivers.find((d) => d.id === dispatch.driverId);
+    const fullName = (driver?.fullName ?? '').trim();
+    if (fullName) {
+      return fullName;
+    }
+
+    const fallbackName = (driver?.name ?? '').trim();
+    if (fallbackName) {
+      return fallbackName;
+    }
+
+    const firstLast = `${driver?.firstName ?? ''} ${driver?.lastName ?? ''}`.trim();
+    return firstLast || 'Not assigned';
   }
 
   formatDispatchStatus(status: string | null | undefined): string {
@@ -430,6 +451,68 @@ export class DispatchListComponent implements OnInit, OnDestroy {
     return filterValues.filter((v) => !!String(v ?? '').trim()).length;
   }
 
+  get hasActiveFilters(): boolean {
+    return this.activeFilterCount > 0;
+  }
+
+  get currentPageCount(): number {
+    return this.filteredDispatches.length;
+  }
+
+  get currentPageStatusSummary(): Array<{ status: string; count: number; tone: string }> {
+    const counts = new Map<string, number>();
+
+    for (const dispatch of this.filteredDispatches) {
+      const status = dispatch.status || 'UNKNOWN';
+      counts.set(status, (counts.get(status) ?? 0) + 1);
+    }
+
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 4)
+      .map(([status, count]) => ({
+        status,
+        count,
+        tone: this.getStatusToneClass(status),
+      }));
+  }
+
+  get selectedDispatchesOnPage(): Dispatch[] {
+    if (!this.selectedIds.size) {
+      return [];
+    }
+
+    return this.filteredDispatches.filter((d) => d.id != null && this.selectedIds.has(d.id));
+  }
+
+  get selectedNotifiableDispatchesOnPage(): Dispatch[] {
+    return this.selectedDispatchesOnPage.filter((d) => !!d.driverId);
+  }
+
+  get canBulkNotifyAssignedDrivers(): boolean {
+    return !this.bulkBusy && this.selectedNotifiableDispatchesOnPage.length > 0;
+  }
+
+  get bulkNotifyHint(): string {
+    if (this.bulkBusy) {
+      return 'Notification in progress...';
+    }
+
+    if (!this.selectedIds.size) {
+      return 'Select at least one dispatch.';
+    }
+
+    if (!this.selectedDispatchesOnPage.length) {
+      return 'Selected rows are not available on the current page.';
+    }
+
+    if (!this.selectedNotifiableDispatchesOnPage.length) {
+      return 'Only dispatches with an assigned driver can be notified.';
+    }
+
+    return 'Notify assigned drivers for selected dispatches.';
+  }
+
   applyDatePreset(preset: 'TODAY' | 'LAST_7_DAYS' | 'LAST_30_DAYS' | 'CLEAR'): void {
     const today = new Date();
     const toYmd = (d: Date) => d.toISOString().slice(0, 10);
@@ -485,6 +568,36 @@ export class DispatchListComponent implements OnInit, OnDestroy {
         return 'bg-blue-100 text-blue-800';
       case DispatchStatus.LOADED:
         return 'bg-emerald-100 text-emerald-800';
+      default:
+        return 'bg-gray-100 text-gray-700';
+    }
+  }
+
+  getStatusToneClass(status: string | null | undefined): string {
+    switch (status) {
+      case DispatchStatus.PENDING:
+        return 'bg-yellow-100 text-yellow-800';
+      case DispatchStatus.ASSIGNED:
+      case DispatchStatus.DRIVER_CONFIRMED:
+        return 'bg-sky-100 text-sky-800';
+      case DispatchStatus.ARRIVED_LOADING:
+      case DispatchStatus.IN_QUEUE:
+        return 'bg-indigo-100 text-indigo-800';
+      case DispatchStatus.LOADING:
+      case DispatchStatus.ARRIVED_UNLOADING:
+      case DispatchStatus.UNLOADING:
+        return 'bg-orange-100 text-orange-800';
+      case DispatchStatus.LOADED:
+      case DispatchStatus.IN_TRANSIT:
+        return 'bg-blue-100 text-blue-800';
+      case DispatchStatus.SAFETY_PASSED:
+      case DispatchStatus.DELIVERED:
+      case DispatchStatus.COMPLETED:
+        return 'bg-green-100 text-green-800';
+      case DispatchStatus.SAFETY_FAILED:
+      case DispatchStatus.REJECTED:
+      case DispatchStatus.CANCELLED:
+        return 'bg-red-100 text-red-800';
       default:
         return 'bg-gray-100 text-gray-700';
     }
@@ -1022,6 +1135,7 @@ export class DispatchListComponent implements OnInit, OnDestroy {
     this.dispatchService.notifyAssignedDriver(dispatch.id).subscribe({
       next: (res: any) => {
         if (res.success) {
+          this.applyNotifiedDispatchUpdate(dispatch.id, res?.data);
           Swal.fire({
             icon: 'success',
             title: 'ជោគជ័យ',
@@ -1369,16 +1483,10 @@ export class DispatchListComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const pageMap = new Map<number, Dispatch>(
-      this.filteredDispatches.filter((d) => d.id != null).map((d) => [d.id!, d]),
-    );
-
-    const targets = selected
-      .map((id) => pageMap.get(id))
-      .filter((d): d is Dispatch => !!d && !!(d as any).driverId);
+    const targets = this.selectedNotifiableDispatchesOnPage;
 
     if (targets.length === 0) {
-      this.toastr.info('No selected rows on this page have an assigned driver.');
+      this.toastr.info('Only dispatches with an assigned driver can be notified.');
       return;
     }
 
@@ -1390,14 +1498,46 @@ export class DispatchListComponent implements OnInit, OnDestroy {
       targets.map((t) => t.id),
     );
 
-    forkJoin(targets.map((d) => this.dispatchService.notifyAssignedDriver(d.id!)))
+    forkJoin(
+      targets.map((d) =>
+        this.dispatchService.notifyAssignedDriver(d.id!).pipe(
+          catchError((error: any) =>
+            of({
+              success: false,
+              error,
+              dispatchId: d.id,
+            }),
+          ),
+        ),
+      ),
+    )
       .pipe(finalize(() => (this.bulkBusy = false)))
       .subscribe({
         next: (results: any[]) => {
-          const ok = results.filter((r) => r?.success).length;
+          const successes = results.filter((r) => r?.success);
+          const failures = results.filter((r) => !r?.success);
+          successes.forEach((result) =>
+            this.applyNotifiedDispatchUpdate(result?.data?.id ?? result?.dispatchId, result?.data),
+          );
+          const ok = successes.length;
           const fail = results.length - ok;
-          if (ok) this.toastr.success(`Notified ${ok} driver(s).`);
-          if (fail) this.toastr.warning(`${fail} notification(s) failed.`);
+          if (ok) {
+            this.toastr.success(
+              ok === 1
+                ? 'Driver notified and shipment marked as Assigned.'
+                : `${ok} drivers notified and shipments marked as Assigned.`,
+            );
+          }
+          if (fail) {
+            const firstFailure =
+              failures[0]?.error?.error?.message ||
+              failures[0]?.error?.message ||
+              failures[0]?.message ||
+              'Some notifications could not be sent.';
+            this.toastr.warning(
+              fail === 1 ? firstFailure : `${fail} notifications failed. ${firstFailure}`,
+            );
+          }
           targets.forEach((t) => this.selectedIds.delete(t.id!));
           this.refreshDispatches();
         },
@@ -1406,5 +1546,28 @@ export class DispatchListComponent implements OnInit, OnDestroy {
           this.toastr.error('Bulk notify failed.');
         },
       });
+  }
+
+  private applyNotifiedDispatchUpdate(dispatchId: number | null | undefined, payload?: Partial<Dispatch>): void {
+    if (dispatchId == null) {
+      return;
+    }
+
+    const applyUpdate = (row: Dispatch): Dispatch => {
+      if (row.id !== dispatchId) {
+        return row;
+      }
+
+      return {
+        ...row,
+        ...payload,
+        id: row.id,
+        status: payload?.status ?? DispatchStatus.ASSIGNED,
+        updatedDate: payload?.updatedDate ?? new Date().toISOString(),
+      };
+    };
+
+    this.dispatches = this.dispatches.map(applyUpdate);
+    this.filteredDispatches = this.filteredDispatches.map(applyUpdate);
   }
 }

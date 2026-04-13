@@ -3,10 +3,11 @@ package com.svtrucking.devicegateway;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.svtrucking.devicegateway.telemetry.TelemetryController;
 import com.svtrucking.devicegateway.telemetry.TelemetryController.TelemetryPointDto;
+import com.svtrucking.devicegateway.telemetry.TelemetryOutboxPublisher;
+import com.svtrucking.devicegateway.telemetry.TelemetryPoint;
 import com.svtrucking.devicegateway.telemetry.TelemetryPointRepository;
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,12 +28,12 @@ class TelemetryControllerTest {
   @Autowired private ObjectMapper objectMapper;
 
   @MockBean private TelemetryPointRepository repository;
+  @MockBean private TelemetryOutboxPublisher outboxPublisher;
 
   @Test
   void postTelemetry_returnsCreated_whenValidPayload() throws Exception {
-    Mockito.when(repository.findByDeviceIdAndSequenceNumber("device-1", 1L))
-        .thenReturn(Optional.empty());
-    Mockito.when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+    Mockito.when(repository.saveAndFlush(any(TelemetryPoint.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
 
     TelemetryPointDto dto = TelemetryPointDto.builder()
         .deviceId("device-1")

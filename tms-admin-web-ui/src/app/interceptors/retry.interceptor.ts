@@ -154,6 +154,11 @@ export class RetryInterceptor implements HttpInterceptor {
       /\/api\/public\/counts/, // counts endpoints — avoid amplifying failures
       /\/api\/admin\/users\/driver-account/, // driver-account lookups
       /\/api\/loading-ops\/queue/, // queue endpoint can be hot-polled; avoid retry storms
+      /\/api\/notifications\/admin\/count$/, // badge count is polled already; avoid 504 storms
+      /\/api\/admin\/drivers\/live$/, // realtime fallback endpoint can already be retried by polling loop
+      /\/api\/admin\/drivers\/live\?/, // same endpoint with query params
+      /\/api\/admin\/drivers\/live-drivers$/, // live-driver map endpoint is already polled by UI
+      /\/api\/admin\/drivers\/live-drivers\?/, // same endpoint with query params
     ];
 
     if (noRetryPatterns.some((p) => p.test(req.url))) return false;

@@ -137,8 +137,8 @@ This is intentionally temporary and should be removed in phase-2 extraction.
 
 ## 12) Source Of Truth Docs
 
-- `/Users/sotheakh/Documents/develop/sv-tms/docs/README.md`
-- `/Users/sotheakh/Documents/develop/sv-tms/docs/guides/INFRASTRUCTURE_GUIDE.md`
-- `/Users/sotheakh/Documents/develop/sv-tms/docs/guides/DEVELOPMENT_GUIDE.md`
-- `/Users/sotheakh/Documents/develop/sv-tms/docs/guides/ONGOING_MAINTENANCE_GUIDE.md`
-- `/Users/sotheakh/Documents/develop/sv-tms/docs/deployment/VPS_MAINTENANCE_AND_MONITORING_RUNBOOK.md`
+- `docs/README.md`
+- `docs/guides/INFRASTRUCTURE_GUIDE.md`
+- `docs/guides/DEVELOPMENT_GUIDE.md`
+- `docs/guides/ONGOING_MAINTENANCE_GUIDE.md`
+- `docs/deployment/VPS_MAINTENANCE_AND_MONITORING_RUNBOOK.md`

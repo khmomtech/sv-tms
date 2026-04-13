@@ -21,6 +21,11 @@ export interface Driver {
   firstName?: string;
   lastName?: string;
   phone?: string;
+  assignedVehiclePlate?: string;
+  currentVehiclePlate?: string;
+  assignedVehicle?: {
+    licensePlate?: string;
+  } | null;
   status?: 'ONLINE' | 'BUSY' | 'OFFLINE' | string;
 }
 
@@ -103,11 +108,12 @@ export class DriverAutocompleteComponent
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['drivers'] && !changes['drivers'].firstChange) {
-      // Only update if not using live search or if drivers array has content
-      if (!this.enableLiveSearch) {
-        this.filteredDrivers = [...this.drivers];
-        console.log('🔄 Drivers updated:', this.drivers.length, 'drivers');
+      this.filteredDrivers = [...this.drivers];
+      this.isSearching = false;
+      if (this.enableLiveSearch && this.showDropdown) {
+        this.showDropdown = true;
       }
+      console.log('🔄 Drivers updated:', this.drivers.length, 'drivers');
       // Re-sync selected driver if ID matches
       if (this.selectedDriverId) {
         const driver = this.drivers.find((d) => d.id === this.selectedDriverId);
@@ -178,10 +184,12 @@ export class DriverAutocompleteComponent
           const phone = (driver.phone || '').toLowerCase();
           const firstName = (driver.firstName || '').toLowerCase();
           const lastName = (driver.lastName || '').toLowerCase();
+          const plate = this.getDriverPlate(driver).toLowerCase();
 
           return (
             name.includes(search) ||
             phone.includes(search) ||
+            plate.includes(search) ||
             firstName.includes(search) ||
             lastName.includes(search)
           );
@@ -309,6 +317,15 @@ export class DriverAutocompleteComponent
       return `${driver.firstName || ''} ${driver.lastName || ''}`.trim();
     }
     return `Driver #${driver.id}`;
+  }
+
+  getDriverPlate(driver: Driver): string {
+    return (
+      driver.assignedVehiclePlate ||
+      driver.currentVehiclePlate ||
+      driver.assignedVehicle?.licensePlate ||
+      ''
+    ).trim();
   }
 
   // Helper: Get status badge class

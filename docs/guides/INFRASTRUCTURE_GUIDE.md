@@ -47,9 +47,9 @@ All must be healthy/active.
 After every deploy, always run:
 
 ```bash
-./deploy/post_deploy_microservices_routing_smoke_vps.sh ...
-./deploy/post_deploy_openapi_split_smoke_vps.sh ...
-./deploy/post_deploy_dynamic_driver_policy_smoke_vps.sh ...
+infra/scripts/post_deploy_smoke.sh ...
+infra/scripts/post_deploy_smoke.sh ...
+infra/scripts/post_deploy_smoke.sh ...
 ```
 
 Required success markers:
@@ -62,10 +62,10 @@ No marker = do not accept deploy.
 ## Files That Matter Most
 
 - nginx template:
-  - `/Users/sotheakh/Documents/develop/sv-tms/deploy/nginx_tms_microservices.conf.template`
+  - `infra/nginx/site.conf`
 - service templates:
-  - `/Users/sotheakh/Documents/develop/sv-tms/deploy/tms-auth-api.service.template`
-  - `/Users/sotheakh/Documents/develop/sv-tms/deploy/tms-driver-app-api.service.template`
+  - `infra/systemd/`
+  - `infra/systemd/`
 - env examples:
-  - `/Users/sotheakh/Documents/develop/sv-tms/deploy/tms-auth-api.env.example`
-  - `/Users/sotheakh/Documents/develop/sv-tms/deploy/tms-driver-app-api.env.example`
+  - `infra/.env.example`
+  - `infra/.env.example`

@@ -16,6 +16,7 @@ export interface AppVersionDto {
   id?: number;
   // Global
   latestVersion: string;
+  minSupportedVersion: string;
   mandatoryUpdate: boolean;
   playstoreUrl: string;
   appstoreUrl: string;
@@ -45,6 +46,7 @@ export interface AppVersionDto {
 export function emptyAppVersion(): AppVersionDto {
   return {
     latestVersion: '',
+    minSupportedVersion: '',
     mandatoryUpdate: false,
     playstoreUrl: '',
     appstoreUrl: '',

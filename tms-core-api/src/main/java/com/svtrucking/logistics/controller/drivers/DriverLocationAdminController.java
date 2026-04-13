@@ -3,6 +3,8 @@ package com.svtrucking.logistics.controller.drivers;
 import com.svtrucking.logistics.core.ApiResponse;
 import com.svtrucking.logistics.dto.*;
 import com.svtrucking.logistics.service.DriverLocationService;
+import com.svtrucking.logistics.service.DriverOperationsDiagnosticsService;
+import com.svtrucking.logistics.service.DriverTrackingSessionService;
 import com.svtrucking.logistics.service.LiveDriverQueryService;
 import com.svtrucking.logistics.service.LocationIngestService;
 import com.svtrucking.logistics.service.TelematicsProxyService;
@@ -18,6 +20,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -40,6 +43,8 @@ public class DriverLocationAdminController {
   private final LiveDriverQueryService liveDriverQueryService;
   private final LocationIngestService locationIngestService;
   private final TelematicsProxyService telematicsProxyService;
+  private final DriverOperationsDiagnosticsService driverOperationsDiagnosticsService;
+  private final DriverTrackingSessionService driverTrackingSessionService;
 
   /**
    * Get driver location history.
@@ -180,6 +185,38 @@ public class DriverLocationAdminController {
       log.error("Error fetching latest location for driver {}: {}", driverId, e.getMessage(), e);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
           .body(ApiResponse.fail("Failed to fetch latest location: " + e.getMessage()));
+    }
+  }
+
+  @GetMapping("/driver-operations")
+  @PreAuthorize("@authorizationService.hasPermission(T(com.svtrucking.logistics.security.PermissionNames).DRIVER_VIEW_ALL) " +
+                "or @authorizationService.hasPermission(T(com.svtrucking.logistics.security.PermissionNames).DRIVER_MANAGE)")
+  public ResponseEntity<ApiResponse<List<DriverOperationsDiagnosticDto>>> driverOperations(
+      @RequestParam(required = false, defaultValue = "true") Boolean onlyProblematic) {
+    try {
+      List<DriverOperationsDiagnosticDto> diagnostics =
+          driverOperationsDiagnosticsService.listDiagnostics(onlyProblematic);
+      return ResponseEntity.ok(ApiResponse.success("Driver operations diagnostics fetched", diagnostics));
+    } catch (Exception e) {
+      log.error("Error fetching driver operations diagnostics: {}", e.getMessage(), e);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body(ApiResponse.fail("Failed to fetch driver operations diagnostics: " + e.getMessage()));
+    }
+  }
+
+  @PostMapping("/{driverId}/tracking-session/revoke")
+  @PreAuthorize("@authorizationService.hasPermission(T(com.svtrucking.logistics.security.PermissionNames).DRIVER_MANAGE)")
+  public ResponseEntity<ApiResponse<Map<String, Object>>> revokeTrackingSessions(@PathVariable Long driverId) {
+    try {
+      int revoked = driverTrackingSessionService.revokeActiveSessionsForDriver(driverId);
+      return ResponseEntity.ok(
+          ApiResponse.success(
+              revoked > 0 ? "Tracking sessions revoked" : "No active tracking sessions to revoke",
+              Map.of("driverId", driverId, "revokedSessions", revoked)));
+    } catch (Exception e) {
+      log.error("Error revoking tracking sessions for driver {}: {}", driverId, e.getMessage(), e);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body(ApiResponse.fail("Failed to revoke tracking sessions: " + e.getMessage()));
     }
   }
 

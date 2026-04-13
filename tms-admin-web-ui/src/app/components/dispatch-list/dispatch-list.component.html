@@ -2,8 +2,12 @@
   <!-- Page Header -->
   <div class="flex items-center justify-between mb-4">
     <div>
-      <h2 class="text-2xl font-bold text-gray-900 lg:text-3xl">Dispatch List</h2>
-      <p class="mt-1 text-sm text-gray-600">Manage and monitor all dispatch operations</p>
+      <h2 class="text-2xl font-bold text-gray-900 lg:text-3xl">
+        {{ 'menu.labels.dispatch_list' | translate }}
+      </h2>
+      <p class="mt-1 text-sm text-gray-600">
+        {{ 'dispatchList.subtitle' | translate }}
+      </p>
     </div>
     <button
       (click)="openModal()"
@@ -12,7 +16,7 @@
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
       </svg>
-      Create Dispatch
+      {{ 'dispatchList.create_shipment' | translate }}
     </button>
   </div>
 
@@ -22,32 +26,49 @@
     <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 sm:px-6">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-3">
-          <h3 class="text-sm font-medium text-gray-900">Search & Filter</h3>
+          <h3 class="text-sm font-medium text-gray-900">
+            {{ 'dispatchList.search_and_filter' | translate }}
+          </h3>
           <span
             *ngIf="activeFilterCount > 0"
             class="px-2 py-0.5 text-xs font-medium text-blue-700 bg-blue-100 rounded-full"
           >
-            {{ activeFilterCount }} active
+            {{ 'liveMap.active_count' | translate: { count: activeFilterCount } }}
           </span>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center justify-end gap-2">
+          <button
+            type="button"
+            (click)="filtersVisible = !filtersVisible"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M3 4a1 1 0 011-1h16a1 1 0 01.8 1.6L14 13v5a1 1 0 01-1.447.894l-2-1A1 1 0 0110 17v-4L3.2 4.6A1 1 0 013 4z"
+              />
+            </svg>
+            {{ (filtersVisible ? 'dispatchList.hide_filters' : 'dispatchList.show_filters') | translate }}
+          </button>
           <button
             (click)="applyDatePreset('TODAY')"
             class="px-2.5 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-100"
           >
-            Today
+            {{ 'common.today' | translate }}
           </button>
           <button
             (click)="applyDatePreset('LAST_7_DAYS')"
             class="px-2.5 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-100"
           >
-            Last 7d
+            {{ 'dispatchList.last_7_days' | translate }}
           </button>
           <button
             (click)="applyDatePreset('LAST_30_DAYS')"
             class="px-2.5 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-100"
           >
-            Last 30d
+            {{ 'dispatchList.last_30_days' | translate }}
           </button>
           <button
             (click)="resetFilters()"
@@ -61,105 +82,150 @@
                 d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
               />
             </svg>
-            Reset All
+            {{ 'dispatchList.reset_all' | translate }}
           </button>
         </div>
       </div>
     </div>
 
     <!-- Filter Body -->
-    <div class="p-4 sm:p-6">
+    <div *ngIf="filtersVisible" class="p-4 sm:p-6">
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+        <!-- Quick Search -->
+        <div class="sm:col-span-2 lg:col-span-2 xl:col-span-2">
+          <label class="block mb-1.5 text-sm font-medium text-gray-700">
+            {{ 'dispatchList.quick_search' | translate }}
+          </label>
+          <div class="relative">
+            <svg
+              class="absolute w-4 h-4 text-gray-400 -translate-y-1/2 left-3 top-1/2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+            <input
+              [(ngModel)]="searchQuery"
+              (ngModelChange)="onFilterChange()"
+              type="text"
+              class="w-full py-2 pl-9 pr-3 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              [placeholder]="'dispatchList.search_placeholder' | translate"
+            />
+          </div>
+        </div>
+
         <!-- Status Filter -->
         <div>
-          <label class="block mb-1.5 text-sm font-medium text-gray-700">Status</label>
+          <label class="block mb-1.5 text-sm font-medium text-gray-700">
+            {{ 'common.status' | translate }}
+          </label>
           <select
             [(ngModel)]="selectedStatus"
             (ngModelChange)="onFilterChange()"
             class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
-            <option value="">All Status</option>
-            <option *ngFor="let status of DispatchStatus | keyvalue" [value]="status.value">
-              {{ status.value }}
+            <option value="">{{ 'dispatchList.all_status' | translate }}</option>
+            <option *ngFor="let status of statusOptions" [value]="status">
+              {{ formatDispatchStatus(status) }}
             </option>
           </select>
         </div>
 
         <!-- Driver Filter -->
         <div>
-          <label class="block mb-1.5 text-sm font-medium text-gray-700">Driver</label>
+          <label class="block mb-1.5 text-sm font-medium text-gray-700">
+            {{ 'dispatchList.driver' | translate }}
+          </label>
           <input
             [(ngModel)]="mySelectedDriver"
             (ngModelChange)="onFilterChange()"
             type="text"
             class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="Search driver..."
+            [placeholder]="'dispatchList.search_driver' | translate"
           />
         </div>
 
         <!-- Route Code Filter -->
         <div>
-          <label class="block mb-1.5 text-sm font-medium text-gray-700">Route Code</label>
+          <label class="block mb-1.5 text-sm font-medium text-gray-700">
+            {{ 'dispatchList.route_code' | translate }}
+          </label>
           <input
             [(ngModel)]="searchRouteCode"
             (ngModelChange)="onFilterChange()"
             type="text"
             class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="Enter route code..."
+            [placeholder]="'dispatchList.enter_route_code' | translate"
           />
         </div>
 
         <!-- Customer Filter -->
         <div>
-          <label class="block mb-1.5 text-sm font-medium text-gray-700">Customer</label>
+          <label class="block mb-1.5 text-sm font-medium text-gray-700">
+            {{ 'bulkDispatchUpload.customer' | translate }}
+          </label>
           <input
             [(ngModel)]="customerName"
             (ngModelChange)="onFilterChange()"
             type="text"
             class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="Search customer..."
+            [placeholder]="'dispatchList.search_customer' | translate"
           />
         </div>
 
         <!-- Destination Filter -->
         <div>
-          <label class="block mb-1.5 text-sm font-medium text-gray-700">Destination</label>
+          <label class="block mb-1.5 text-sm font-medium text-gray-700">
+            {{ 'dispatchList.destination' | translate }}
+          </label>
           <input
             [(ngModel)]="destinationTo"
             (ngModelChange)="onFilterChange()"
             type="text"
             class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="Destination..."
+            [placeholder]="'dispatchList.destination_placeholder' | translate"
           />
         </div>
 
         <!-- Truck Filter -->
         <div>
-          <label class="block mb-1.5 text-sm font-medium text-gray-700">Truck</label>
+          <label class="block mb-1.5 text-sm font-medium text-gray-700">
+            {{ 'bulkDispatchUpload.truck' | translate }}
+          </label>
           <input
             [(ngModel)]="truckPlate"
             (ngModelChange)="onFilterChange()"
             type="text"
             class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="License plate..."
+            [placeholder]="'dispatchList.license_plate' | translate"
           />
         </div>
 
         <!-- Trip No Filter -->
         <div>
-          <label class="block mb-1.5 text-sm font-medium text-gray-700">Trip No</label>
+          <label class="block mb-1.5 text-sm font-medium text-gray-700">
+            {{ 'bulkDispatchUpload.trip_no' | translate }}
+          </label>
           <input
             [(ngModel)]="tripNo"
             (ngModelChange)="onFilterChange()"
             type="text"
             class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="Trip number..."
+            [placeholder]="'dispatchList.trip_number' | translate"
           />
         </div>
 
         <!-- Start Date Filter -->
         <div>
-          <label class="block mb-1.5 text-sm font-medium text-gray-700">Start Date</label>
+          <label class="block mb-1.5 text-sm font-medium text-gray-700">
+            {{ 'dispatchList.start_date' | translate }}
+          </label>
           <input
             type="date"
             [(ngModel)]="startDate"
@@ -170,7 +236,9 @@
 
         <!-- End Date Filter -->
         <div>
-          <label class="block mb-1.5 text-sm font-medium text-gray-700">End Date</label>
+          <label class="block mb-1.5 text-sm font-medium text-gray-700">
+            {{ 'dispatchList.end_date' | translate }}
+          </label>
           <input
             type="date"
             [(ngModel)]="endDate"
@@ -194,16 +262,59 @@
               d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
             />
           </svg>
-          Search
+          {{ 'common.search' | translate }}
         </button>
         <button
           (click)="resetFilters()"
           class="px-4 py-2 text-sm font-medium text-gray-700 transition-colors bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
         >
-          Reset
-        </button>
+          {{ 'common.reset' | translate }}
+      </button>
       </div>
-      <p class="mt-3 text-xs text-gray-500">Tip: leave date filters empty to see all dispatches.</p>
+      <p class="mt-3 text-xs text-gray-500">{{ 'dispatchList.date_tip' | translate }}</p>
+    </div>
+  </div>
+
+  <!-- Results Summary -->
+  <div
+    class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4"
+    *ngIf="!loading"
+  >
+    <div class="p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
+      <p class="text-xs font-medium tracking-wide text-gray-500 uppercase">
+        {{ 'dispatchList.total_results' | translate }}
+      </p>
+      <p class="mt-1 text-2xl font-semibold text-gray-900">{{ totalElements }}</p>
+    </div>
+    <div class="p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
+      <p class="text-xs font-medium tracking-wide text-gray-500 uppercase">
+        {{ 'dispatchList.current_page' | translate }}
+      </p>
+      <p class="mt-1 text-2xl font-semibold text-gray-900">{{ currentPageCount }}</p>
+    </div>
+    <div class="p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
+      <p class="text-xs font-medium tracking-wide text-gray-500 uppercase">
+        {{ 'dispatchList.active_filters' | translate }}
+      </p>
+      <p class="mt-1 text-2xl font-semibold text-gray-900">{{ activeFilterCount }}</p>
+    </div>
+    <div class="p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
+      <p class="text-xs font-medium tracking-wide text-gray-500 uppercase">
+        {{ 'dispatchList.top_statuses' | translate }}
+      </p>
+      <div class="flex flex-wrap gap-2 mt-2" *ngIf="currentPageStatusSummary.length; else noStatusSummary">
+        <span
+          *ngFor="let item of currentPageStatusSummary"
+          class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full"
+          [ngClass]="item.tone"
+        >
+          <span>{{ formatDispatchStatus(item.status) }}</span>
+          <span>{{ item.count }}</span>
+        </span>
+      </div>
+      <ng-template #noStatusSummary>
+        <p class="mt-2 text-sm text-gray-500">{{ 'dispatchList.no_records' | translate }}</p>
+      </ng-template>
     </div>
   </div>
 
@@ -222,18 +333,20 @@
         />
       </svg>
       <span class="text-sm font-medium text-gray-900">
-        <strong class="text-blue-600">{{ selectedIds.size }}</strong> dispatch{{
-          selectedIds.size > 1 ? 'es' : ''
-        }}
-        selected
+        <ng-container *ngIf="selectedIds.size === 1; else manySelected">
+          {{ 'dispatchList.selected_one' | translate: { count: selectedIds.size } }}
+        </ng-container>
+        <ng-template #manySelected>
+          {{ 'dispatchList.selected_many' | translate: { count: selectedIds.size } }}
+        </ng-template>
       </span>
     </div>
     <div class="flex items-center gap-2">
       <button
         class="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white transition-colors bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-        [disabled]="!anySelected || bulkBusy"
+        [disabled]="!canBulkNotifyAssignedDrivers"
         (click)="bulkNotifyAssignedDrivers()"
-        title="Notify all selected rows that already have a driver assigned"
+        [title]="bulkNotifyHint"
       >
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -243,13 +356,13 @@
             d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
           />
         </svg>
-        Notify Drivers
+        {{ 'dispatchList.notify_drivers' | translate }}
       </button>
       <button
         class="px-3 py-1.5 text-sm font-medium text-red-600 transition-colors bg-white border border-red-300 rounded-lg hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
         [disabled]="!anySelected || bulkBusy"
         (click)="bulkDeleteSelectedDispatches()"
-        title="Delete all selected dispatches"
+        [title]="'dispatchList.delete_selected_hint' | translate"
       >
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -259,14 +372,14 @@
             d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3m5 0H8"
           />
         </svg>
-        Delete Selected
+        {{ 'dispatchList.delete_selected' | translate }}
       </button>
       <button
         class="px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
         [disabled]="bulkBusy"
         (click)="selectedIds.clear()"
       >
-        Clear Selection
+        {{ 'liveMap.clear_selection' | translate }}
       </button>
     </div>
   </div>
@@ -277,10 +390,10 @@
       *ngIf="loading"
       class="px-4 py-2 text-sm text-blue-700 bg-blue-50 border-b border-blue-100"
     >
-      Loading dispatches...
+      {{ 'dispatchList.loading_shipments' | translate }}
     </div>
     <div class="overflow-x-auto">
-      <table class="w-full divide-y divide-gray-200">
+      <table class="dispatch-table w-full divide-y divide-gray-200">
         <thead class="bg-gray-50">
           <tr>
             <!-- Select All Checkbox -->
@@ -303,61 +416,61 @@
               scope="col"
               class="px-4 py-3 text-xs font-semibold tracking-wider text-left text-gray-700 uppercase"
             >
-              Delivery Date
+              {{ 'bulkDispatchUpload.delivery_date' | translate }}
             </th>
             <th
               scope="col"
               class="px-4 py-3 text-xs font-semibold tracking-wider text-left text-gray-700 uppercase"
             >
-              Customer
+              {{ 'bulkDispatchUpload.customer' | translate }}
             </th>
             <th
               scope="col"
               class="px-4 py-3 text-xs font-semibold tracking-wider text-left text-gray-700 uppercase"
             >
-              From
+              {{ 'bulkDispatchUpload.from' | translate }}
             </th>
             <th
               scope="col"
               class="px-4 py-3 text-xs font-semibold tracking-wider text-left text-gray-700 uppercase"
             >
-              To
+              {{ 'bulkDispatchUpload.to' | translate }}
             </th>
             <th
               scope="col"
               class="px-4 py-3 text-xs font-semibold tracking-wider text-left text-gray-700 uppercase"
             >
-              Truck
+              {{ 'bulkDispatchUpload.truck' | translate }}
             </th>
             <th
               scope="col"
               class="px-4 py-3 text-xs font-semibold tracking-wider text-left text-gray-700 uppercase"
             >
-              Driver
+              {{ 'dispatchList.driver' | translate }}
             </th>
             <th
               scope="col"
               class="px-4 py-3 text-xs font-semibold tracking-wider text-left text-gray-700 uppercase"
             >
-              Trip No
+              {{ 'bulkDispatchUpload.trip_no' | translate }}
             </th>
             <th
               scope="col"
               class="px-4 py-3 text-xs font-semibold tracking-wider text-center text-gray-700 uppercase"
             >
-              Safety
+              {{ 'dispatchList.safety' | translate }}
             </th>
             <th
               scope="col"
               class="px-4 py-3 text-xs font-semibold tracking-wider text-center text-gray-700 uppercase"
             >
-              Status
+              {{ 'common.status' | translate }}
             </th>
             <th
               scope="col"
               class="px-4 py-3 text-xs font-semibold tracking-wider text-center text-gray-700 uppercase"
             >
-              Actions
+              {{ 'common.actions' | translate }}
             </th>
           </tr>
         </thead>
@@ -368,7 +481,7 @@
             [class.bg-blue-50]="selectedIds.has(dispatch.id!)"
           >
             <!-- Row Checkbox -->
-            <td class="px-4 py-3">
+            <td class="px-4 py-3 whitespace-nowrap">
               <input
                 type="checkbox"
                 [checked]="selectedIds.has(dispatch.id!)"
@@ -390,7 +503,7 @@
             </td>
 
             <!-- Delivery Date Column -->
-            <td class="px-4 py-3 text-sm text-gray-700">
+            <td class="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
               {{
                 dispatch.deliveryDate || dispatch.transportOrder?.deliveryDate
                   | svSafeDate
@@ -404,15 +517,16 @@
                 [routerLink]="['/customers', dispatch.customerId]"
                 target="_blank"
                 rel="noopener noreferrer"
-                class="font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                class="block max-w-[15rem] truncate font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                [title]="dispatch.customerName"
               >
-                {{ dispatch.customerName }}
+                {{ dispatch.customerName || '—' }}
               </a>
             </td>
 
             <!-- Pickup/From Column -->
             <td class="px-4 py-3 text-sm">
-              <div class="flex items-start gap-1" *ngIf="dispatch.from as fromValue">
+              <div class="flex items-center gap-1" *ngIf="dispatch.from as fromValue">
                 <svg
                   class="w-4 h-4 mt-0.5 text-green-600 flex-shrink-0"
                   fill="none"
@@ -444,7 +558,8 @@
                     "
                     target="_blank"
                     rel="noopener noreferrer"
-                    class="text-gray-700 hover:text-green-600 hover:underline"
+                    class="block max-w-[14rem] truncate text-gray-700 hover:text-green-600 hover:underline"
+                    [title]="getLocationLabel(fromValue, dispatch.pickupName, dispatch.pickupLocation)"
                   >
                     {{
                       getLocationLabel(fromValue, dispatch.pickupName, dispatch.pickupLocation) ||
@@ -453,7 +568,10 @@
                   </a>
                 </ng-container>
                 <ng-template #fromLabelOnly>
-                  <span class="text-gray-700">
+                  <span
+                    class="block max-w-[14rem] truncate text-gray-700"
+                    [title]="getLocationLabel(fromValue, dispatch.pickupName, dispatch.pickupLocation)"
+                  >
                     {{ getLocationLabel(fromValue, dispatch.pickupName, dispatch.pickupLocation) }}
                   </span>
                 </ng-template>
@@ -463,7 +581,7 @@
 
             <!-- Drop/To Column -->
             <td class="px-4 py-3 text-sm">
-              <div class="flex items-start gap-1" *ngIf="dispatch.to as toValue">
+              <div class="flex items-center gap-1" *ngIf="dispatch.to as toValue">
                 <svg
                   class="w-4 h-4 mt-0.5 text-red-600 flex-shrink-0"
                   fill="none"
@@ -493,7 +611,8 @@
                     "
                     target="_blank"
                     rel="noopener noreferrer"
-                    class="text-gray-700 hover:text-red-600 hover:underline"
+                    class="block max-w-[14rem] truncate text-gray-700 hover:text-red-600 hover:underline"
+                    [title]="getLocationLabel(toValue, dispatch.dropoffName, dispatch.dropoffLocation)"
                   >
                     {{
                       getLocationLabel(toValue, dispatch.dropoffName, dispatch.dropoffLocation) ||
@@ -502,7 +621,10 @@
                   </a>
                 </ng-container>
                 <ng-template #toLabelOnly>
-                  <span class="text-gray-700">
+                  <span
+                    class="block max-w-[14rem] truncate text-gray-700"
+                    [title]="getLocationLabel(toValue, dispatch.dropoffName, dispatch.dropoffLocation)"
+                  >
                     {{ getLocationLabel(toValue, dispatch.dropoffName, dispatch.dropoffLocation) }}
                   </span>
                 </ng-template>
@@ -511,7 +633,7 @@
             </td>
 
             <!-- Truck Column -->
-            <td class="px-4 py-3 text-sm">
+            <td class="px-4 py-3 text-sm whitespace-nowrap">
               <a
                 *ngIf="dispatch.vehicleId"
                 [routerLink]="['/fleet/vehicles', dispatch.vehicleId]"
@@ -540,11 +662,13 @@
                 </svg>
                 {{ getVehicleLicensePlate(dispatch.vehicleId) }}
               </a>
-              <span *ngIf="!dispatch.vehicleId" class="text-gray-400 italic">Not assigned</span>
+              <span *ngIf="!dispatch.vehicleId" class="text-gray-400 italic">
+                {{ 'assignTruckDriver.unassigned' | translate }}
+              </span>
             </td>
 
             <!-- Driver Column -->
-            <td class="px-4 py-3 text-sm">
+            <td class="px-4 py-3 text-sm whitespace-nowrap">
               <a
                 *ngIf="dispatch.driverId"
                 [routerLink]="['/drivers', dispatch.driverId]"
@@ -565,13 +689,15 @@
                     d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
                   />
                 </svg>
-                {{ getDriverName(dispatch.driverId) }}
+                {{ getDriverDisplayName(dispatch) }}
               </a>
-              <span *ngIf="!dispatch.driverId" class="text-gray-400 italic">Not assigned</span>
+              <span *ngIf="!dispatch.driverId" class="text-gray-400 italic">
+                {{ 'assignTruckDriver.unassigned' | translate }}
+              </span>
             </td>
 
             <!-- Trip No Column -->
-            <td class="px-4 py-3 text-sm">
+            <td class="px-4 py-3 text-sm whitespace-nowrap">
               <a
                 *ngIf="dispatch.transportOrderId"
                 [routerLink]="['/orders', dispatch.transportOrderId]"
@@ -601,19 +727,7 @@
             <td class="px-4 py-3 text-center">
               <span
                 class="inline-flex items-center px-2.5 py-0.5 text-xs font-medium rounded-full"
-                [ngClass]="{
-                  'bg-yellow-100 text-yellow-800': dispatch.status === DispatchStatus.PENDING,
-                  'bg-emerald-100 text-emerald-800':
-                    dispatch.status === DispatchStatus.SAFETY_PASSED,
-                  'bg-red-100 text-red-800': dispatch.status === DispatchStatus.SAFETY_FAILED,
-                  'bg-indigo-100 text-indigo-800': dispatch.status === DispatchStatus.IN_QUEUE,
-                  'bg-orange-100 text-orange-800': dispatch.status === DispatchStatus.LOADING,
-                  'bg-blue-100 text-blue-800': dispatch.status === DispatchStatus.IN_TRANSIT,
-                  'bg-green-100 text-green-800': dispatch.status === DispatchStatus.DELIVERED,
-                  'bg-gray-100 text-gray-800': dispatch.status === DispatchStatus.CANCELLED,
-                  'bg-purple-100 text-purple-800': dispatch.status === DispatchStatus.LOADED,
-                  'bg-orange-50 text-orange-800': dispatch.status === DispatchStatus.UNLOADED,
-                }"
+                [ngClass]="getStatusToneClass(dispatch.status)"
               >
                 {{ formatDispatchStatus(dispatch.status) }}
               </span>
@@ -658,11 +772,12 @@
                           d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
                         />
                       </svg>
-                      Assign Driver
+                      {{ 'dispatchList.assign_driver' | translate }}
                     </button>
 
                     <button
                       class="flex items-center w-full gap-2 px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100"
+                      *ngIf="dispatch.driverId"
                       [disabled]="!canReassign(dispatch)"
                       (click)="changeDriver(dispatch); dispatch.showMenu = false"
                     >
@@ -679,10 +794,11 @@
                           d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
                         />
                       </svg>
-                      Change Driver
+                      {{ 'dispatchList.change_driver' | translate }}
                     </button>
                     <button
                       class="flex items-center w-full gap-2 px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100"
+                      *ngIf="!dispatch.vehicleId"
                       [disabled]="!canReassign(dispatch)"
                       (click)="assignTruck(dispatch); dispatch.showMenu = false"
                     >
@@ -705,10 +821,11 @@
                           d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0"
                         />
                       </svg>
-                      Assign Truck
+                      {{ 'assignTruckDriver.assign_truck' | translate }}
                     </button>
                     <button
                       class="flex items-center w-full gap-2 px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100"
+                      *ngIf="dispatch.vehicleId"
                       [disabled]="!canReassign(dispatch)"
                       (click)="changeTruck(dispatch); dispatch.showMenu = false"
                     >
@@ -725,7 +842,7 @@
                           d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
                         />
                       </svg>
-                      Change Truck
+                      {{ 'dispatchList.change_truck' | translate }}
                     </button>
                     <button
                       class="flex items-center w-full gap-2 px-4 py-2 text-sm font-medium text-blue-600 transition-colors hover:bg-gray-100"
@@ -746,7 +863,7 @@
                           d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
                         />
                       </svg>
-                      View Details
+                      {{ 'common.view_details' | translate }}
                     </button>
                   </div>
                 </div>
@@ -772,22 +889,38 @@
           d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
         />
       </svg>
-      <h3 class="mt-4 text-lg font-medium text-gray-900">No dispatches found</h3>
-      <p class="mt-2 text-sm text-gray-500">Try adjusting your filters or create a new dispatch</p>
-      <button
-        (click)="openModal()"
-        class="inline-flex items-center gap-2 px-4 py-2 mt-4 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700"
-      >
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M12 4v16m8-8H4"
-          />
-        </svg>
-        Create Dispatch
-      </button>
+      <h3 class="mt-4 text-lg font-medium text-gray-900">
+        {{ 'dispatchList.no_shipments_found' | translate }}
+      </h3>
+      <p class="mt-2 text-sm text-gray-500">
+        {{
+          (hasActiveFilters ? 'dispatchList.empty_filtered_message' : 'dispatchList.empty_message')
+            | translate
+        }}
+      </p>
+      <div class="flex items-center justify-center gap-3 mt-4">
+        <button
+          *ngIf="hasActiveFilters"
+          (click)="resetFilters()"
+          class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+        >
+          {{ 'dispatchList.clear_filters' | translate }}
+        </button>
+        <button
+          (click)="openModal()"
+          class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 4v16m8-8H4"
+            />
+          </svg>
+          {{ 'dispatchList.create_shipment' | translate }}
+        </button>
+      </div>
     </div>
   </div>
 
@@ -797,25 +930,25 @@
   >
     <div class="text-sm text-gray-700">
       <ng-container *ngIf="totalElements > 0; else emptyMsg">
-        Showing
-        <span class="font-medium text-gray-900">{{ pageIndex * pageSize + 1 }}</span>
-        to
-        <span class="font-medium text-gray-900">{{
-          Math.min((pageIndex + 1) * pageSize, totalElements)
-        }}</span>
-        of
-        <span class="font-medium text-gray-900">{{ totalElements }}</span>
-        results
+        {{
+          'dispatchList.showing_results'
+            | translate
+              : {
+                  from: pageIndex * pageSize + 1,
+                  to: Math.min((pageIndex + 1) * pageSize, totalElements),
+                  total: totalElements,
+                }
+        }}
       </ng-container>
       <ng-template #emptyMsg>
-        <span class="text-gray-500">No records to display</span>
+        <span class="text-gray-500">{{ 'dispatchList.no_records' | translate }}</span>
       </ng-template>
     </div>
 
     <div class="flex items-center gap-3">
       <!-- Rows per page selector -->
       <div class="flex items-center gap-2">
-        <label class="text-sm text-gray-700">Rows per page:</label>
+        <label class="text-sm text-gray-700">{{ 'dispatchList.rows_per_page' | translate }}</label>
         <select
           class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           [ngModel]="pageSize"
@@ -832,7 +965,7 @@
           class="relative inline-flex items-center px-2 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-l-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:z-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
           [disabled]="pageIndex === 0 || loading"
           (click)="firstPage()"
-          title="First page"
+          [title]="'common.first' | translate"
         >
           <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
             <path
@@ -848,7 +981,7 @@
           class="relative inline-flex items-center px-2 py-2 text-sm font-medium text-gray-500 bg-white border-t border-b border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:z-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
           [disabled]="pageIndex === 0 || loading"
           (click)="prevPage()"
-          title="Previous page"
+          [title]="'common.prev' | translate"
         >
           <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
             <path
@@ -862,7 +995,7 @@
         <span
           class="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border-t border-b border-gray-300"
         >
-          Page {{ pageIndex + 1 }} of {{ totalPages || 1 }}
+          {{ 'dispatchList.page_of' | translate: { page: pageIndex + 1, total: totalPages || 1 } }}
         </span>
 
         <button
@@ -870,7 +1003,7 @@
           class="relative inline-flex items-center px-2 py-2 text-sm font-medium text-gray-500 bg-white border-t border-b border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:z-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
           [disabled]="pageIndex + 1 >= totalPages || loading"
           (click)="nextPage()"
-          title="Next page"
+          [title]="'common.next' | translate"
         >
           <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
             <path
@@ -886,7 +1019,7 @@
           class="relative inline-flex items-center px-2 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-r-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:z-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
           [disabled]="pageIndex + 1 >= totalPages || loading"
           (click)="lastPage()"
-          title="Last page"
+          [title]="'common.last' | translate"
         >
           <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
             <path
@@ -909,7 +1042,11 @@
   <div *ngIf="isModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
     <div class="w-full max-w-xl p-6 bg-white rounded-lg shadow-xl">
       <h3 class="mb-4 text-xl font-bold">
-        {{ isEditing ? '✏️ Edit Dispatch' : ' Create Dispatch' }}
+        {{
+          isEditing
+            ? ('dispatchList.edit_shipment' | translate)
+            : ('dispatchList.create_shipment' | translate)
+        }}
       </h3>
 
       <form [formGroup]="dispatchForm" (ngSubmit)="submitForm()" class="grid gap-4">
@@ -917,13 +1054,13 @@
           <input
             type="text"
             formControlName="routeCode"
-            placeholder="Route Code"
+            [placeholder]="'dispatchList.route_code' | translate"
             class="p-2 border rounded"
           />
         </ng-container>
         <ng-template #autoRoute>
           <div class="p-2 text-sm text-gray-600 border rounded bg-gray-50">
-            Route code will be generated automatically when the dispatch is created.
+            {{ 'dispatchList.route_code_auto' | translate }}
           </div>
         </ng-template>
 
@@ -934,33 +1071,33 @@
           class="p-2 border rounded"
         />
         <p class="text-xs text-gray-500">
-          Start defaults to now and estimated arrival must be after the start time.
+          {{ 'dispatchList.start_time_hint' | translate }}
         </p>
 
         <select formControlName="status" class="p-2 border rounded">
-          <option value="PENDING">Pending</option>
-          <option value="ASSIGNED">Assigned</option>
-          <option value="IN_TRANSIT">In Transit</option>
-          <option value="DELIVERED">Delivered</option>
-          <option value="CANCELLED">Cancelled</option>
+          <option value="PENDING">{{ 'dispatchList.status_pending' | translate }}</option>
+          <option value="ASSIGNED">{{ 'dispatchList.status_assigned' | translate }}</option>
+          <option value="IN_TRANSIT">{{ 'dispatchList.status_in_transit' | translate }}</option>
+          <option value="DELIVERED">{{ 'dispatchList.status_delivered' | translate }}</option>
+          <option value="CANCELLED">{{ 'dispatchList.status_cancelled' | translate }}</option>
         </select>
 
         <select formControlName="transportOrderId" class="p-2 border rounded">
-          <option value="" disabled>Select transport order</option>
+          <option value="" disabled>{{ 'dispatchList.select_transport_order' | translate }}</option>
           <option *ngFor="let order of transportOrders" [value]="order.id">
             {{ order.orderReference }}
           </option>
         </select>
 
         <select formControlName="driverId" class="p-2 border rounded">
-          <option value="" disabled>Select driver</option>
+          <option value="" disabled>{{ 'dispatchList.select_driver' | translate }}</option>
           <option *ngFor="let driver of drivers" [value]="driver.id">
             {{ driver.name }} ({{ driver.licenseNumber }})
           </option>
         </select>
 
         <select formControlName="vehicleId" class="p-2 border rounded">
-          <option value="" disabled>Select vehicle</option>
+          <option value="" disabled>{{ 'dispatchList.select_vehicle' | translate }}</option>
           <option *ngFor="let vehicle of vehicles" [value]="vehicle.id">
             {{ vehicle.licensePlate }}
           </option>
@@ -968,14 +1105,14 @@
 
         <div class="flex justify-between mt-4">
           <button type="submit" class="px-4 py-2 text-white bg-blue-600 rounded hover:bg-blue-700">
-            {{ isEditing ? 'Update' : 'Create' }}
+            {{ isEditing ? ('dispatchList.update' | translate) : ('dispatchList.create' | translate) }}
           </button>
           <button
             type="button"
             (click)="closeModal()"
             class="px-4 py-2 text-gray-700 border rounded hover:bg-gray-100"
-          >
-            Cancel
+        >
+            {{ 'dispatchList.cancel' | translate }}
           </button>
         </div>
       </form>
@@ -1016,11 +1153,14 @@
   >
     <div class="w-full max-w-md p-6 bg-white rounded-lg shadow-lg">
       <h3 class="mb-4 text-lg font-bold">
-        Change Truck for {{ selectedDispatchForTruckChange.routeCode }}
+        {{
+          'dispatchList.change_truck_for'
+            | translate: { routeCode: selectedDispatchForTruckChange.routeCode }
+        }}
       </h3>
 
       <select [(ngModel)]="selectedNewVehicleId" class="w-full p-2 mb-4 border rounded">
-        <option [ngValue]="null">-- Select truck --</option>
+        <option [ngValue]="null">{{ 'assignTruckDriver.select_truck' | translate }}</option>
         <option *ngFor="let vehicle of vehicles" [ngValue]="vehicle.id">
           {{ vehicle.licensePlate }}
         </option>
@@ -1031,13 +1171,13 @@
           (click)="confirmTruckChange()"
           class="px-4 py-2 text-white bg-blue-600 rounded hover:bg-blue-700"
         >
-          ✔ Confirm
+          {{ 'dispatchList.confirm' | translate }}
         </button>
         <button
           (click)="selectedDispatchForTruckChange = null"
           class="px-4 py-2 text-gray-700 border rounded hover:bg-gray-100"
         >
-          ✖ Cancel
+          {{ 'dispatchList.cancel' | translate }}
         </button>
       </div>
     </div>

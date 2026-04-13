@@ -263,22 +263,23 @@ describe('VehicleService', () => {
         data: { ...mockVehicle, id: 2, licensePlate: 'XYZ-789' },
       };
 
-      service.addVehicle(newVehicle).subscribe((vehicle) => {
-        expect(vehicle.licensePlate).toBe('XYZ-789');
+      service.addVehicle(newVehicle).subscribe((response) => {
+        expect(response.success).toBeTrue();
+        expect(response.data.licensePlate).toBe('XYZ-789');
       });
 
       const req = httpMock.expectOne(`${environment.baseUrl}/api/admin/vehicles`);
       expect(req.request.method).toBe('POST');
       expect(req.request.body).toEqual(newVehicle);
-      req.flush(mockResponse.data);
+      req.flush(mockResponse);
     });
 
-    it('should post to the relative admin vehicles endpoint on create', () => {
+    it('should post to the admin vehicles endpoint on create', () => {
       service.addVehicle(mockVehicle).subscribe();
 
-      const req = httpMock.expectOne('/api/admin/vehicles');
+      const req = httpMock.expectOne(`${environment.baseUrl}/api/admin/vehicles`);
       req.flush({ success: true, data: mockVehicle });
-      expect(mockCacheService.invalidatePattern).not.toHaveBeenCalled();
+      expect(mockCacheService.invalidatePattern).toHaveBeenCalledWith(/^vehicles:/);
     });
 
     it('should handle validation errors', () => {
@@ -553,13 +554,13 @@ describe('VehicleService', () => {
   });
 
   describe('Cache Invalidation', () => {
-    it('should not invalidate caches on direct create', () => {
+    it('should invalidate all vehicle caches on create', () => {
       service.addVehicle(mockVehicle).subscribe();
 
-      const req = httpMock.expectOne('/api/admin/vehicles');
+      const req = httpMock.expectOne(`${environment.baseUrl}/api/admin/vehicles`);
       req.flush({ success: true, data: mockVehicle });
 
-      expect(mockCacheService.invalidatePattern).not.toHaveBeenCalled();
+      expect(mockCacheService.invalidatePattern).toHaveBeenCalledWith(/^vehicles:/);
     });
 
     it('should invalidate all vehicle caches on update', () => {

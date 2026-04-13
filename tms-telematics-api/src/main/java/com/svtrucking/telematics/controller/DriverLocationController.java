@@ -9,14 +9,17 @@ import com.svtrucking.telematics.security.TelematicsJwtUtil;
 import com.svtrucking.telematics.service.DriverTrackingSessionService;
 import com.svtrucking.telematics.service.LiveLocationCacheServiceInterface;
 import com.svtrucking.telematics.service.LocationIngestService;
+import com.svtrucking.telematics.service.PresencePolicyService;
 import com.svtrucking.telematics.service.SpoofingAlertService;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -35,6 +38,7 @@ import org.springframework.web.server.ResponseStatusException;
 @RestController
 @Slf4j
 public class DriverLocationController {
+    private static final String DEPRECATION_SUNSET = "Tue, 30 Jun 2026 00:00:00 GMT";
 
     private final SimpMessagingTemplate messagingTemplate;
     private final LocationIngestService ingest;
@@ -42,6 +46,7 @@ public class DriverLocationController {
     private final TelematicsJwtUtil jwtUtil;
     private final SpoofingAlertService spoofingAlertService;
     private final LiveLocationCacheServiceInterface cacheService;
+    private final PresencePolicyService presencePolicyService;
     private final Counter locationUnauthorizedCounter;
     private final Counter heartbeatUnauthorizedCounter;
 
@@ -51,6 +56,7 @@ public class DriverLocationController {
             DriverTrackingSessionService trackingSessionService,
             TelematicsJwtUtil jwtUtil,
             SpoofingAlertService spoofingAlertService,
+            PresencePolicyService presencePolicyService,
             MeterRegistry meterRegistry,
             @Autowired(required = false) LiveLocationCacheServiceInterface cacheService) {
         this.messagingTemplate = messagingTemplate;
@@ -58,6 +64,7 @@ public class DriverLocationController {
         this.trackingSessionService = trackingSessionService;
         this.jwtUtil = jwtUtil;
         this.spoofingAlertService = spoofingAlertService;
+        this.presencePolicyService = presencePolicyService;
         this.cacheService = cacheService;
         this.locationUnauthorizedCounter = Counter.builder("tracking.location.unauthorized.count")
                 .description("Unauthorized responses for /api/driver/location/update")
@@ -72,23 +79,6 @@ public class DriverLocationController {
     private static final String T_LOC_ALL = "/topic/driver-location/all";
     private static final String T_PRES_ONE = "/topic/driver-presence/";
     private static final String T_PRES_ALL = "/topic/driver-presence/all";
-
-    // Presence thresholds (kept in sync with LocationIngestService)
-    private static final long ONLINE_MS = 35_000L;
-    private static final long IDLE_MS = 180_000L;
-
-    private enum Presence {
-        ONLINE, IDLE, OFFLINE
-    }
-
-    private static Presence computePresence(long lastSeenMs, long nowMs) {
-        long dt = Math.max(0, nowMs - lastSeenMs);
-        if (dt <= ONLINE_MS)
-            return Presence.ONLINE;
-        if (dt <= IDLE_MS)
-            return Presence.IDLE;
-        return Presence.OFFLINE;
-    }
 
     // ==============================
     // STOMP: /app/location.update
@@ -108,15 +98,17 @@ public class DriverLocationController {
                 update.setBatteryLevel(null);
             }
             final long nowMs = System.currentTimeMillis();
-            Map<String, Object> live = ingest.accept(update);
+            LocationIngestService.IngestResult result = ingest.acceptDetailed(update);
+            Map<String, Object> live = result.live();
 
             if (live == null) {
-                refreshPresenceAndFanout(update, nowMs, "dup/throttle");
+                refreshPresenceAndFanout(update, nowMs, result.dropReason());
                 ack.put("ok", true);
                 ack.put("dedup", true);
+                ack.put("dropReason", result.dropReason());
                 ack.put("driverId", update.getDriverId());
                 ack.put("serverTime", nowMs);
-                ack.put("message", "Location ignored (duplicate/too soon). Presence refreshed.");
+                ack.put("message", "Location ignored (" + result.dropReason() + "). Presence refreshed.");
                 return ack;
             }
 
@@ -145,34 +137,40 @@ public class DriverLocationController {
     }
 
     // ==============================
-    // REST: POST /api/driver/location/update
+    // REST: POST /api/driver/location
+    // legacy alias: /api/driver/location/update
     // ==============================
-    @PostMapping("/api/driver/location/update")
+    @PostMapping({ "/api/driver/location", "/api/driver/location/update" })
     public ResponseEntity<?> restLocationUpdate(
+            HttpServletRequest request,
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @Valid @RequestBody DriverLocationUpdateDto update) {
         try {
             String token = DriverTrackingSessionService.extractBearerToken(authorization);
-            return ResponseEntity.ok(processLocationUpdate(token, update));
+            return withAliasHeaders(request, "/api/driver/location",
+                    ResponseEntity.ok(processLocationUpdate(token, update)));
 
         } catch (ResponseStatusException e) {
             if (e.getStatusCode() == HttpStatus.UNAUTHORIZED)
                 locationUnauthorizedCounter.increment();
             log.warn("Location update rejected [driver={}]: {}",
                     update != null ? update.getDriverId() : null, e.getReason());
-            return ResponseEntity.status(e.getStatusCode())
-                    .body(Map.of("ok", false,
-                            "message", e.getReason() == null ? "Request rejected" : e.getReason()));
+            return withAliasHeaders(request, "/api/driver/location",
+                    ResponseEntity.status(e.getStatusCode())
+                            .body(Map.of("ok", false,
+                                    "message", e.getReason() == null ? "Request rejected" : e.getReason())));
         } catch (Exception e) {
             log.error("Error processing REST location [driver={}]: {}",
                     update != null ? update.getDriverId() : null, e.getMessage(), e);
-            return ResponseEntity.internalServerError()
-                    .body(Map.of("ok", false, "message", "Server error while processing location."));
+            return withAliasHeaders(request, "/api/driver/location",
+                    ResponseEntity.internalServerError()
+                            .body(Map.of("ok", false, "message", "Server error while processing location.")));
         }
     }
 
-    @PostMapping("/api/driver/location/update/batch")
+    @PostMapping({ "/api/driver/location/batch", "/api/driver/location/update/batch" })
     public ResponseEntity<Map<String, Object>> restLocationUpdateBatch(
+            HttpServletRequest request,
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @Valid @RequestBody java.util.List<DriverLocationUpdateDto> updates) {
         try {
@@ -209,21 +207,24 @@ public class DriverLocationController {
                 }
             }
 
-            return ResponseEntity.ok(Map.of(
-                    "ok", true,
-                    "message", "Batch processed: " + accepted + " accepted, " + skipped + " skipped",
-                    "accepted", accepted,
-                    "skipped", skipped));
+            return withAliasHeaders(request, "/api/driver/location/batch",
+                    ResponseEntity.ok(Map.of(
+                            "ok", true,
+                            "message", "Batch processed: " + accepted + " accepted, " + skipped + " skipped",
+                            "accepted", accepted,
+                            "skipped", skipped)));
         } catch (ResponseStatusException e) {
             if (e.getStatusCode() == HttpStatus.UNAUTHORIZED)
                 locationUnauthorizedCounter.increment();
-            return ResponseEntity.status(e.getStatusCode())
-                    .body(Map.of("ok", false,
-                            "message", e.getReason() == null ? "Request rejected" : e.getReason()));
+            return withAliasHeaders(request, "/api/driver/location/batch",
+                    ResponseEntity.status(e.getStatusCode())
+                            .body(Map.of("ok", false,
+                                    "message", e.getReason() == null ? "Request rejected" : e.getReason())));
         } catch (Exception e) {
             log.error("Batch location update failed: {}", e.getMessage(), e);
-            return ResponseEntity.internalServerError()
-                    .body(Map.of("ok", false, "message", "Server error while processing batch updates."));
+            return withAliasHeaders(request, "/api/driver/location/batch",
+                    ResponseEntity.internalServerError()
+                            .body(Map.of("ok", false, "message", "Server error while processing batch updates.")));
         }
     }
 
@@ -278,20 +279,24 @@ public class DriverLocationController {
     }
 
     // ==============================
-    // REST: GET /api/admin/driver/{driverId}/presence
+    // REST: GET /api/admin/drivers/{driverId}/presence
+    // legacy alias: /api/admin/driver/{driverId}/presence
     // ==============================
-    @GetMapping("/api/admin/driver/{driverId}/presence")
-    public Map<String, Object> getPresence(@PathVariable Long driverId) {
+    @GetMapping({ "/api/admin/drivers/{driverId}/presence", "/api/admin/driver/{driverId}/presence" })
+    public ResponseEntity<Map<String, Object>> getPresence(
+            HttpServletRequest request,
+            @PathVariable Long driverId) {
         long now = System.currentTimeMillis();
         Long lastSeenBoxed = ingest.lastSeenEpochMs(driverId);
         long lastSeen = lastSeenBoxed != null ? lastSeenBoxed : 0L;
-        Presence status = computePresence(lastSeen, now);
-        return Map.of(
-                "driverId", driverId,
-                "lastSeen", lastSeen,
-                "serverTime", now,
-                "presenceStatus", status.name(),
-                "isOnline", status == Presence.ONLINE);
+        PresencePolicyService.PresenceState status = presencePolicyService.resolve(lastSeen, now);
+        return withAliasHeaders(request, "/api/admin/drivers/" + driverId + "/presence",
+                ResponseEntity.ok(Map.of(
+                        "driverId", driverId,
+                        "lastSeen", lastSeen,
+                        "serverTime", now,
+                        "presenceStatus", status.name(),
+                        "isOnline", status == PresencePolicyService.PresenceState.ONLINE)));
     }
 
     // ==============================
@@ -309,7 +314,7 @@ public class DriverLocationController {
 
             Map<String, Object> presence = buildPresencePayload(
                     driverId, nowMs, null, null, "logout", "logout", 0L, nowMs);
-            presence.put("presenceStatus", Presence.OFFLINE.name());
+            presence.put("presenceStatus", PresencePolicyService.PresenceState.OFFLINE.name());
             presence.put("isOnline", false);
             fanoutPresence(driverId, presence);
 
@@ -326,11 +331,13 @@ public class DriverLocationController {
     }
 
     // ==============================
-    // REST: POST /api/locations/spoofing-alert
+    // REST: POST /api/driver/location/spoofing-alert
+    // legacy alias: /api/locations/spoofing-alert
     // (Implements the TODO from tms-backend DriverLocationController:466-468)
     // ==============================
-    @PostMapping("/api/locations/spoofing-alert")
+    @PostMapping({ "/api/driver/location/spoofing-alert", "/api/locations/spoofing-alert" })
     public ResponseEntity<Map<String, Object>> reportSpoofingAttempt(
+            HttpServletRequest request,
             @Valid @RequestBody SpoofingAlertDto alert) {
         try {
             log.warn(
@@ -340,86 +347,102 @@ public class DriverLocationController {
 
             spoofingAlertService.record(alert);
 
-            return ResponseEntity.ok(Map.of(
-                    "status", "ok",
-                    "message", "Spoofing alert received and persisted",
-                    "driverId", alert.getDriverId(),
-                    "serverTime", System.currentTimeMillis()));
+            return withAliasHeaders(request, "/api/driver/location/spoofing-alert",
+                    ResponseEntity.ok(Map.of(
+                            "status", "ok",
+                            "message", "Spoofing alert received and persisted",
+                            "driverId", alert.getDriverId(),
+                            "serverTime", System.currentTimeMillis())));
 
         } catch (Exception e) {
             log.error("Error processing spoofing alert: {}", e.getMessage(), e);
-            return ResponseEntity.internalServerError()
-                    .body(Map.of("status", "error", "message", "Failed to process alert"));
+            return withAliasHeaders(request, "/api/driver/location/spoofing-alert",
+                    ResponseEntity.internalServerError()
+                            .body(Map.of("status", "error", "message", "Failed to process alert")));
         }
     }
 
     // ==============================
-    // REST: POST /api/driver/tracking-session/start
+    // REST: POST /api/driver/tracking/session/start
+    // legacy alias: /api/driver/tracking-session/start
     // ==============================
-    @PostMapping({ "/api/driver/tracking-session/start", "/api/driver/tracking/session/start" })
+    @PostMapping({ "/api/driver/tracking/session/start", "/api/driver/tracking-session/start" })
     public ResponseEntity<?> startTrackingSession(
+            HttpServletRequest request,
             @RequestHeader(value = "Authorization", required = false) String authorization,
             @Valid @RequestBody TrackingSessionStartRequest req) {
         try {
             String token = DriverTrackingSessionService.extractBearerToken(authorization);
             if (token == null || !jwtUtil.isTokenValid(token)) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(Map.of("ok", false, "message", "Valid Authorization token required"));
+                return withAliasHeaders(request, "/api/driver/tracking/session/start",
+                        ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                                .body(Map.of("ok", false, "message", "Valid Authorization token required")));
             }
             Long driverId = jwtUtil.extractDriverId(token);
             String username = jwtUtil.extractUsername(token);
             TrackingSessionResponse resp = trackingSessionService.startSession(driverId, username, req);
-            return ResponseEntity.ok(resp);
+            return withAliasHeaders(request, "/api/driver/tracking/session/start", ResponseEntity.ok(resp));
         } catch (ResponseStatusException e) {
-            return ResponseEntity.status(e.getStatusCode())
-                    .body(Map.of("ok", false,
-                            "message", e.getReason() == null ? "Error" : e.getReason()));
+            return withAliasHeaders(request, "/api/driver/tracking/session/start",
+                    ResponseEntity.status(e.getStatusCode())
+                            .body(Map.of("ok", false,
+                                    "message", e.getReason() == null ? "Error" : e.getReason())));
         } catch (Exception e) {
             log.error("Error starting tracking session: {}", e.getMessage(), e);
-            return ResponseEntity.internalServerError()
-                    .body(Map.of("ok", false, "message", "Failed to start tracking session"));
+            return withAliasHeaders(request, "/api/driver/tracking/session/start",
+                    ResponseEntity.internalServerError()
+                            .body(Map.of("ok", false, "message", "Failed to start tracking session")));
         }
     }
 
     // ==============================
-    // REST: POST /api/driver/tracking-session/refresh
+    // REST: POST /api/driver/tracking/session/refresh
+    // legacy alias: /api/driver/tracking-session/refresh
     // ==============================
-    @PostMapping({ "/api/driver/tracking-session/refresh", "/api/driver/tracking/session/refresh" })
+    @PostMapping({ "/api/driver/tracking/session/refresh", "/api/driver/tracking-session/refresh" })
     public ResponseEntity<?> refreshTrackingSession(
+            HttpServletRequest request,
             @RequestHeader(value = "Authorization", required = false) String authorization) {
         try {
             String token = DriverTrackingSessionService.extractBearerToken(authorization);
             TrackingSessionResponse resp = trackingSessionService.refreshSession(token);
-            return ResponseEntity.ok(resp);
+            return withAliasHeaders(request, "/api/driver/tracking/session/refresh", ResponseEntity.ok(resp));
         } catch (ResponseStatusException e) {
-            return ResponseEntity.status(e.getStatusCode())
-                    .body(Map.of("ok", false,
-                            "message", e.getReason() == null ? "Error" : e.getReason()));
+            return withAliasHeaders(request, "/api/driver/tracking/session/refresh",
+                    ResponseEntity.status(e.getStatusCode())
+                            .body(Map.of("ok", false,
+                                    "message", e.getReason() == null ? "Error" : e.getReason())));
         } catch (Exception e) {
             log.error("Error refreshing tracking session: {}", e.getMessage(), e);
-            return ResponseEntity.internalServerError()
-                    .body(Map.of("ok", false, "message", "Failed to refresh tracking session"));
+            return withAliasHeaders(request, "/api/driver/tracking/session/refresh",
+                    ResponseEntity.internalServerError()
+                            .body(Map.of("ok", false, "message", "Failed to refresh tracking session")));
         }
     }
 
     // ==============================
-    // REST: POST /api/driver/tracking-session/stop
+    // REST: POST /api/driver/tracking/session/stop
+    // legacy alias: /api/driver/tracking-session/stop
     // ==============================
-    @PostMapping({ "/api/driver/tracking-session/stop", "/api/driver/tracking/session/stop" })
+    @PostMapping({ "/api/driver/tracking/session/stop", "/api/driver/tracking-session/stop" })
     public ResponseEntity<?> stopTrackingSession(
+            HttpServletRequest request,
             @RequestHeader(value = "Authorization", required = false) String authorization) {
         try {
             String token = DriverTrackingSessionService.extractBearerToken(authorization);
             trackingSessionService.stopSession(token);
-            return ResponseEntity.ok(Map.of("status", "ok", "message", "Tracking session stopped"));
+            return withAliasHeaders(request, "/api/driver/tracking/session/stop",
+                    ResponseEntity.ok(Map.of("status", "ok", "message", "Tracking session stopped")));
         } catch (ResponseStatusException e) {
-            return ResponseEntity.status(e.getStatusCode())
-                    .body(Map.of("ok", false,
-                            "message", e.getReason() == null ? "Error" : e.getReason()));
+            return withAliasHeaders(request, "/api/driver/tracking/session/stop",
+                    ResponseEntity.status(e.getStatusCode())
+                            .body(Map.of("ok", false,
+                                    "message", e.getReason() == null ? "Error" : e.getReason())));
         } catch (Exception e) {
             log.error("Error stopping tracking session: {}", e.getMessage(), e);
-            return ResponseEntity.internalServerError()
-                    .body(Map.of("ok", false, "message", "Failed to stop tracking session"));
+            return withAliasHeaders(request, "/api/driver/tracking/session/stop",
+                    ResponseEntity.internalServerError()
+                            .body(Map.of("ok", false, "message", "Failed to stop tracking session")));
         }
     }
 
@@ -448,15 +471,17 @@ public class DriverLocationController {
         }
 
         final long nowMs = System.currentTimeMillis();
-        Map<String, Object> live = ingest.accept(update);
+        LocationIngestService.IngestResult result = ingest.acceptDetailed(update);
+        Map<String, Object> live = result.live();
 
         if (live == null) {
-            refreshPresenceAndFanout(update, nowMs, "dup/throttle");
+            refreshPresenceAndFanout(update, nowMs, result.dropReason());
             ack.put("ok", true);
             ack.put("dedup", true);
+            ack.put("dropReason", result.dropReason());
             ack.put("driverId", update.getDriverId());
             ack.put("serverTime", nowMs);
-            ack.put("message", "Location ignored (duplicate/too soon). Presence refreshed.");
+            ack.put("message", "Location ignored (" + result.dropReason() + "). Presence refreshed.");
             return ack;
         }
 
@@ -478,9 +503,9 @@ public class DriverLocationController {
         p.put("serverTime", nowMs);
         p.put("clientTime", clientTs != null ? clientTs : nowMs);
         p.put("lastSeen", lastSeenMs);
-        Presence status = computePresence(lastSeenMs, nowMs);
+        PresencePolicyService.PresenceState status = presencePolicyService.resolve(lastSeenMs, nowMs);
         p.put("presenceStatus", status.name());
-        p.put("isOnline", status == Presence.ONLINE);
+        p.put("isOnline", status == PresencePolicyService.PresenceState.ONLINE);
         if (battery != null)
             p.put("battery", battery);
         if (gps != null)
@@ -506,13 +531,13 @@ public class DriverLocationController {
         fanoutPresence(update.getDriverId(), presence);
     }
 
-    private static void addPresenceFields(Map<String, Object> live, long nowMs) {
+    private void addPresenceFields(Map<String, Object> live, long nowMs) {
         live.putIfAbsent("serverTime", nowMs);
         live.putIfAbsent("clientTime", nowMs);
         live.put("lastSeen", nowMs);
-        Presence status = computePresence(nowMs, nowMs);
+        PresencePolicyService.PresenceState status = presencePolicyService.resolve(nowMs, nowMs);
         live.put("presenceStatus", status.name());
-        live.put("isOnline", status == Presence.ONLINE);
+        live.put("isOnline", status == PresencePolicyService.PresenceState.ONLINE);
     }
 
     private void fanoutPresence(Long driverId, Map<String, Object> payload) {
@@ -523,5 +548,20 @@ public class DriverLocationController {
     private void fanoutLocation(Long driverId, Map<String, Object> live) {
         messagingTemplate.convertAndSend(T_LOC_ONE + driverId, live);
         messagingTemplate.convertAndSend(T_LOC_ALL, live);
+    }
+
+    private <T> ResponseEntity<T> withAliasHeaders(
+            HttpServletRequest request,
+            String canonicalPath,
+            ResponseEntity<T> response) {
+        if (request == null || canonicalPath.equals(request.getRequestURI())) {
+            return response;
+        }
+        HttpHeaders headers = new HttpHeaders();
+        headers.putAll(response.getHeaders());
+        headers.set("Deprecation", "true");
+        headers.set("Sunset", DEPRECATION_SUNSET);
+        headers.add(HttpHeaders.LINK, "<" + canonicalPath + ">; rel=\"successor-version\"");
+        return ResponseEntity.status(response.getStatusCode()).headers(headers).body(response.getBody());
     }
 }

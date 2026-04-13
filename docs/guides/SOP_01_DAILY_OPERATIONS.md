@@ -26,8 +26,8 @@ tail -n 200 /var/log/nginx/error.log
 
 4. Check public endpoints quickly:
 ```bash
-curl -I -s https://svtmsapi.svtrucking.biz/api/auth/health || true
-curl -I -s https://svtmsapi.svtrucking.biz/api/driver-app/home-layout || true
+curl -I -s https://svtms.svtrucking.biz/api/auth/health || true
+curl -I -s https://svtms.svtrucking.biz/api/driver-app/home-layout || true
 ```
 
 ## If Something Fails

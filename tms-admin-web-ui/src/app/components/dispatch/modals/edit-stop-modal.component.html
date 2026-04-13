@@ -31,27 +31,36 @@
         <!-- Search Location (Google Maps Autocomplete) -->
         <div>
           <label for="search" class="block text-sm font-medium">Search Location</label>
-          <input
-            #searchInput
-            id="search"
-            type="text"
-            class="w-full p-2 border rounded"
-            placeholder="Start typing a location..."
-            autocomplete="off"
-          />
+          <div class="flex gap-2">
+            <input
+              id="search"
+              type="text"
+              [(ngModel)]="searchQuery"
+              [ngModelOptions]="{ standalone: true }"
+              class="w-full p-2 border rounded"
+              placeholder="Search with Mapbox geocoding"
+              autocomplete="off"
+            />
+            <button
+              type="button"
+              class="px-3 py-2 text-white bg-blue-600 rounded hover:bg-blue-700"
+              (click)="onSearchLocation()"
+            >
+              Search
+            </button>
+          </div>
+        </div>
+
+        <div
+          *ngIf="mapsError"
+          class="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800"
+        >
+          {{ mapsError }}
         </div>
 
         <!--  Map Preview -->
         <div class="h-48 mt-2 overflow-hidden border rounded">
-          <google-map
-            [center]="mapCenter"
-            [zoom]="15"
-            [height]="'100%'"
-            [width]="'100%'"
-            class="w-full h-full"
-          >
-            <map-marker [position]="mapCenter"></map-marker>
-          </google-map>
+          <div #mapContainer class="edit-stop-map"></div>
         </div>
 
         <!-- Coordinates -->

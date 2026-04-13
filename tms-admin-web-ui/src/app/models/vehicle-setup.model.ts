@@ -57,7 +57,8 @@ export interface PMScheduleRequest {
   scheduleName: string;
   description?: string;
   triggerType: PMTriggerType | string;
-  triggerInterval: number;
+  triggerInterval?: number;
+  triggerIntervalDays?: number;
   reminderBeforeKm?: number;
   reminderBeforeDays?: number;
   taskTypeId: number;

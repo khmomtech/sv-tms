@@ -98,19 +98,21 @@ public class VehicleDriverController {
     }
 
     @GetMapping("/list")
-    @Operation(summary = "List assignments with optional filters")
+    @Operation(summary = "List assignments with optional filters (max 500)")
     public ResponseEntity<ApiResponse<java.util.List<AssignmentResponse>>> listAssignments(
             @RequestParam(required = false) Long driverId,
             @RequestParam(required = false) Long vehicleId,
-            @RequestParam(required = false) Boolean active) {
-        java.util.List<AssignmentResponse> assignments = assignmentService.getAssignments(driverId, vehicleId, active);
+            @RequestParam(required = false) Boolean active,
+            @RequestParam(defaultValue = "200") int limit) {
+        java.util.List<AssignmentResponse> assignments = assignmentService.getAssignments(driverId, vehicleId, active, limit);
         return ResponseEntity.ok(ApiResponse.success("Assignments retrieved", assignments));
     }
 
     @GetMapping("/drivers/with-assignments")
-    @Operation(summary = "List all drivers with assignment status")
-    public ResponseEntity<ApiResponse<java.util.List<DriverWithAssignmentResponse>>> listDriversWithAssignments() {
-        java.util.List<DriverWithAssignmentResponse> drivers = assignmentService.getAllDriversWithAssignments();
+    @Operation(summary = "List all drivers with assignment status (max 500)")
+    public ResponseEntity<ApiResponse<java.util.List<DriverWithAssignmentResponse>>> listDriversWithAssignments(
+            @RequestParam(defaultValue = "200") int limit) {
+        java.util.List<DriverWithAssignmentResponse> drivers = assignmentService.getAllDriversWithAssignments(limit);
         return ResponseEntity.ok(ApiResponse.success("Drivers with assignments", drivers));
     }
 }

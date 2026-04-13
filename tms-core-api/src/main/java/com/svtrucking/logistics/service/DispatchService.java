@@ -1,6 +1,7 @@
 package com.svtrucking.logistics.service;
 
 import com.svtrucking.logistics.dto.DispatchDto;
+import com.svtrucking.logistics.dto.DispatchStopDto;
 import com.svtrucking.logistics.dto.DispatchStatusHistoryDto;
 import com.svtrucking.logistics.dto.CustomerAddressDto;
 import com.svtrucking.logistics.dto.OrderItemDto;
@@ -55,6 +56,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.dao.InvalidDataAccessApiUsageException;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.orm.jpa.JpaSystemException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -124,6 +127,8 @@ public class DispatchService {
     private AuthorizationService authorizationService;
     @Autowired(required = false)
     private DispatchMetricsService dispatchMetricsService;
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @Value("${dispatch.autoAssignOnChangeTruck:false}")
     private boolean autoAssignOnChangeTruck;
@@ -217,7 +222,7 @@ public class DispatchService {
         return warnings;
     }
 
-    @Transactional
+    @Transactional(transactionManager = "jpaTransactionManager")
     public DispatchDto changeDriver(Long dispatchId, Long newDriverId) {
         return changeDriver(dispatchId, newDriverId, false);
     }
@@ -228,7 +233,7 @@ public class DispatchService {
      * vehicle-driver
      * relationship check is skipped.
      */
-    @Transactional
+    @Transactional(transactionManager = "jpaTransactionManager")
     public DispatchDto changeDriver(Long dispatchId, Long newDriverId, boolean bypassAssignmentCheck) {
         log.debug("Changing driver: dispatchId={}, newDriverId={}, bypass={}", dispatchId, newDriverId,
                 bypassAssignmentCheck);
@@ -277,7 +282,7 @@ public class DispatchService {
         return DispatchDto.fromEntityWithDetails(updated);
     }
 
-    @Transactional
+    @Transactional(transactionManager = "jpaTransactionManager")
     public DispatchDto createDispatch(DispatchDto dispatchDto) {
         if (dispatchDto.getDriverId() == null) {
             throw new InvalidDispatchDataException("driverId", "Driver is required");
@@ -363,7 +368,7 @@ public class DispatchService {
         return DispatchDto.fromEntityWithDetails(savedDispatch);
     }
 
-    @Transactional
+    @Transactional(transactionManager = "jpaTransactionManager")
     public DispatchDto planTrip(
             Long orderId,
             String tripType,
@@ -424,7 +429,7 @@ public class DispatchService {
 
     // -------------------- CRUD + STATUS --------------------
 
-    @Transactional
+    @Transactional(transactionManager = "jpaTransactionManager")
     public DispatchDto assignDispatch(Long dispatchId, Long driverId, Long vehicleId) {
         log.debug("Assigning dispatch: id={}, driverId={}, vehicleId={}", dispatchId, driverId, vehicleId);
 
@@ -536,33 +541,111 @@ public class DispatchService {
         return rawCode == null ? "" : rawCode.trim().toUpperCase();
     }
 
-    @Transactional
+    @Transactional(transactionManager = "jpaTransactionManager")
     public DispatchDto updateDispatch(Long dispatchId, DispatchDto dispatchDetails) {
         Dispatch dispatch = dispatchRepository
                 .findById(dispatchId)
                 .orElseThrow(() -> new ResourceNotFoundException("Dispatch not found"));
 
-        if (dispatchDetails.getStatus() != null
-                && dispatchDetails.getStatus() != dispatch.getStatus()) {
-            dispatch.setStatus(dispatchDetails.getStatus());
-            dispatch.setUpdatedDate(LocalDateTime.now());
-            Dispatch updated = dispatchRepository.save(dispatch);
-            saveStatusHistory(updated, dispatchDetails.getStatus(), "Status updated via API",
-                    DispatchStatusChangeSource.NORMAL, null);
-            syncTransportOrderStatus(updated);
-            return DispatchDto.fromEntityWithDetails(updated);
+        DispatchStatus previousStatus = dispatch.getStatus();
+        DispatchStatus requestedStatus = dispatchDetails.getStatus();
+        boolean statusChanged = requestedStatus != null && requestedStatus != dispatch.getStatus();
+
+        String routeCode = dispatchDetails.getManualRouteCode();
+        if (routeCode == null || routeCode.isBlank()) {
+            routeCode = dispatchDetails.getRouteCode();
+        }
+        if (routeCode != null && !routeCode.isBlank()) {
+            dispatch.setRouteCode(routeCode.trim());
+        }
+
+        if (dispatchDetails.getStartTime() != null) {
+            dispatch.setStartTime(dispatchDetails.getStartTime());
+        }
+        if (dispatchDetails.getEstimatedArrival() != null) {
+            dispatch.setEstimatedArrival(dispatchDetails.getEstimatedArrival());
+        }
+        if (dispatchDetails.getTripType() != null && !dispatchDetails.getTripType().isBlank()) {
+            dispatch.setTripType(dispatchDetails.getTripType().trim());
+        }
+        if (dispatchDetails.getCancelReason() != null) {
+            dispatch.setCancelReason(dispatchDetails.getCancelReason().trim());
+        }
+        if (dispatchDetails.getTransportOrderId() != null
+                && (dispatch.getTransportOrder() == null
+                        || !Objects.equals(dispatch.getTransportOrder().getId(), dispatchDetails.getTransportOrderId()))) {
+            TransportOrder transportOrder = transportOrderRepository
+                    .findById(dispatchDetails.getTransportOrderId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Transport order not found"));
+            dispatch.setTransportOrder(transportOrder);
+        }
+        if (dispatchDetails.getDriverId() != null) {
+            Driver driver = driverRepository
+                    .findById(dispatchDetails.getDriverId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Driver not found"));
+            dispatch.setDriver(driver);
+        }
+        if (dispatchDetails.getVehicleId() != null) {
+            Vehicle vehicle = vehicleRepository
+                    .findById(dispatchDetails.getVehicleId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found"));
+            dispatch.setVehicle(vehicle);
+        }
+        if (dispatchDetails.getStops() != null) {
+            dispatch.setStops(buildDispatchStops(dispatch, dispatchDetails.getStops()));
+            if (!dispatch.getStops().isEmpty()) {
+                dispatch.setFromLocation(dispatch.getStops().get(0).getLocationName());
+                dispatch.setToLocation(dispatch.getStops().get(dispatch.getStops().size() - 1).getLocationName());
+            } else {
+                dispatch.setFromLocation(null);
+                dispatch.setToLocation(null);
+            }
+        }
+        if (statusChanged) {
+            dispatch.setStatus(requestedStatus);
         }
         if (dispatchDetails.getLoadingTypeCode() != null) {
             dispatch.setLoadingTypeCode(validateRequestedLoadingType(dispatchDetails.getLoadingTypeCode()));
             dispatch.setWorkflowVersionId(resolveWorkflowVersionId(dispatch.getLoadingTypeCode()));
-            dispatch.setUpdatedDate(LocalDateTime.now());
-            Dispatch updated = dispatchRepository.save(dispatch);
-            return DispatchDto.fromEntityWithDetails(updated);
         }
-        return DispatchDto.fromEntityWithDetails(dispatch);
+
+        dispatch.setUpdatedDate(LocalDateTime.now());
+        Dispatch updated = persistDispatch(dispatch);
+
+        if (statusChanged) {
+            saveStatusHistory(updated, requestedStatus, "Status updated via API",
+                    DispatchStatusChangeSource.NORMAL, null);
+            syncTransportOrderStatus(updated);
+        }
+
+        return DispatchDto.fromEntityWithDetails(updated);
     }
 
-    @Transactional
+    private List<DispatchStop> buildDispatchStops(Dispatch dispatch, List<DispatchStopDto> stopDtos) {
+        List<DispatchStop> stops = new ArrayList<>();
+        for (int index = 0; index < stopDtos.size(); index += 1) {
+            DispatchStopDto stopDto = stopDtos.get(index);
+            if (stopDto == null) {
+                continue;
+            }
+            String locationName = stopDto.getLocationName();
+            if ((locationName == null || locationName.isBlank()) && stopDto.getAddress() != null) {
+                locationName = stopDto.getAddress();
+            }
+            stops.add(DispatchStop.builder()
+                    .dispatch(dispatch)
+                    .stopSequence(stopDto.getStopSequence() != null ? stopDto.getStopSequence() : index + 1)
+                    .locationName(locationName)
+                    .address(stopDto.getAddress())
+                    .coordinates(stopDto.getCoordinates())
+                    .arrivalTime(stopDto.getArrivalTime())
+                    .departureTime(stopDto.getDepartureTime())
+                    .isCompleted(Boolean.TRUE.equals(stopDto.getIsCompleted()))
+                    .build());
+        }
+        return stops;
+    }
+
     public DispatchDto updateDispatchStatus(Long dispatchId, DispatchStatus status) {
         log.debug("Updating dispatch status: id={}, newStatus={}", dispatchId, status);
 
@@ -582,31 +665,45 @@ public class DispatchService {
                 throw new InvalidDispatchDataException("status", transitionCheck.blockedReason());
             }
 
+            DispatchStatus previousStatus = dispatch.getStatus();
             dispatch.setStatus(status);
             dispatch.setUpdatedDate(LocalDateTime.now());
-            Dispatch updated = dispatchRepository.save(dispatch);
+            Dispatch updated;
+            try {
+                updated = persistDispatch(dispatch);
+                saveStatusHistory(updated, status, "Manual status update",
+                        DispatchStatusChangeSource.NORMAL, null);
+                syncTransportOrderStatus(updated);
+            } catch (InvalidDataAccessApiUsageException ex) {
+                if (!isMissingTransaction(ex)) {
+                    throw ex;
+                }
+                updated = persistDispatchStatusViaJdbc(
+                        dispatch,
+                        previousStatus,
+                        status,
+                        null,
+                        "Manual status update",
+                        DispatchStatusChangeSource.NORMAL,
+                        null);
+            }
 
             log.info(
                     "Updated dispatch status: id={}, oldStatus={}, newStatus={}",
                     dispatchId,
-                    dispatch.getStatus(),
+                    previousStatus,
                     status);
-
-            saveStatusHistory(updated, status, "Manual status update");
-            syncTransportOrderStatus(updated);
-            return DispatchDto.fromEntityWithDetails(updated);
+            return buildDispatchPayloadSafely(updated);
         }
 
         log.debug("No status change for dispatch: id={}, status={}", dispatchId, dispatch.getStatus());
-        return DispatchDto.fromEntityWithDetails(dispatch);
+        return buildDispatchPayloadSafely(dispatch);
     }
 
-    @Transactional
     public DispatchDto updateDispatchStatus(Long dispatchId, DispatchStatus status, String reason) {
         return updateDispatchStatus(dispatchId, status, reason, false);
     }
 
-    @Transactional
     public DispatchDto updateDispatchStatus(Long dispatchId, DispatchStatus status, String reason,
             boolean forceOverride) {
         log.debug("Updating dispatch status: id={}, newStatus={}, reason={}", dispatchId, status, reason);
@@ -639,7 +736,34 @@ public class DispatchService {
             DispatchStatus previousStatus = dispatch.getStatus();
             dispatch.setStatus(status);
             dispatch.setUpdatedDate(LocalDateTime.now());
-            Dispatch updated = dispatchRepository.save(dispatch);
+            String normalizedReason = (reason != null && !reason.isBlank())
+                    ? reason.trim()
+                    : (forceOverride
+                            ? "Manual override status update"
+                            : "Manual status update");
+            Dispatch updated;
+            try {
+                updated = persistDispatch(dispatch);
+                saveStatusHistory(
+                        updated,
+                        status,
+                        normalizedReason,
+                        forceOverride ? DispatchStatusChangeSource.OVERRIDE : DispatchStatusChangeSource.NORMAL,
+                        forceOverride ? normalizedReason : null);
+                syncTransportOrderStatus(updated);
+            } catch (InvalidDataAccessApiUsageException ex) {
+                if (!isMissingTransaction(ex)) {
+                    throw ex;
+                }
+                updated = persistDispatchStatusViaJdbc(
+                        dispatch,
+                        previousStatus,
+                        status,
+                        dispatch.getCancelReason(),
+                        normalizedReason,
+                        forceOverride ? DispatchStatusChangeSource.OVERRIDE : DispatchStatusChangeSource.NORMAL,
+                        forceOverride ? normalizedReason : null);
+            }
 
             log.info(
                     "Updated dispatch status: id={}, oldStatus={}, newStatus={}, reason={}",
@@ -648,29 +772,16 @@ public class DispatchService {
                     status,
                     reason);
 
-            String normalizedReason = (reason != null && !reason.isBlank())
-                    ? reason.trim()
-                    : (forceOverride
-                            ? "Manual override status update"
-                            : "Manual status update");
-            saveStatusHistory(
-                    updated,
-                    status,
-                    normalizedReason,
-                    forceOverride ? DispatchStatusChangeSource.OVERRIDE : DispatchStatusChangeSource.NORMAL,
-                    forceOverride ? normalizedReason : null);
-            syncTransportOrderStatus(updated);
             if (dispatchMetricsService != null) {
                 dispatchMetricsService.recordTransition(previousStatus, status);
             }
-            return DispatchDto.fromEntityWithDetails(updated);
+            return buildDispatchPayloadSafely(updated);
         }
 
         log.debug("No status change for dispatch: id={}, status={}", dispatchId, dispatch.getStatus());
         return DispatchDto.fromEntityWithDetails(dispatch);
     }
 
-    @Transactional
     public DispatchStatusUpdateResponse updateDispatchStatusWithResponse(
             Long dispatchId,
             DispatchStatus status,
@@ -700,7 +811,29 @@ public class DispatchService {
 
             dispatch.setStatus(status);
             dispatch.setUpdatedDate(LocalDateTime.now());
-            Dispatch updated = dispatchRepository.save(dispatch);
+            Dispatch updated;
+            try {
+                updated = persistDispatch(dispatch);
+                saveStatusHistory(
+                        updated,
+                        status,
+                        reason != null ? reason : "Manual status update",
+                        DispatchStatusChangeSource.NORMAL,
+                        null);
+                syncTransportOrderStatus(updated);
+            } catch (InvalidDataAccessApiUsageException ex) {
+                if (!isMissingTransaction(ex)) {
+                    throw ex;
+                }
+                updated = persistDispatchStatusViaJdbc(
+                        dispatch,
+                        previousStatus,
+                        status,
+                        dispatch.getCancelReason(),
+                        reason != null ? reason : "Manual status update",
+                        DispatchStatusChangeSource.NORMAL,
+                        null);
+            }
 
             log.info(
                     "Updated dispatch status: id={}, oldStatus={}, newStatus={}, reason={}",
@@ -709,37 +842,30 @@ public class DispatchService {
                     status,
                     reason);
 
-            // Save status history with reason
-            saveStatusHistory(
-                    updated,
-                    status,
-                    reason != null ? reason : "Manual status update",
-                    DispatchStatusChangeSource.NORMAL,
-                    null);
-            syncTransportOrderStatus(updated);
+            Dispatch responseDispatch = reloadDispatchForMutationResponse(updated.getId(), updated);
 
-            // Build response with available next states
-            Set<DispatchStatus> nextStates = dispatchWorkflowPolicyService.getNextStatuses(updated);
+            // Build response with available next states from a fully reloaded dispatch.
+            Set<DispatchStatus> nextStates = dispatchWorkflowPolicyService.getNextStatuses(responseDispatch);
             var actionMetadataList = enrichActionMetadataForDispatch(
-                    updated,
-                    dispatchWorkflowPolicyService.getAvailableActions(updated));
-            var resolution = dispatchWorkflowPolicyService.resolveVersionedTemplate(updated);
+                    responseDispatch,
+                    dispatchWorkflowPolicyService.getAvailableActions(responseDispatch));
+            var resolution = dispatchWorkflowPolicyService.resolveVersionedTemplate(responseDispatch);
             var template = resolution.template();
 
             return DispatchStatusUpdateResponse.builder()
-                    .dispatchId(updated.getId())
+                    .dispatchId(responseDispatch.getId())
                     .previousStatus(previousStatus)
                     .currentStatus(status)
                     .availableNextStates(new ArrayList<>(nextStates))
                     .availableActions(actionMetadataList)
                     .isTerminal(dispatchStateMachine.isTerminal(status))
-                    .updatedAt(updated.getUpdatedDate())
+                    .updatedAt(responseDispatch.getUpdatedDate())
                     .reason(reason)
-                    .dispatch(buildDispatchPayloadSafely(updated))
+                    .dispatch(buildDispatchPayloadSafely(responseDispatch))
                     .canPerformActions(true)
-                    .loadingTypeCode(updated.getLoadingTypeCode())
+                    .loadingTypeCode(responseDispatch.getLoadingTypeCode())
                     .loadingTypeName(template != null ? template.getName() : null)
-                    .workflowVersionId(updated.getWorkflowVersionId())
+                    .workflowVersionId(responseDispatch.getWorkflowVersionId())
                     .resolvedWorkflowVersionId(resolution.workflowVersionId())
                     .build();
         }
@@ -891,9 +1017,9 @@ public class DispatchService {
             return null;
         }
         try {
-            return DispatchDto.fromEntityWithDetails(dispatch);
+            return DispatchDto.fromEntity(dispatch);
         } catch (EntityNotFoundException | HibernateException | IllegalStateException ex) {
-            log.warn("Failed to map full dispatch payload for id={}. Falling back to base payload. cause={}",
+            log.warn("Failed to map dispatch payload for id={}. Falling back to base payload. cause={}",
                     dispatch.getId(), ex.getMessage());
             return DispatchDto.fromEntity(dispatch);
         } catch (RuntimeException ex) {
@@ -1142,7 +1268,7 @@ public class DispatchService {
         }
     }
 
-    @Transactional
+    @Transactional(transactionManager = "jpaTransactionManager")
     public DispatchDto updateDispatchSafetyStatus(Long dispatchId, SafetyCheckStatus safetyStatus) {
         log.debug("Updating dispatch safety status: id={}, newSafety={}", dispatchId, safetyStatus);
 
@@ -1170,7 +1296,7 @@ public class DispatchService {
         return DispatchDto.fromEntityWithDetails(dispatch);
     }
 
-    @Transactional
+    @Transactional(transactionManager = "jpaTransactionManager")
     public void deleteDispatch(Long dispatchId) {
         log.debug("Deleting dispatch: id={}", dispatchId);
         dispatchStatusHistoryRepository.deleteByDispatchId(dispatchId);
@@ -1186,7 +1312,7 @@ public class DispatchService {
         log.warn("Deleted dispatch: id={}, routeCode={}", dispatchId, dispatch.getRouteCode());
     }
 
-    @Transactional
+    @Transactional(transactionManager = "jpaTransactionManager")
     public void deleteDispatches(Collection<Long> dispatchIds) {
         if (dispatchIds == null || dispatchIds.isEmpty()) {
             log.warn("Bulk delete called with empty id list");
@@ -1210,7 +1336,7 @@ public class DispatchService {
      * @param reason     Mandatory reason (e.g. damage claim, customer complaint)
      * @return Updated dispatch DTO
      */
-    @Transactional
+    @Transactional(transactionManager = "jpaTransactionManager")
     public DispatchDto reopenDispatch(Long dispatchId, String reason) {
         log.info("Reopening dispatch: dispatchId={}, reason={}", dispatchId, reason);
 
@@ -1258,7 +1384,7 @@ public class DispatchService {
      * @param lng         GPS longitude (optional)
      * @return Updated dispatch DTO
      */
-    @Transactional
+    @Transactional(transactionManager = "jpaTransactionManager")
     public DispatchDto reportBreakdown(
             Long dispatchId,
             String location,
@@ -1292,7 +1418,7 @@ public class DispatchService {
 
     // -------------------- Driver / Truck Change --------------------
 
-    @Transactional
+    @Transactional(transactionManager = "jpaTransactionManager")
     public ChangeTruckResult changeTruck(Long dispatchId, Long newVehicleId) {
         log.debug("Changing truck: dispatchId={}, newVehicleId={}", dispatchId, newVehicleId);
 
@@ -1335,7 +1461,7 @@ public class DispatchService {
 
         dispatch.setVehicle(vehicle);
         dispatch.setUpdatedDate(LocalDateTime.now());
-        Dispatch updated = dispatchRepository.save(dispatch);
+        Dispatch updated = persistDispatch(dispatch);
 
         // Record change in dispatch history only
         String remark = previousVehicle != null
@@ -1468,7 +1594,7 @@ public class DispatchService {
         return result;
     }
 
-    @Transactional
+    @Transactional(transactionManager = "jpaTransactionManager")
     public void markAsUnloaded(
             Long dispatchId,
             String remarks,
@@ -1514,7 +1640,7 @@ public class DispatchService {
 
     // -------------------- Driver Response --------------------
 
-    @Transactional
+    @Transactional(transactionManager = "jpaTransactionManager")
     public DispatchDto acceptDispatch(Long dispatchId) {
         log.debug("Driver accepting dispatch: id={}", dispatchId);
 
@@ -1537,9 +1663,27 @@ public class DispatchService {
                     "status", "Only ASSIGNED dispatches can be accepted. Current status: " + dispatch.getStatus());
         }
 
+        DispatchStatus previousStatus = dispatch.getStatus();
         dispatch.setStatus(DispatchStatus.DRIVER_CONFIRMED);
         dispatch.setUpdatedDate(LocalDateTime.now());
-        Dispatch updated = dispatchRepository.save(dispatch);
+        Dispatch updated;
+        try {
+            updated = persistDispatch(dispatch);
+            saveStatusHistory(updated, DispatchStatus.DRIVER_CONFIRMED, "Driver accepted dispatch");
+            syncTransportOrderStatus(updated);
+        } catch (InvalidDataAccessApiUsageException ex) {
+            if (!isMissingTransaction(ex)) {
+                throw ex;
+            }
+            updated = persistDispatchStatusViaJdbc(
+                    dispatch,
+                    previousStatus,
+                    DispatchStatus.DRIVER_CONFIRMED,
+                    null,
+                    "Driver accepted dispatch",
+                    DispatchStatusChangeSource.NORMAL,
+                    null);
+        }
 
         log.info(
                 "Driver accepted dispatch: id={}, driverId={}, status={}",
@@ -1547,12 +1691,10 @@ public class DispatchService {
                 dispatch.getDriver() != null ? dispatch.getDriver().getId() : null,
                 updated.getStatus());
 
-        saveStatusHistory(updated, DispatchStatus.DRIVER_CONFIRMED, "Driver accepted dispatch");
-        syncTransportOrderStatus(updated);
-        return DispatchDto.fromEntityWithDetails(updated);
+        return buildDispatchPayloadSafely(updated);
     }
 
-    @Transactional
+    @Transactional(transactionManager = "jpaTransactionManager")
     public DispatchDto rejectDispatch(Long dispatchId, String reason) {
         log.debug("Driver rejecting dispatch: id={}, reason={}", dispatchId, reason);
 
@@ -1578,10 +1720,28 @@ public class DispatchService {
         // Validate cancellation
         dispatchValidator.validateForCancellation(dispatch, reason);
 
+        DispatchStatus previousStatus = dispatch.getStatus();
         dispatch.setStatus(DispatchStatus.CANCELLED);
         dispatch.setCancelReason(reason);
         dispatch.setUpdatedDate(LocalDateTime.now());
-        Dispatch updated = dispatchRepository.save(dispatch);
+        Dispatch updated;
+        try {
+            updated = persistDispatch(dispatch);
+            saveStatusHistory(updated, DispatchStatus.CANCELLED, "Driver rejected dispatch: " + reason);
+            syncTransportOrderStatus(updated);
+        } catch (InvalidDataAccessApiUsageException ex) {
+            if (!isMissingTransaction(ex)) {
+                throw ex;
+            }
+            updated = persistDispatchStatusViaJdbc(
+                    dispatch,
+                    previousStatus,
+                    DispatchStatus.CANCELLED,
+                    reason,
+                    "Driver rejected dispatch: " + reason,
+                    DispatchStatusChangeSource.NORMAL,
+                    null);
+        }
 
         log.warn(
                 "Driver rejected dispatch: id={}, driverId={}, reason={}",
@@ -1589,9 +1749,7 @@ public class DispatchService {
                 dispatch.getDriver() != null ? dispatch.getDriver().getId() : null,
                 reason);
 
-        saveStatusHistory(updated, DispatchStatus.CANCELLED, "Driver rejected dispatch: " + reason);
-        syncTransportOrderStatus(updated);
-        return DispatchDto.fromEntityWithDetails(updated);
+        return buildDispatchPayloadSafely(updated);
     }
 
     private void validateDriverOwnershipForMutation(Dispatch dispatch, Long dispatchId) {
@@ -1624,6 +1782,112 @@ public class DispatchService {
 
     private void saveStatusHistory(Dispatch dispatch, DispatchStatus status, String remarks) {
         saveStatusHistory(dispatch, status, remarks, DispatchStatusChangeSource.NORMAL, null);
+    }
+
+    private Dispatch persistDispatch(Dispatch dispatch) {
+        Dispatch saved = dispatchRepository.saveAndFlush(dispatch);
+        return reloadDispatchForMutationResponse(saved.getId(), saved);
+    }
+
+    private boolean isMissingTransaction(Throwable throwable) {
+        Throwable cursor = throwable;
+        while (cursor != null) {
+            String message = cursor.getMessage();
+            if (message != null && message.contains("no transaction is in progress")) {
+                return true;
+            }
+            cursor = cursor.getCause();
+        }
+        return false;
+    }
+
+    private Dispatch persistDispatchStatusViaJdbc(
+            Dispatch dispatch,
+            DispatchStatus previousStatus,
+            DispatchStatus newStatus,
+            String cancelReason,
+            String remarks,
+            DispatchStatusChangeSource source,
+            String overrideReason) {
+        LocalDateTime now = LocalDateTime.now();
+        int updatedRows = jdbcTemplate.update(
+                """
+                        UPDATE dispatches
+                           SET status = ?,
+                               updated_date = ?,
+                               cancel_reason = ?,
+                               version = COALESCE(version, 0) + 1
+                         WHERE id = ?
+                           AND status = ?
+                        """,
+                newStatus.name(),
+                java.sql.Timestamp.valueOf(now),
+                cancelReason,
+                dispatch.getId(),
+                previousStatus.name());
+        if (updatedRows == 0) {
+            throw new InvalidDispatchDataException(
+                    "status",
+                    "Dispatch status changed concurrently. Please refresh and try again.");
+        }
+
+        if (dispatch.getTransportOrder() != null) {
+            OrderStatus currentOrderStatus = dispatch.getTransportOrder().getStatus();
+            OrderStatus mappedStatus = mapDispatchStatusToOrderStatus(newStatus, currentOrderStatus);
+            if (mappedStatus != null) {
+                jdbcTemplate.update(
+                        """
+                                UPDATE transport_orders
+                                   SET status = ?,
+                                       version = COALESCE(version, 0) + 1
+                                 WHERE id = ?
+                                """,
+                        mappedStatus.name(),
+                        dispatch.getTransportOrder().getId());
+            }
+        }
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String updatedBy = authentication != null ? authentication.getName() : "system";
+        Long actorUserId = 0L;
+        String actorRolesSnapshot = "SYSTEM";
+        try {
+            User currentUser = authUtil.getCurrentUser();
+            actorUserId = currentUser.getId();
+            actorRolesSnapshot = currentUser.getRoles() == null ? ""
+                    : currentUser.getRoles().stream()
+                            .filter(Objects::nonNull)
+                            .map(Role::getName)
+                            .filter(Objects::nonNull)
+                            .map(Enum::name)
+                            .sorted()
+                            .collect(Collectors.joining(","));
+        } catch (Exception ignored) {
+            // Fallback to system audit values when no authenticated user is available.
+        }
+
+        jdbcTemplate.update(
+                """
+                        INSERT INTO dispatch_status_history
+                            (dispatch_id, status, updated_by, actor_user_id, actor_roles_snapshot, source, override_reason, remarks, updated_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                dispatch.getId(),
+                newStatus.name(),
+                updatedBy,
+                actorUserId,
+                actorRolesSnapshot,
+                (source != null ? source : DispatchStatusChangeSource.NORMAL).name(),
+                overrideReason,
+                remarks,
+                java.sql.Timestamp.valueOf(now));
+
+        return reloadDispatchForMutationResponse(dispatch.getId(), null);
+    }
+
+    private Dispatch reloadDispatchForMutationResponse(Long dispatchId, Dispatch fallback) {
+        return dispatchRepository.findByIdWithActionDetails(dispatchId)
+                .orElseGet(() -> dispatchRepository.findById(dispatchId).orElse(fallback));
     }
 
     private void saveStatusHistory(
@@ -1736,7 +2000,7 @@ public class DispatchService {
 
     // -------------------- Import --------------------
 
-    @Transactional
+    @Transactional(transactionManager = "jpaTransactionManager")
     public Map<String, Object> importBulkDispatchesFromExcel(
             MultipartFile file, boolean previewOnly) {
         Map<String, Object> result = new HashMap<>();
@@ -2096,9 +2360,7 @@ public class DispatchService {
             return;
 
         TransportOrder order = dispatch.getTransportOrder();
-        if (order.getVersion() == null) {
-            order.setVersion(0);
-        }
+        // version is a primitive int — always initialized, no null check needed
         OrderStatus currentOrderStatus = order.getStatus();
         OrderStatus mappedStatus = mapDispatchStatusToOrderStatus(dispatch.getStatus(), currentOrderStatus);
         if (mappedStatus != null && mappedStatus != currentOrderStatus) {
@@ -2114,15 +2376,10 @@ public class DispatchService {
     }
 
     /**
-     * Ensure `@Version` field is initialized to non-null to avoid Hibernate
-     * increment NPE.
+     * No-op: version is a primitive long, always 0L by default — never null.
      */
     private void ensureVersionInitialized(Dispatch dispatch) {
-        if (dispatch == null)
-            return;
-        if (dispatch.getVersion() == null) {
-            dispatch.setVersion(0L);
-        }
+        // primitive long cannot be null — nothing to do
     }
 
     private boolean isCallerAdmin() {

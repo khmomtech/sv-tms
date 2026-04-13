@@ -102,7 +102,7 @@ public class VehicleService {
     return Optional.of(dto);
   }
 
-  @Transactional
+  @Transactional(transactionManager = "jpaTransactionManager")
   @AuditedAction("vehicle.create")
   @CacheEvict(value = {"vehicles", "allVehicles", "vehicleStats"}, allEntries = true)
   public com.svtrucking.logistics.dto.VehicleDto addVehicle(com.svtrucking.logistics.model.Vehicle vehicle) {
@@ -133,7 +133,7 @@ public class VehicleService {
     return com.svtrucking.logistics.dto.VehicleDto.fromEntity(saved);
   }
 
-  @Transactional
+  @Transactional(transactionManager = "jpaTransactionManager")
   @AuditedAction("vehicle.update")
   @CacheEvict(value = {"vehicles", "allVehicles", "vehicleStats"}, allEntries = true)
   public com.svtrucking.logistics.dto.VehicleDto updateVehicle(Long id, VehicleDto dto) {
@@ -177,7 +177,7 @@ public class VehicleService {
     return com.svtrucking.logistics.dto.VehicleDto.fromEntity(updated);
   }
 
-  @Transactional
+  @Transactional(transactionManager = "jpaTransactionManager")
   @AuditedAction("vehicle.delete")
   @CacheEvict(value = {"vehicles", "allVehicles", "vehicleStats"}, allEntries = true)
   public void deleteVehicle(Long id) {

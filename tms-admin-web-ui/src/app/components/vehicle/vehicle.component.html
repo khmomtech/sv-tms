@@ -680,15 +680,87 @@
             />
           </div>
 
+          <!-- VIN -->
+          <div>
+            <label class="block mb-2 text-sm font-semibold text-gray-700">VIN</label>
+            <input
+              type="text"
+              [(ngModel)]="selectedVehicle.vin"
+              name="vin"
+              maxlength="17"
+              class="w-full px-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="17-character VIN"
+            />
+          </div>
+
+          <!-- Vehicle Type -->
+          <div>
+            <label class="block mb-2 text-sm font-semibold text-gray-700">
+              Vehicle Type <span class="text-red-500">*</span>
+            </label>
+            <select
+              [(ngModel)]="selectedVehicle.type"
+              name="type"
+              (ngModelChange)="onVehicleTypeChange()"
+              class="w-full px-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              required
+            >
+              <option *ngFor="let type of vehicleTypes" [ngValue]="type">{{ type }}</option>
+            </select>
+          </div>
+
+          <!-- Truck Size -->
+          <div *ngIf="isTruckType(selectedVehicle.type)">
+            <label class="block mb-2 text-sm font-semibold text-gray-700">
+              Truck Size <span class="text-red-500">*</span>
+            </label>
+            <select
+              [(ngModel)]="selectedVehicle.truckSize"
+              name="truckSize"
+              class="w-full px-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              [required]="isTruckType(selectedVehicle.type)"
+            >
+              <option *ngFor="let size of truckSizes" [ngValue]="size">{{ size }}</option>
+            </select>
+          </div>
+
+          <!-- Ownership -->
+          <div>
+            <label class="block mb-2 text-sm font-semibold text-gray-700">Ownership</label>
+            <select
+              [(ngModel)]="selectedVehicle.ownership"
+              name="ownership"
+              class="w-full px-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option *ngFor="let ownership of vehicleOwnerships" [ngValue]="ownership">
+                {{ ownership }}
+              </option>
+            </select>
+          </div>
+
+          <!-- Year Made -->
+          <div>
+            <label class="block mb-2 text-sm font-semibold text-gray-700">Year Made</label>
+            <input
+              type="number"
+              [(ngModel)]="selectedVehicle.yearMade"
+              name="yearMade"
+              min="1900"
+              max="2100"
+              class="w-full px-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="2026"
+            />
+          </div>
+
           <!-- Status with Lifecycle Validation -->
           <div class="md:col-span-2">
             <label class="block mb-2 text-sm font-semibold text-gray-700">
               Status <span class="text-red-500">*</span>
               <span
-                *ngIf="isEditing && selectedVehicle.status"
+                *ngIf="isEditing && originalVehicleStatus"
                 class="ml-2 text-xs font-normal text-gray-500"
               >
-                Current: {{ getStatusLabel(selectedVehicle.status) }}
+                Current: {{ getStatusLabel(originalVehicleStatus) }}
               </span>
             </label>
             <select
@@ -712,25 +784,19 @@
             <div
               *ngIf="
                 isEditing &&
-                selectedVehicle.status &&
+                originalVehicleStatus &&
                 statusSelect.value &&
-                statusSelect.value !== selectedVehicle.status
+                statusSelect.value !== originalVehicleStatus
               "
               class="mt-2 p-3 rounded-lg text-xs"
               [ngClass]="{
-                'bg-blue-50 border border-blue-200': canTransitionTo(
-                  selectedVehicle.status,
-                  statusSelect.value
-                ),
-                'bg-red-50 border border-red-200': !canTransitionTo(
-                  selectedVehicle.status,
-                  statusSelect.value
-                ),
+                'bg-blue-50 border border-blue-200': canTransitionTo(originalVehicleStatus, statusSelect.value),
+                'bg-red-50 border border-red-200': !canTransitionTo(originalVehicleStatus, statusSelect.value),
               }"
             >
               <div class="flex items-start gap-2">
                 <svg
-                  *ngIf="canTransitionTo(selectedVehicle.status, statusSelect.value)"
+                  *ngIf="canTransitionTo(originalVehicleStatus, statusSelect.value)"
                   class="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5"
                   fill="none"
                   stroke="currentColor"
@@ -744,7 +810,7 @@
                   />
                 </svg>
                 <svg
-                  *ngIf="!canTransitionTo(selectedVehicle.status, statusSelect.value)"
+                  *ngIf="!canTransitionTo(originalVehicleStatus, statusSelect.value)"
                   class="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5"
                   fill="none"
                   stroke="currentColor"
@@ -759,14 +825,14 @@
                 </svg>
                 <span
                   [ngClass]="{
-                    'text-blue-700': canTransitionTo(selectedVehicle.status, statusSelect.value),
-                    'text-red-700': !canTransitionTo(selectedVehicle.status, statusSelect.value),
+                    'text-blue-700': canTransitionTo(originalVehicleStatus, statusSelect.value),
+                    'text-red-700': !canTransitionTo(originalVehicleStatus, statusSelect.value),
                   }"
                 >
                   {{
                     getStatusTransitionWarning(statusSelect.value) ||
                       'Status will be changed from ' +
-                        getStatusLabel(selectedVehicle.status) +
+                        getStatusLabel(originalVehicleStatus) +
                         ' to ' +
                         getStatusLabel(statusSelect.value)
                   }}
@@ -902,13 +968,13 @@
 
           <!-- Zone -->
           <div>
-            <label class="block mb-2 text-sm font-semibold text-gray-700">Assigned Zone ID</label>
+            <label class="block mb-2 text-sm font-semibold text-gray-700">Assigned Zone</label>
             <input
-              type="number"
-              [(ngModel)]="selectedVehicle.assignedZoneId"
-              name="assignedZoneId"
+              type="text"
+              [(ngModel)]="selectedVehicle.assignedZone"
+              name="assignedZone"
               class="w-full px-4 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="e.g., 12"
+              placeholder="e.g., Phnom Penh North"
             />
           </div>
 

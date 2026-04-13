@@ -51,7 +51,7 @@ Risk level for today release: **medium but controlled** if smoke gates pass.
 ## 5) Rollback Plan
 
 - Use release rollback script on VPS:
-  - `/opt/sv-tms/deploy/prod_rollback_vps.sh`
+  - `DEPLOY_TO_VPS.sh`
 - Restart services and reload nginx:
   - `tms-auth-api`
   - `tms-driver-app-api`
@@ -64,10 +64,10 @@ Recommended: **Go Live** only after all post-deploy smoke markers pass and mobil
 ## 7) Source Docs
 
 - Main docs hub:
-  - `/Users/sotheakh/Documents/develop/sv-tms/docs/README.md`
+  - `docs/README.md`
 - System architecture:
-  - `/Users/sotheakh/Documents/develop/sv-tms/docs/guides/SA_DOCUMENT.md`
+  - `docs/guides/SA_DOCUMENT.md`
 - Production checklist:
-  - `/Users/sotheakh/Documents/develop/sv-tms/docs/guides/PRODUCTION_READINESS_CHECKLIST.md`
+  - `docs/guides/PRODUCTION_READINESS_CHECKLIST.md`
 - VPS runbook:
-  - `/Users/sotheakh/Documents/develop/sv-tms/docs/deployment/VPS_MAINTENANCE_AND_MONITORING_RUNBOOK.md`
+  - `docs/deployment/VPS_MAINTENANCE_AND_MONITORING_RUNBOOK.md`

@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-STACK_ROOT=/opt/sv-tms
-COMPOSE_FILE=${COMPOSE_FILE:-$STACK_ROOT/infra/docker-compose.prod.yml}
-ENV_FILE=${ENV_FILE:-$STACK_ROOT/infra/.env}
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+STACK_ROOT=${STACK_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}
+SOURCE_ROOT=${SOURCE_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}
+COMPOSE_FILE=${COMPOSE_FILE:-$STACK_ROOT/docker-compose.prod.yml}
+ENV_FILE=${ENV_FILE:-$STACK_ROOT/.env}
 
 fail() {
   echo "[preflight] ERROR: $*" >&2
@@ -12,6 +14,22 @@ fail() {
 
 require_cmd() {
   command -v "$1" >/dev/null 2>&1 || fail "Missing required command: $1"
+}
+
+check_duplicate_flyway_versions() {
+  local migration_dir=$1
+  [[ -d "$migration_dir" ]] || return 0
+
+  local duplicates
+  duplicates=$(
+    find "$migration_dir" -maxdepth 1 -type f -name 'V*__*.sql' -print \
+      | sed 's#^.*/##' \
+      | awk -F'__' '{print $1}' \
+      | sort \
+      | uniq -d
+  )
+
+  [[ -z "$duplicates" ]] || fail "Duplicate Flyway versions in $migration_dir: ${duplicates//$'\n'/, }"
 }
 
 require_cmd docker
@@ -33,7 +51,12 @@ done
 [[ ${#JWT_REFRESH_SECRET} -ge 32 ]] || fail "JWT_REFRESH_SECRET must be at least 32 chars"
 [[ ${#TELEMATICS_INTERNAL_API_KEY} -ge 24 ]] || fail "TELEMATICS_INTERNAL_API_KEY should be long and random"
 
-mkdir -p "$DATA_ROOT"/{mysql,postgres,mongo,redis,kafka,uploads,uploads-init,telematics-spool,message-api,certs,webroot}
+mkdir -p "$DATA_ROOT"/{mysql,postgres,mongo,redis,uploads,uploads-init,telematics-spool,message-api,certs,webroot}
+mkdir -p "$DATA_ROOT"/kafka-{1,2,3}
+
+check_duplicate_flyway_versions "$SOURCE_ROOT/tms-core-api/src/main/resources/db/migration"
+check_duplicate_flyway_versions "$SOURCE_ROOT/tms-safety-api/src/main/resources/db/migration"
+check_duplicate_flyway_versions "$SOURCE_ROOT/tms-telematics-api/src/main/resources/db/migration"
 
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" config >/dev/null || fail "docker compose config failed"
 

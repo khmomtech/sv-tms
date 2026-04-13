@@ -190,6 +190,21 @@ public class AuthDeviceIntegrationTest {
     driver.setStatus(com.svtrucking.logistics.enums.DriverStatus.ONLINE);
     driver = driverRepository.save(driver);
 
+    System.out.println("DEBUG service class: " + deviceRegistrationService.getClass().getName());
+    try {
+      System.out.println("DEBUG method declaring class: " + deviceRegistrationService.getClass()
+          .getMethod("resolveLoginDeviceStatus", Long.class, String.class)
+          .getDeclaringClass().getName());
+      System.out.println("DEBUG service class location: " +
+          deviceRegistrationService.getClass().getProtectionDomain().getCodeSource().getLocation());
+      Object target = org.springframework.test.util.AopTestUtils.getTargetObject(deviceRegistrationService);
+      System.out.println("DEBUG target class: " + target.getClass().getName());
+      String directStatus = ((com.svtrucking.logistics.service.DeviceRegistrationService) target)
+          .resolveLoginDeviceStatus(driver.getId(), "phone-a");
+      System.out.println("DEBUG direct target status: " + directStatus);
+    } catch (NoSuchMethodException e) {
+      e.printStackTrace();
+    }
     String status = deviceRegistrationService.resolveLoginDeviceStatus(driver.getId(), "phone-a");
     System.out.println("DEBUG direct status: " + status);
     Assertions.assertNotNull(status);

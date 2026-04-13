@@ -3,8 +3,6 @@ import Flutter
 import FirebaseCore
 import FirebaseMessaging
 import UserNotifications
-import AppTrackingTransparency
-import AdSupport
 import CoreLocation
 
 @main
@@ -35,14 +33,6 @@ import CoreLocation
     }
     Messaging.messaging().delegate = self
     application.registerForRemoteNotifications()
-
-    if #available(iOS 14, *) {
-      ATTrackingManager.requestTrackingAuthorization { status in
-        #if DEBUG
-        print("ATT authorization status: \(status.rawValue)")
-        #endif
-      }
-    }
 
     application.setMinimumBackgroundFetchInterval(UIApplication.backgroundFetchIntervalMinimum)
 
@@ -318,7 +308,10 @@ private final class IOSBackgroundLocationManager: NSObject, CLLocationManagerDel
   }
 
   private var hasConfig: Bool {
-    return !heartbeatAuthToken().isEmpty && !driverId.isEmpty && !baseApiUrl.isEmpty
+    return !heartbeatAuthToken().isEmpty &&
+      !driverId.isEmpty &&
+      !baseApiUrl.isEmpty &&
+      !isInvalidLoopbackBaseForPhysicalDevice(baseApiUrl)
   }
 
   private func persistConfig() {
@@ -337,6 +330,17 @@ private final class IOSBackgroundLocationManager: NSObject, CLLocationManagerDel
     refreshToken = normalizeToken(defaults.string(forKey: keyRefreshToken) ?? "")
     driverId = (defaults.string(forKey: keyDriverId) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
     baseApiUrl = (defaults.string(forKey: keyBaseApiUrl) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+  }
+
+  private func isInvalidLoopbackBaseForPhysicalDevice(_ raw: String) -> Bool {
+    #if targetEnvironment(simulator)
+    return false
+    #else
+    guard let url = URL(string: raw), let host = url.host?.lowercased() else {
+      return false
+    }
+    return host == "localhost" || host == "127.0.0.1" || host == "::1"
+    #endif
   }
 
   private func loadPendingQueue() {
@@ -455,7 +459,7 @@ private final class IOSBackgroundLocationManager: NSObject, CLLocationManagerDel
       completion?(false)
       return
     }
-    guard let url = URL(string: "\(baseApiUrl.trimmingCharacters(in: CharacterSet(charactersIn: "/")))/driver/location/update") else {
+    guard let url = URL(string: "\(baseApiUrl.trimmingCharacters(in: CharacterSet(charactersIn: "/")))/driver/location") else {
       completion?(false)
       return
     }

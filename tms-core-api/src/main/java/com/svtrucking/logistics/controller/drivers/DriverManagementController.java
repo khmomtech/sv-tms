@@ -112,7 +112,7 @@ public class DriverManagementController {
                 "or @authorizationService.hasPermission(T(com.svtrucking.logistics.security.PermissionNames).DRIVER_MANAGE)")
   public ResponseEntity<ApiResponse<List<DriverDto>>> getAllDriversNoPag() {
     try {
-      List<DriverDto> drivers = driverAppService.quickSearch("");
+      List<DriverDto> drivers = driverService.getAllDrivers();
       return ResponseEntity.ok(ApiResponse.success("Drivers fetched successfully", drivers));
     } catch (Exception e) {
       log.error("Error fetching all drivers: {}", e.getMessage(), e);

@@ -77,6 +77,7 @@ class HomeShiftVm {
 }
 
 class HomeCurrentTripVm {
+  final String dispatchId;
   final String loadNumber;
   final String routeLabel;
   final String etaLabel;
@@ -84,6 +85,7 @@ class HomeCurrentTripVm {
   final String progressLabel;
 
   const HomeCurrentTripVm({
+    required this.dispatchId,
     required this.loadNumber,
     required this.routeLabel,
     required this.etaLabel,

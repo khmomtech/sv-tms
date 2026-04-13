@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
@@ -11,6 +10,7 @@ import 'package:tms_driver_app/core/network/api_constants.dart';
 import 'package:tms_driver_app/themes/custom_colors.dart';
 
 import '../../providers/sign_in_provider.dart';
+import '../../providers/app_bootstrap_provider.dart';
 import '../../routes/app_routes.dart';
 import '../core/device_approval_pending_screen.dart';
 
@@ -23,15 +23,16 @@ class SignInScreen extends StatefulWidget {
 
 class _SignInScreenState extends State<SignInScreen>
     with SingleTickerProviderStateMixin {
+  static const String reviewerUsername =
+      String.fromEnvironment('REVIEWER_USERNAME', defaultValue: 'drivertest');
+  static const String reviewerPassword =
+      String.fromEnvironment('REVIEWER_PASSWORD', defaultValue: '123456');
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _obscurePassword = true;
   bool _rememberMe = false;
   String? _deviceId;
-  static const bool reviewerModeEnabled =
-      bool.fromEnvironment('REVIEWER_MODE', defaultValue: false);
-
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
@@ -86,6 +87,19 @@ class _SignInScreenState extends State<SignInScreen>
     }
   }
 
+  void _fillReviewerCredentials() {
+    setState(() {
+      _usernameController.text = reviewerUsername;
+      _passwordController.text = reviewerPassword;
+      _rememberMe = false;
+    });
+  }
+
+  Future<void> _handleReviewerLogin() async {
+    _fillReviewerCredentials();
+    await _handleSignIn();
+  }
+
   @override
   void dispose() {
     _usernameController.dispose();
@@ -102,39 +116,6 @@ class _SignInScreenState extends State<SignInScreen>
     FocusScope.of(context).unfocus();
 
     final signInProvider = Provider.of<SignInProvider>(context, listen: false);
-
-    final hasConnection = await _checkNetworkConnectivity();
-    if (!hasConnection) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        backgroundColor: Colors.orange,
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('error.no_internet'.tr()),
-            if (reviewerModeEnabled)
-              Padding(
-                padding: const EdgeInsets.only(top: 12.0),
-                child: ElevatedButton.icon(
-                  style:
-                      ElevatedButton.styleFrom(backgroundColor: Colors.black54),
-                  icon: const Icon(Icons.verified_user),
-                  label: Text('signin.reviewer_mode'.tr()),
-                  onPressed: () {
-                    // Fill reviewer credentials (server must enable bypass)
-                    setState(() {
-                      _usernameController.text = 'reviewer@test.sv';
-                      _passwordController.text = 'Review!234';
-                    });
-                  },
-                ),
-              ),
-          ],
-        ),
-      ));
-      return;
-    }
 
     final success = await signInProvider.signIn(
       context,
@@ -158,21 +139,18 @@ class _SignInScreenState extends State<SignInScreen>
     }
   }
 
-  Future<bool> _checkNetworkConnectivity() async {
-    final connectivityResult = await Connectivity().checkConnectivity();
-    return !connectivityResult.contains(ConnectivityResult.none);
-  }
-
   Future<void> _showApiUrlSettings() async {
     await ApiConstants.ensureInitialized();
     if (!mounted) return;
+    final messenger = ScaffoldMessenger.maybeOf(context);
     final controller = TextEditingController(text: ApiConstants.baseUrl);
     bool saving = false;
+    String? savedUrl;
 
-    await showDialog<void>(
+    await showDialog<String?>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) {
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) {
           return AlertDialog(
             title: const Row(
               children: [
@@ -208,16 +186,18 @@ class _SignInScreenState extends State<SignInScreen>
                 onPressed: saving
                     ? null
                     : () async {
+                        if (!mounted) return;
                         setDialogState(() => saving = true);
                         await ApiConstants.clearBaseUrlOverride();
                         await ApiConstants.ensureInitialized();
+                        if (!mounted) return;
                         controller.text = ApiConstants.baseUrl;
                         setDialogState(() => saving = false);
                       },
                 child: const Text('Reset'),
               ),
               TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
+                onPressed: () => Navigator.of(dialogContext).pop(),
                 child: const Text('Cancel'),
               ),
               ElevatedButton(
@@ -226,17 +206,12 @@ class _SignInScreenState extends State<SignInScreen>
                     : () async {
                         final url = controller.text.trim();
                         if (url.isEmpty) return;
+                        if (!mounted) return;
                         setDialogState(() => saving = true);
                         await ApiConstants.setBaseUrlOverride(url);
-                        if (!ctx.mounted) return;
-                        Navigator.of(ctx).pop();
-                        if (!mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Server URL updated: $url'),
-                            backgroundColor: Colors.green,
-                          ),
-                        );
+                        savedUrl = url;
+                        if (!dialogContext.mounted) return;
+                        Navigator.of(dialogContext).pop(url);
                       },
                 child: saving
                     ? const SizedBox(
@@ -252,6 +227,13 @@ class _SignInScreenState extends State<SignInScreen>
       ),
     );
     controller.dispose();
+    if (!mounted || savedUrl == null) return;
+    messenger?.showSnackBar(
+      SnackBar(
+        content: Text('Server URL updated: $savedUrl'),
+        backgroundColor: Colors.green,
+      ),
+    );
   }
 
   @override
@@ -327,10 +309,44 @@ class _SignInScreenState extends State<SignInScreen>
   }
 
   Widget _buildSignInForm(SignInProvider signInProvider) {
+    final bootstrapProvider =
+        Provider.of<AppBootstrapProvider>(context, listen: true);
+    final showReviewLogin = bootstrapProvider.policy<bool>(
+      'auth.review_login_button_enabled',
+      false,
+    );
+
     return Form(
       key: _formKey,
       child: Column(
         children: [
+          if (showReviewLogin) ...[
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  side: const BorderSide(color: Colors.white70),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12.0),
+                  ),
+                ),
+                onPressed: _handleReviewerLogin,
+                icon: const Icon(Icons.verified_user_outlined),
+                label: const Text(
+                  'App Review Login',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Review build target: ${ApiConstants.baseUrl}',
+              style: const TextStyle(color: Colors.white70, fontSize: 12),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+          ],
           TextFormField(
             controller: _usernameController,
             decoration: _buildInputDecoration(

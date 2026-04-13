@@ -172,13 +172,13 @@ header "3. Tracking Session Start (mirrors TrackingSessionManager.startTrackingS
 # =============================================================================
 # Driver app sends: {deviceId, appVersion, platform}
 RESP=$(curl -s -w "\n%{http_code}" --max-time 15 \
-  -X POST "$TELE_URL/api/driver/tracking-session/start" \
+  -X POST "$TELE_URL/api/driver/tracking/session/start" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
   -d "{\"deviceId\": \"$DEVICE_ID\", \"appVersion\": \"1.5.0\", \"platform\": \"android\"}")
 STATUS=$(echo "$RESP" | tail -1)
 BODY=$(echo "$RESP" | head -1)
-check_status "POST /api/driver/tracking-session/start" "200" "$STATUS" "$BODY"
+check_status "POST /api/driver/tracking/session/start" "200" "$STATUS" "$BODY"
 
 # Verify driver app expected response fields: sessionId, trackingToken, expiresAtEpochMs
 SESSION_ID=$(echo "$BODY" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('sessionId') or d.get('data',{}).get('sessionId',''))" 2>/dev/null || echo "")
@@ -188,15 +188,6 @@ EXPIRES_MS=$(echo "$BODY" | python3 -c "import sys,json; d=json.load(sys.stdin);
 [ -n "$SESSION_ID" ]    && pass "sessionId present: $SESSION_ID"   || fail "sessionId missing from response"
 [ -n "$TRACKING_TOKEN" ] && pass "trackingToken present"           || fail "trackingToken missing — driver app will fail to start location updates"
 [ -n "$EXPIRES_MS" ]    && pass "expiresAtEpochMs present: $EXPIRES_MS" || fail "expiresAtEpochMs missing — driver app cannot schedule token refresh"
-
-# Also test the alternate path the driver app uses: /driver/tracking/session/start
-RESP2=$(curl -s -w "\n%{http_code}" --max-time 15 \
-  -X POST "$TELE_URL/api/driver/tracking/session/start" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $ACCESS_TOKEN" \
-  -d "{\"deviceId\": \"${DEVICE_ID}-alt\", \"appVersion\": \"1.5.0\", \"platform\": \"android\"}")
-STATUS2=$(echo "$RESP2" | tail -1)
-check_status "POST /api/driver/tracking/session/start (driver app path)" "200" "$STATUS2" "$(echo "$RESP2" | head -1)"
 
 # =============================================================================
 header "4. Location Update (mirrors LocationService._sendPayload / LocationUpdate.toJson)"
@@ -236,13 +227,13 @@ JSON
 
 # Using tracking token (normal flow after session start)
 RESP=$(curl -s -w "\n%{http_code}" --max-time 10 \
-  -X POST "$TELE_URL/api/driver/location/update" \
+  -X POST "$TELE_URL/api/driver/location" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TRACKING_TOKEN" \
   -d "$LOCATION_PAYLOAD")
 STATUS=$(echo "$RESP" | tail -1)
 BODY=$(echo "$RESP" | head -1)
-check_status "POST /api/driver/location/update (tracking token)" "200" "$STATUS" "$BODY"
+check_status "POST /api/driver/location (tracking token)" "200" "$STATUS" "$BODY"
 
 OK_FIELD=$(echo "$BODY" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('ok',''))" 2>/dev/null)
 [ "$OK_FIELD" = "True" ] || [ "$OK_FIELD" = "true" ] \
@@ -256,13 +247,13 @@ ECHO_DRIVER=$(echo "$BODY" | python3 -c "import sys,json; d=json.load(sys.stdin)
 # Second update — tests throttle (should get dedup=true within 3s)
 sleep 0.3
 RESP2=$(curl -s -w "\n%{http_code}" --max-time 10 \
-  -X POST "$TELE_URL/api/driver/location/update" \
+  -X POST "$TELE_URL/api/driver/location" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TRACKING_TOKEN" \
   -d "$LOCATION_PAYLOAD")
 STATUS2=$(echo "$RESP2" | tail -1)
 BODY2=$(echo "$RESP2" | head -1)
-check_status "POST /api/driver/location/update (duplicate within throttle window)" "200" "$STATUS2" "$BODY2"
+check_status "POST /api/driver/location (duplicate within throttle window)" "200" "$STATUS2" "$BODY2"
 DEDUP=$(echo "$BODY2" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('dedup',''))" 2>/dev/null)
 [ "$DEDUP" = "True" ] || [ "$DEDUP" = "true" ] \
   && pass "Throttle/dedup correctly applied (dedup=true)" \
@@ -270,16 +261,16 @@ DEDUP=$(echo "$BODY2" | python3 -c "import sys,json; d=json.load(sys.stdin); pri
 
 # Using access token (backward compat for driver app not yet on tracking session flow)
 RESP3=$(curl -s -w "\n%{http_code}" --max-time 10 \
-  -X POST "$TELE_URL/api/driver/location/update" \
+  -X POST "$TELE_URL/api/driver/location" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
   -d "$(echo "$LOCATION_PAYLOAD" | python3 -c "import sys,json; d=json.load(sys.stdin); d['sessionId']=''; print(json.dumps(d))")")
 STATUS3=$(echo "$RESP3" | tail -1)
-check_status "POST /api/driver/location/update (access token — backward compat)" "200" "$STATUS3" "$(echo "$RESP3" | head -1)"
+check_status "POST /api/driver/location (access token — backward compat)" "200" "$STATUS3" "$(echo "$RESP3" | head -1)"
 
 # Reject unauthenticated
 RESP4=$(curl -s -w "\n%{http_code}" --max-time 10 \
-  -X POST "$TELE_URL/api/driver/location/update" \
+  -X POST "$TELE_URL/api/driver/location" \
   -H "Content-Type: application/json" \
   -d "$LOCATION_PAYLOAD")
 STATUS4=$(echo "$RESP4" | tail -1)
@@ -340,11 +331,11 @@ STATUS3=$(echo "$RESP3" | tail -1)
 header "6. Admin Presence Lookup"
 # =============================================================================
 RESP=$(curl -s -w "\n%{http_code}" --max-time 10 \
-  "$TELE_URL/api/admin/driver/$DRIVER_ID/presence" \
+  "$TELE_URL/api/admin/drivers/$DRIVER_ID/presence" \
   -H "Authorization: Bearer $ACCESS_TOKEN")
 STATUS=$(echo "$RESP" | tail -1)
 BODY=$(echo "$RESP" | head -1)
-check_status "GET /api/admin/driver/$DRIVER_ID/presence" "200" "$STATUS" "$BODY"
+check_status "GET /api/admin/drivers/$DRIVER_ID/presence" "200" "$STATUS" "$BODY"
 
 PS=$(echo "$BODY" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('presenceStatus',''))" 2>/dev/null)
 [ -n "$PS" ] && pass "presenceStatus field present: $PS" || fail "presenceStatus missing from presence response"
@@ -366,37 +357,37 @@ SPOOF_PAYLOAD=$(cat <<JSON
 JSON
 )
 RESP=$(curl -s -w "\n%{http_code}" --max-time 10 \
-  -X POST "$TELE_URL/api/locations/spoofing-alert" \
+  -X POST "$TELE_URL/api/driver/location/spoofing-alert" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
   -d "$SPOOF_PAYLOAD")
 STATUS=$(echo "$RESP" | tail -1)
 BODY=$(echo "$RESP" | head -1)
-check_status "POST /api/locations/spoofing-alert" "200" "$STATUS" "$BODY"
+check_status "POST /api/driver/location/spoofing-alert" "200" "$STATUS" "$BODY"
 
 # Mocked location variant
 MOCKED_SPOOF=$(echo "$SPOOF_PAYLOAD" | python3 -c "import sys,json; d=json.load(sys.stdin); d['reason']='MOCK_PROVIDER_DETECTED'; d['isMocked']=True; print(json.dumps(d))")
 RESP2=$(curl -s -w "\n%{http_code}" --max-time 10 \
-  -X POST "$TELE_URL/api/locations/spoofing-alert" \
+  -X POST "$TELE_URL/api/driver/location/spoofing-alert" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TRACKING_TOKEN" \
   -d "$MOCKED_SPOOF")
 STATUS2=$(echo "$RESP2" | tail -1)
-check_status "POST /api/locations/spoofing-alert (isMocked=true, tracking token)" "200" "$STATUS2" "$(echo "$RESP2" | head -1)"
+check_status "POST /api/driver/location/spoofing-alert (isMocked=true, tracking token)" "200" "$STATUS2" "$(echo "$RESP2" | head -1)"
 
 # =============================================================================
 header "8. Admin Live Drivers Query"
 # =============================================================================
 RESP=$(curl -s -w "\n%{http_code}" --max-time 15 \
-  "$TELE_URL/api/admin/telematics/live-drivers" \
+  "$TELE_URL/api/admin/drivers/live" \
   -H "Authorization: Bearer $ACCESS_TOKEN")
 STATUS=$(echo "$RESP" | tail -1)
 BODY=$(echo "$RESP" | head -1)
-check_status "GET /api/admin/telematics/live-drivers" "200" "$STATUS" "$BODY"
+check_status "GET /api/admin/drivers/live" "200" "$STATUS" "$BODY"
 
 # Admin query without auth must be rejected
 RESP2=$(curl -s -w "\n%{http_code}" --max-time 10 \
-  "$TELE_URL/api/admin/telematics/live-drivers")
+  "$TELE_URL/api/admin/drivers/live")
 STATUS2=$(echo "$RESP2" | tail -1)
 [ "$STATUS2" = "401" ] \
   && pass "Admin live-drivers rejects missing auth (HTTP 401)" \
@@ -404,14 +395,14 @@ STATUS2=$(echo "$RESP2" | tail -1)
 
 # Single driver location
 RESP3=$(curl -s -w "\n%{http_code}" --max-time 10 \
-  "$TELE_URL/api/admin/telematics/driver/$DRIVER_ID/location" \
+  "$TELE_URL/api/admin/drivers/$DRIVER_ID/location" \
   -H "Authorization: Bearer $ACCESS_TOKEN")
 STATUS3=$(echo "$RESP3" | tail -1)
 BODY3=$(echo "$RESP3" | head -1)
 # 200 if driver has location, 404 if not found yet
 [ "$STATUS3" = "200" ] || [ "$STATUS3" = "404" ] \
-  && pass "GET /api/admin/telematics/driver/$DRIVER_ID/location (HTTP $STATUS3)" \
-  || fail "GET /api/admin/telematics/driver/$DRIVER_ID/location unexpected HTTP $STATUS3"
+  && pass "GET /api/admin/drivers/$DRIVER_ID/location (HTTP $STATUS3)" \
+  || fail "GET /api/admin/drivers/$DRIVER_ID/location unexpected HTTP $STATUS3"
 
 if [ "$STATUS3" = "200" ]; then
   LAT=$(echo "$BODY3" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('latitude') or d.get('lat',''))" 2>/dev/null)
@@ -422,25 +413,17 @@ fi
 header "9. Tracking Session Refresh (mirrors TrackingSessionManager ensureTrackingSession)"
 # =============================================================================
 RESP=$(curl -s -w "\n%{http_code}" --max-time 10 \
-  -X POST "$TELE_URL/api/driver/tracking-session/refresh" \
+  -X POST "$TELE_URL/api/driver/tracking/session/refresh" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TRACKING_TOKEN")
 STATUS=$(echo "$RESP" | tail -1)
 BODY=$(echo "$RESP" | head -1)
-check_status "POST /api/driver/tracking-session/refresh" "200" "$STATUS" "$BODY"
+check_status "POST /api/driver/tracking/session/refresh" "200" "$STATUS" "$BODY"
 
 NEW_TOKEN=$(echo "$BODY" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('trackingToken',''))" 2>/dev/null)
 [ -n "$NEW_TOKEN" ] \
   && pass "Rotated tracking token returned on refresh" \
   || fail "No trackingToken in refresh response — driver app keeps stale token"
-
-# Also test driver app path alias
-RESP2=$(curl -s -w "\n%{http_code}" --max-time 10 \
-  -X POST "$TELE_URL/api/driver/tracking/session/refresh" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $TRACKING_TOKEN")
-STATUS2=$(echo "$RESP2" | tail -1)
-check_status "POST /api/driver/tracking/session/refresh (driver app path alias)" "200" "$STATUS2" "$(echo "$RESP2" | head -1)"
 
 # =============================================================================
 header "10. Public Tracking (no auth required)"
@@ -475,7 +458,7 @@ STATUS_F=$(echo "$BODY" | python3 -c "import sys,json; d=json.load(sys.stdin); p
 
 # Presence should now reflect offline
 RESP2=$(curl -s -w "\n%{http_code}" --max-time 10 \
-  "$TELE_URL/api/admin/driver/$DRIVER_ID/presence" \
+  "$TELE_URL/api/admin/drivers/$DRIVER_ID/presence" \
   -H "Authorization: Bearer $ACCESS_TOKEN")
 STATUS2=$(echo "$RESP2" | tail -1)
 BODY2=$(echo "$RESP2" | head -1)
@@ -488,36 +471,27 @@ fi
 header "12. Tracking Session Stop (mirrors TrackingSessionManager.stopTrackingSession)"
 # =============================================================================
 RESP=$(curl -s -w "\n%{http_code}" --max-time 10 \
-  -X POST "$TELE_URL/api/driver/tracking-session/stop" \
+  -X POST "$TELE_URL/api/driver/tracking/session/stop" \
   -H "Authorization: Bearer $TRACKING_TOKEN")
 STATUS=$(echo "$RESP" | tail -1)
 BODY=$(echo "$RESP" | head -1)
-check_status "POST /api/driver/tracking-session/stop" "200" "$STATUS" "$BODY"
+check_status "POST /api/driver/tracking/session/stop" "200" "$STATUS" "$BODY"
 
 # Verify session is revoked — second stop should 404/401
 RESP2=$(curl -s -w "\n%{http_code}" --max-time 10 \
-  -X POST "$TELE_URL/api/driver/tracking-session/stop" \
+  -X POST "$TELE_URL/api/driver/tracking/session/stop" \
   -H "Authorization: Bearer $TRACKING_TOKEN")
 STATUS2=$(echo "$RESP2" | tail -1)
 [ "$STATUS2" = "404" ] || [ "$STATUS2" = "401" ] \
   && pass "Second stop correctly rejects revoked session (HTTP $STATUS2)" \
   || info "Second stop returned HTTP $STATUS2 (session may already be cleaned up)"
 
-# Driver app path alias
-RESP3=$(curl -s -w "\n%{http_code}" --max-time 10 \
-  -X POST "$TELE_URL/api/driver/tracking/session/stop" \
-  -H "Authorization: Bearer $TRACKING_TOKEN")
-STATUS3=$(echo "$RESP3" | tail -1)
-[ "$STATUS3" = "404" ] || [ "$STATUS3" = "401" ] || [ "$STATUS3" = "200" ] \
-  && pass "POST /api/driver/tracking/session/stop (driver app path alias) HTTP $STATUS3" \
-  || fail "Unexpected HTTP $STATUS3 for driver app session stop path"
-
 # =============================================================================
 header "13. Auth Boundary — Access Token Cannot Write Location After Stop"
 # =============================================================================
 # After session revocation, a tracking token for that session must be rejected
 RESP=$(curl -s -w "\n%{http_code}" --max-time 10 \
-  -X POST "$TELE_URL/api/driver/location/update" \
+  -X POST "$TELE_URL/api/driver/location" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TRACKING_TOKEN" \
   -d "$LOCATION_PAYLOAD")

@@ -2,6 +2,7 @@ package com.svtrucking.logistics.driverapp;
 
 import com.svtrucking.logistics.enums.RoleType;
 import com.svtrucking.logistics.security.ApiKeyFilter;
+import com.svtrucking.logistics.security.DriverAppVersionEnforcementFilter;
 import com.svtrucking.logistics.security.JwtAuthFilter;
 import com.svtrucking.logistics.service.CustomUserDetailsService;
 import java.util.ArrayList;
@@ -29,16 +30,19 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @EnableMethodSecurity(prePostEnabled = true)
 public class DriverAppApiSecurityConfig {
   private final JwtAuthFilter jwtAuthFilter;
+  private final DriverAppVersionEnforcementFilter driverAppVersionEnforcementFilter;
   private final ApiKeyFilter apiKeyFilter;
   private final CustomUserDetailsService userDetailsService;
   private final PasswordEncoder passwordEncoder;
 
   public DriverAppApiSecurityConfig(
       JwtAuthFilter jwtAuthFilter,
+      DriverAppVersionEnforcementFilter driverAppVersionEnforcementFilter,
       ApiKeyFilter apiKeyFilter,
       CustomUserDetailsService userDetailsService,
       PasswordEncoder passwordEncoder) {
     this.jwtAuthFilter = jwtAuthFilter;
+    this.driverAppVersionEnforcementFilter = driverAppVersionEnforcementFilter;
     this.apiKeyFilter = apiKeyFilter;
     this.userDetailsService = userDetailsService;
     this.passwordEncoder = passwordEncoder;
@@ -52,6 +56,13 @@ public class DriverAppApiSecurityConfig {
     http
         .csrf(AbstractHttpConfigurer::disable)
         .cors(cors -> cors.configurationSource(appCorsConfigurationSource(allowedOrigins)))
+        .headers(headers -> headers
+                .frameOptions(frame -> frame.deny())
+                .contentTypeOptions(org.springframework.security.config.Customizer.withDefaults())
+                .httpStrictTransportSecurity(hsts -> hsts
+                        .maxAgeInSeconds(31536000)
+                        .includeSubDomains(true))
+                .xssProtection(org.springframework.security.config.Customizer.withDefaults()))
         .authorizeHttpRequests(authz ->
             authz
                 .requestMatchers(
@@ -81,6 +92,7 @@ public class DriverAppApiSecurityConfig {
         .addFilterBefore(
             jwtAuthFilter,
             org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class)
+        .addFilterAfter(driverAppVersionEnforcementFilter, JwtAuthFilter.class)
         .addFilterBefore(apiKeyFilter, JwtAuthFilter.class);
 
     return http.build();

@@ -2,8 +2,10 @@ package com.svtrucking.devicegateway;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
+@EnableScheduling
 public class DeviceGatewayApplication {
 
     public static void main(String[] args) {

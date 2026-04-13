@@ -1,6 +1,7 @@
 package com.svtrucking.telematics.security;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -186,6 +187,14 @@ public class TelematicsJwtUtil {
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
+    }
+
+    public Claims extractAllClaimsAllowExpired(String token) {
+        try {
+            return extractAllClaims(token);
+        } catch (ExpiredJwtException e) {
+            return e.getClaims();
+        }
     }
 
     public <T> T extractClaim(String token, Function<Claims, T> resolver) {

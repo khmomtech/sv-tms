@@ -59,8 +59,8 @@ public class LocationMongoConfig extends AbstractMongoClientConfiguration {
     return template;
   }
 
-  @Bean
-  public MongoTransactionManager transactionManager(MongoDatabaseFactory dbFactory) {
+  @Bean(name = "locationMongoTransactionManager")
+  public MongoTransactionManager locationMongoTransactionManager(MongoDatabaseFactory dbFactory) {
     return new MongoTransactionManager(dbFactory);
   }
 

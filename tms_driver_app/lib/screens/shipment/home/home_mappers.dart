@@ -26,6 +26,10 @@ HomeCurrentTripVm? mapCurrentTripVm(
     'routeCode',
     'id',
   ]);
+  final dispatchId = _pickString(raw, const <String>[
+    'id',
+    'dispatchId',
+  ]);
   final loadLabel = loadNo == null || loadNo.isEmpty
       ? emptyLoadLabel
       : '$emptyLoadLabel$loadNo';
@@ -77,6 +81,7 @@ HomeCurrentTripVm? mapCurrentTripVm(
       : progressFallback;
 
   return HomeCurrentTripVm(
+    dispatchId: dispatchId ?? '',
     loadNumber: loadLabel,
     routeLabel: routeLabel,
     etaLabel: eta ?? etaFallback,

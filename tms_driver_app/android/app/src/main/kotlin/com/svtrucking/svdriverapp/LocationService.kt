@@ -489,7 +489,7 @@ private fun postRestWithQueueFallback(body: JSONObject, allowAuthRetry: Boolean 
     body.remove("timestampEpochMs")
     body.remove("clientTimeIso")
 
-    val url = "$api/driver/location/update"
+    val url = "$api/driver/location"
     val reqBody = body.toString().toRequestBody("application/json".toMediaType())
     val req = Request.Builder()
         .url(url)
@@ -592,7 +592,7 @@ private fun postRestWithQueueFallback(body: JSONObject, allowAuthRetry: Boolean 
             flushBatch(batch, api, authToken)
             return
         }
-        val url = "$api/driver/location/update"
+        val url = "$api/driver/location"
         val reqBody = item.toString().toRequestBody("application/json".toMediaType())
         val req = Request.Builder()
             .url(url)
@@ -644,7 +644,7 @@ private fun postRestWithQueueFallback(body: JSONObject, allowAuthRetry: Boolean 
     }
 
     private fun flushBatch(batch: List<JSONObject>, api: String, authToken: String) {
-        val url = "$api/driver/location/update/batch"
+        val url = "$api/driver/location/batch"
         val reqBody = JSONArray().apply {
             batch.forEach { put(JSONObject(it.toString())) }
         }.toString().toRequestBody("application/json".toMediaType())
@@ -782,7 +782,7 @@ private fun postRestWithQueueFallback(body: JSONObject, allowAuthRetry: Boolean 
             Log.e(TAG, "REST skipped: base_api_url empty")
             return
         }
-        val url = "$api/driver/location/update"
+        val url = "$api/driver/location"
         val reqBody = body.toString().toRequestBody("application/json".toMediaType())
         val authToken = heartbeatAuthToken() ?: return
         val req = Request.Builder()

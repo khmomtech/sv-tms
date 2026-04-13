@@ -18,6 +18,6 @@ public interface DriverProfileRepository extends JpaRepository<DriverProfile, Lo
     Optional<DriverProfile> findTopByPhone(String phone);
 
     @Query("select d.id from DriverProfile d "
-            + "where (:term is null or :term = '' or lower(d.full_name) like :term or lower(d.phone_number) like :term)")
+            + "where (:term is null or :term = '' or lower(d.name) like :term or lower(d.phone) like :term)")
     List<Long> searchIds(@Param("term") String term);
 }

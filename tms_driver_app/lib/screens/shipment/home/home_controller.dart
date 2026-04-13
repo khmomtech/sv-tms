@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:tms_driver_app/core/network/api_constants.dart';
 import 'package:tms_driver_app/models/home_layout_section_model.dart';
+import 'package:tms_driver_app/providers/app_bootstrap_provider.dart';
 import 'package:tms_driver_app/providers/dispatch_provider.dart';
 import 'package:tms_driver_app/providers/driver_provider.dart';
 import 'package:tms_driver_app/providers/notification_provider.dart';
@@ -33,22 +36,29 @@ class HomeController extends ChangeNotifier {
   HomeState get state => _state;
   Map<String, String> _lastApiHealth = const <String, String>{};
   Map<String, String> get lastApiHealth => _lastApiHealth;
+  bool _disposed = false;
 
   Future<void> initialize(BuildContext context) => _load(context);
 
   Future<void> refresh(BuildContext context) => _load(context);
 
   Future<void> _load(BuildContext context) async {
+    if (_disposed) return;
     final locale = HomeLocaleStrings.fromContext(context);
 
     _state = _state.copyWith(isLoading: true, clearError: true);
-    notifyListeners();
+    _notifyIfAlive();
 
     final driverProvider = context.read<DriverProvider>();
     final dispatchProvider = context.read<DispatchProvider>();
     final safetyProvider = context.read<SafetyProvider>();
     final notificationProvider = context.read<NotificationProvider>();
     final userProvider = context.read<UserProvider>();
+    final bootstrapProvider = context.read<AppBootstrapProvider>();
+    final connectWsInBackground = bootstrapProvider.policy<bool>(
+      'driver.home.connect_ws_in_background',
+      true,
+    );
 
     final failures = <String>[];
     final apiHealth = <String, String>{};
@@ -116,72 +126,8 @@ class HomeController extends ChangeNotifier {
         isLoading: false,
         errorMessage: locale.accountNotLinked,
       );
-      notifyListeners();
+      _notifyIfAlive();
       return;
-    }
-
-    try {
-      final ok = await notificationProvider
-          .fetchNotifications()
-          .timeout(const Duration(seconds: 8));
-      if (ok) {
-        apiHealth['notifications.fetch'] = 'ok';
-      } else {
-        apiHealth['notifications.fetch'] = 'failed: fetch returned false';
-      }
-    } catch (e, st) {
-      debugPrint('Home notifications failed: $e\n$st');
-      apiHealth['notifications.fetch'] = 'failed: $e';
-    }
-
-    try {
-      await notificationProvider
-          .connectWebSocket(driverId)
-          .timeout(const Duration(seconds: 8));
-      apiHealth['notifications.ws'] = 'ok';
-    } catch (e, st) {
-      debugPrint('Home notifications ws failed: $e\n$st');
-      apiHealth['notifications.ws'] = 'failed: $e';
-    }
-
-    try {
-      await Future.wait<void>([
-        dispatchProvider
-            .fetchPendingDispatches(driverId: driverId)
-            .timeout(const Duration(seconds: 10)),
-        dispatchProvider
-            .fetchInProgressDispatches(driverId: driverId)
-            .timeout(const Duration(seconds: 10)),
-      ]);
-      apiHealth['dispatch.pending'] = 'ok';
-      apiHealth['dispatch.in_progress'] = 'ok';
-    } catch (e, st) {
-      debugPrint('Home dispatches failed: $e\n$st');
-      failures.add('dispatches');
-      apiHealth['dispatch.pending'] = 'failed: $e';
-      apiHealth['dispatch.in_progress'] = 'failed: $e';
-    }
-
-    try {
-      var vehicleId = _vehicleIdFromDriver(driverProvider);
-      if (vehicleId == null) {
-        await driverProvider
-            .fetchCurrentAssignment()
-            .timeout(const Duration(seconds: 8));
-        vehicleId = _vehicleIdFromDriver(driverProvider);
-      }
-      if (vehicleId != null) {
-        await safetyProvider
-            .loadTodaySafety(vehicleId)
-            .timeout(const Duration(seconds: 8));
-        apiHealth['safety.today'] = 'ok';
-      } else {
-        apiHealth['safety.today'] = 'skipped: vehicle not found';
-      }
-    } catch (e, st) {
-      debugPrint('Home safety failed: $e\n$st');
-      // Daily safety is optional and should not block delivery flow.
-      apiHealth['safety.today'] = 'failed: $e';
     }
 
     final profile = driverProvider.driverProfile;
@@ -192,31 +138,123 @@ class HomeController extends ChangeNotifier {
             userProvider.username)
         ?.toString();
 
+    _state = _state.copyWith(
+      username: username,
+      isLoading: true,
+      layoutOrder: layoutOrder,
+      visibleSections: visibleSections,
+      shift:
+          HomeShiftVm(startTime: locale.shiftStart, endTime: locale.shiftEnd),
+    );
+    _notifyIfAlive();
+
     List<HomeUpdateVm> updates;
-    try {
-      updates = mapBannersToUpdates(
-        await _bannerService
-            .fetchActiveBanners(forceRefresh: true)
-            .timeout(const Duration(seconds: 8)),
-        isKhmer: locale.isKhmer,
-        fallbackTitle: locale.fallbackUpdateTitle,
-        fallbackSubtitle: locale.fallbackUpdateSubtitle,
-        fallbackImageUrl:
-            'https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?w=1200',
-      );
-      apiHealth['banners.active'] = 'ok';
-    } catch (e, st) {
-      debugPrint('Home banners failed: $e\n$st');
-      apiHealth['banners.active'] = 'failed: $e';
-      updates = mapBannersToUpdates(
-        const [],
-        isKhmer: locale.isKhmer,
-        fallbackTitle: locale.fallbackUpdateTitle,
-        fallbackSubtitle: locale.fallbackUpdateSubtitle,
-        fallbackImageUrl:
-            'https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?w=1200',
-      );
-    }
+    updates = mapBannersToUpdates(
+      const [],
+      isKhmer: locale.isKhmer,
+      fallbackTitle: locale.fallbackUpdateTitle,
+      fallbackSubtitle: locale.fallbackUpdateSubtitle,
+      fallbackImageUrl:
+          'https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?w=1200',
+    );
+
+    await Future.wait<void>([
+      () async {
+        try {
+          final ok = await notificationProvider
+              .fetchNotifications()
+              .timeout(const Duration(seconds: 8));
+          apiHealth['notifications.fetch'] =
+              ok ? 'ok' : 'failed: fetch returned false';
+        } catch (e, st) {
+          debugPrint('Home notifications failed: $e\n$st');
+          apiHealth['notifications.fetch'] = 'failed: $e';
+        }
+      }(),
+      () async {
+        if (connectWsInBackground) {
+          apiHealth['notifications.ws'] = 'background';
+          unawaited(() async {
+            try {
+              await notificationProvider
+                  .connectWebSocket(driverId)
+                  .timeout(const Duration(seconds: 8));
+            } catch (e, st) {
+              debugPrint('Home notifications ws failed: $e\n$st');
+            }
+          }());
+          return;
+        }
+        try {
+          await notificationProvider
+              .connectWebSocket(driverId)
+              .timeout(const Duration(seconds: 8));
+          apiHealth['notifications.ws'] = 'ok';
+        } catch (e, st) {
+          debugPrint('Home notifications ws failed: $e\n$st');
+          apiHealth['notifications.ws'] = 'failed: $e';
+        }
+      }(),
+      () async {
+        try {
+          await Future.wait<void>([
+            dispatchProvider
+                .fetchPendingDispatches(driverId: driverId)
+                .timeout(const Duration(seconds: 10)),
+            dispatchProvider
+                .fetchInProgressDispatches(driverId: driverId)
+                .timeout(const Duration(seconds: 10)),
+          ]);
+          apiHealth['dispatch.pending'] = 'ok';
+          apiHealth['dispatch.in_progress'] = 'ok';
+        } catch (e, st) {
+          debugPrint('Home dispatches failed: $e\n$st');
+          failures.add('dispatches');
+          apiHealth['dispatch.pending'] = 'failed: $e';
+          apiHealth['dispatch.in_progress'] = 'failed: $e';
+        }
+      }(),
+      () async {
+        try {
+          var vehicleId = _vehicleIdFromDriver(driverProvider);
+          if (vehicleId == null) {
+            await driverProvider
+                .fetchCurrentAssignment()
+                .timeout(const Duration(seconds: 8));
+            vehicleId = _vehicleIdFromDriver(driverProvider);
+          }
+          if (vehicleId != null) {
+            await safetyProvider
+                .loadTodaySafety(vehicleId)
+                .timeout(const Duration(seconds: 8));
+            apiHealth['safety.today'] = 'ok';
+          } else {
+            apiHealth['safety.today'] = 'skipped: vehicle not found';
+          }
+        } catch (e, st) {
+          debugPrint('Home safety failed: $e\n$st');
+          apiHealth['safety.today'] = 'failed: $e';
+        }
+      }(),
+      () async {
+        try {
+          updates = mapBannersToUpdates(
+            await _bannerService
+                .fetchActiveBanners(forceRefresh: true)
+                .timeout(const Duration(seconds: 8)),
+            isKhmer: locale.isKhmer,
+            fallbackTitle: locale.fallbackUpdateTitle,
+            fallbackSubtitle: locale.fallbackUpdateSubtitle,
+            fallbackImageUrl:
+                'https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?w=1200',
+          );
+          apiHealth['banners.active'] = 'ok';
+        } catch (e, st) {
+          debugPrint('Home banners failed: $e\n$st');
+          apiHealth['banners.active'] = 'failed: $e';
+        }
+      }(),
+    ]);
 
     HomeCurrentTripVm? currentTrip;
     try {
@@ -261,7 +299,18 @@ class HomeController extends ChangeNotifier {
       layoutOrder: layoutOrder,
       visibleSections: visibleSections,
     );
+    _notifyIfAlive();
+  }
+
+  void _notifyIfAlive() {
+    if (_disposed) return;
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
   }
 
   /// Track banner click analytics
@@ -297,7 +346,13 @@ class HomeController extends ChangeNotifier {
     if (lower.contains('socketexception') ||
         lower.contains('connection refused') ||
         lower.contains('failed host lookup') ||
-        lower.contains('timed out')) {
+        lower.contains('timed out') ||
+        lower.contains('502') ||
+        lower.contains('503') ||
+        lower.contains('504') ||
+        lower.contains('bad gateway') ||
+        lower.contains('gateway timeout') ||
+        lower.contains('service unavailable')) {
       return context.tr('home.errors.api_connection', namedArgs: {
         'api': ApiConstants.baseUrl,
       });
@@ -305,9 +360,19 @@ class HomeController extends ChangeNotifier {
     if (lower.contains('401') || lower.contains('unauthorized')) {
       return context.tr('home.errors.unauthorized');
     }
+    if (lower.contains('403') || lower.contains('forbidden')) {
+      return context.tr('home.errors.forbidden');
+    }
     if (lower.contains('not assigned to a driver') ||
         lower.contains('driver not found')) {
       return context.tr('home.errors.driver_not_assigned');
+    }
+    if (lower.contains('formatexception') ||
+        lower.contains('unexpected character') ||
+        lower.contains('<!doctype') ||
+        lower.contains('<html') ||
+        lower.contains('invalid server response')) {
+      return context.tr('home.errors.invalid_response');
     }
     return context.tr('home.errors.api_generic', namedArgs: {'error': raw});
   }

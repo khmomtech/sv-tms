@@ -1,6 +1,6 @@
 <aside
   [class.collapsed]="!sidebarOpen"
-  class="relative flex flex-col min-h-screen h-screen transition-all duration-300 ease-in-out bg-gradient-to-b from-blue-900 via-blue-800 to-blue-900 shadow-2xl flex-shrink-0"
+  class="sidebar-shell relative flex flex-col min-h-screen h-screen transition-all duration-300 ease-in-out flex-shrink-0"
   role="navigation"
   [attr.aria-label]="'layout.sidebar.main_navigation_sidebar' | translate"
   [attr.aria-expanded]="sidebarOpen"
@@ -225,7 +225,7 @@
           <div
             *ngIf="dropdowns[item.id || getLabel(item.label)]"
             [id]="(item.id || getLabel(item.label)) + '-menu'"
-            class="mt-2 ml-6 space-y-1 animate-slide-down"
+            class="mt-3 ml-4 space-y-2 animate-slide-down"
             role="group"
             [attr.aria-label]="getLabel(item.label) + ' ' + ('layout.sidebar.submenu' | translate)"
           >
@@ -280,39 +280,40 @@
                 </a>
 
                 <!-- Second-level item with children: render as group header + inline child links (matches design) -->
-                <div *ngIf="child.children" class="relative">
-                  <!-- Group header (non-clickable when inside a larger section) -->
-                  <div
-                    class="flex items-center justify-between w-full px-4 py-3 text-blue-200 rounded-xl bg-transparent"
+                <div *ngIf="child.children" class="relative sidebar-subnav-group">
+                  <!-- Group header -->
+                  <button
+                    type="button"
+                    (click)="toggleSubDropdown(getSubDropdownKey(child))"
+                    class="sidebar-subnav-header flex items-center gap-3 w-full px-3 py-2 text-left"
+                    [class.sidebar-subnav-header-open]="isSubDropdownOpen(child)"
                     [attr.title]="!sidebarOpen ? getLabel(child.label) : null"
                     [attr.aria-label]="!sidebarOpen ? getLabel(child.label) : null"
-                    role="presentation"
+                    [attr.aria-expanded]="isSubDropdownOpen(child)"
+                    [attr.aria-controls]="getSubDropdownId(child)"
                   >
-                    <div class="flex items-center">
-                      <span
-                        class="flex items-center justify-center w-8 h-8 mr-4 rounded-lg bg-transparent"
-                      >
-                        <mat-icon class="text-sm" [class]="child.iconClass || 'text-blue-300'">{{
-                          child.icon
-                        }}</mat-icon>
-                      </span>
-                      <span class="flex-1 font-semibold text-sm" *ngIf="sidebarOpen">{{
-                        getLabel(child.label)
-                      }}</span>
-                    </div>
-
-                    <!-- Right-aligned short code badge (DR / FL / MT) -->
-                    <div *ngIf="sidebarOpen" class="flex items-center">
-                      <span
-                        class="text-xs font-bold text-blue-300 px-2 py-1 rounded-md bg-blue-800/30"
-                        >{{ getGroupCode(getLabel(child.label)) }}</span
-                      >
-                    </div>
-                  </div>
+                    <span class="sidebar-subnav-icon flex items-center justify-center w-7 h-7 rounded-lg">
+                      <mat-icon class="text-sm" [class]="child.iconClass || 'text-blue-300'">{{
+                        child.icon
+                      }}</mat-icon>
+                    </span>
+                    <span class="sidebar-subnav-title flex-1" *ngIf="sidebarOpen">{{
+                      getLabel(child.label)
+                    }}</span>
+                    <span
+                      *ngIf="sidebarOpen"
+                      class="sidebar-subnav-caret flex items-center justify-center w-6 h-6 rounded-md"
+                      [class.rotate-180]="isSubDropdownOpen(child)"
+                    >
+                      <mat-icon class="text-sm text-blue-300">expand_more</mat-icon>
+                    </span>
+                  </button>
 
                   <!-- Inline list of child links (grandchildren) -->
                   <div
-                    class="mt-1 ml-6 space-y-1 animate-slide-down"
+                    *ngIf="isSubDropdownOpen(child)"
+                    [id]="getSubDropdownId(child)"
+                    class="sidebar-subnav-links mt-1 ml-3 pl-4 space-y-1.5 animate-slide-down"
                     role="group"
                     [attr.aria-label]="
                       getLabel(child.label) + ' ' + ('layout.sidebar.submenu' | translate)
@@ -324,9 +325,9 @@
                       <a
                         *ngIf="isNavItemVisible(grandchild)"
                         [routerLink]="grandchild.route"
-                        routerLinkActive="bg-blue-500/80 text-white shadow-sm"
+                        routerLinkActive="sidebar-subnav-link-active"
                         [routerLinkActiveOptions]="{ exact: true }"
-                        class="dropdown-item group relative flex items-center px-4 py-2 text-blue-200 transition-all duration-200 rounded-lg hover:bg-blue-600/60 hover:text-white hover:translate-x-1 focus:outline-none focus:ring-2 focus:ring-blue-400/50"
+                        class="sidebar-subnav-link dropdown-item group relative flex items-center px-3 py-2.5 text-blue-100 transition-all duration-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400/40"
                         [attr.title]="!sidebarOpen ? getLabel(grandchild.label) : null"
                         [attr.aria-label]="!sidebarOpen ? getLabel(grandchild.label) : null"
                         (click)="onNavItemClick()"
@@ -337,11 +338,9 @@
                           grandchild.route && isActiveRoute(grandchild.route) ? 'page' : null
                         "
                       >
-                        <div
-                          class="absolute left-0 w-1 h-full bg-blue-400 rounded-r-full opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                        ></div>
+                        <div class="sidebar-subnav-link-indicator"></div>
                         <span
-                          class="flex items-center justify-center w-6 h-6 mr-3 transition-colors duration-200 rounded-md group-hover:bg-blue-500/50"
+                          class="sidebar-subnav-link-icon flex items-center justify-center w-6 h-6 mr-3 rounded-md"
                         >
                           <mat-icon
                             class="text-sm"

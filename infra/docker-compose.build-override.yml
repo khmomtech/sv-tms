@@ -1,0 +1,61 @@
+# Build-from-source override
+# Usage: docker compose -f docker-compose.prod.yml -f docker-compose.build-override.yml up -d --build
+# Context is the monorepo root for multi-module Maven services.
+# Also overrides CORS and DATA_ROOT for local Mac development.
+
+services:
+  core-api:
+    image: svtms-core-api:local
+    build:
+      context: ..
+      dockerfile: tms-core-api/Dockerfile
+    environment:
+      APP_CORS_ALLOWED_ORIGINS: "http://localhost:4200,https://svtms.svtrucking.biz"
+      APP_WEBSOCKET_ALLOWED_ORIGINS: "http://localhost:4200,https://svtms.svtrucking.biz"
+      DATA_ROOT: /tmp/svtms
+
+  auth-api:
+    image: svtms-auth-api:local
+    build:
+      context: ..
+      dockerfile: tms-auth-api/Dockerfile
+    environment:
+      APP_CORS_ALLOWED_ORIGINS: "http://localhost:4200,https://svtms.svtrucking.biz"
+
+  telematics-api:
+    image: svtms-telematics-api:local
+    build:
+      context: ../tms-telematics-api
+      dockerfile: Dockerfile
+
+  driver-app-api:
+    image: svtms-driver-app-api:local
+    build:
+      context: ..
+      dockerfile: tms-driver-app-api/Dockerfile
+
+  safety-api:
+    image: svtms-safety-api:local
+    build:
+      context: ../tms-safety-api
+      dockerfile: Dockerfile
+
+  message-api:
+    image: svtms-message-api:local
+    build:
+      context: ..
+      dockerfile: tms-message-api/Dockerfile
+
+  api-gateway:
+    image: svtms-api-gateway:local
+    build:
+      context: ..
+      dockerfile: api-gateway/Dockerfile
+    environment:
+      GATEWAY_CORS_ALLOWED_ORIGINS: "http://localhost:4200,https://svtms.svtrucking.biz"
+
+  admin-web-ui:
+    image: svtms-admin-web-ui:local
+    build:
+      context: ../tms-admin-web-ui
+      dockerfile: Dockerfile

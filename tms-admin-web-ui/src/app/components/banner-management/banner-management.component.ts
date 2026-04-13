@@ -346,8 +346,10 @@ export class BannerManagementComponent implements OnInit {
           this.showSuccess(
             this.isEditing ? 'Banner updated successfully!' : 'Banner created successfully!',
           );
-          this.loadBanners();
-          setTimeout(() => this.cancelForm(), 1500);
+          setTimeout(() => {
+            this.cancelForm();
+            this.loadBanners();
+          }, 1500);
         } else {
           this.showError('Failed: ' + (response.message || 'Unknown error'));
         }

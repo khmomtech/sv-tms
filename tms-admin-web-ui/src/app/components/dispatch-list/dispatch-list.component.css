@@ -1,0 +1,7 @@
+.dispatch-table th {
+  white-space: nowrap;
+}
+
+.dispatch-table td {
+  vertical-align: top;
+}

@@ -16,4 +16,8 @@ public interface DriverTrackingSessionRepository
         // underscore needed
         List<DriverTrackingSession> findByDriverIdAndDeviceIdAndRevokedAtIsNullOrderByIssuedAtDesc(
                         Long driverId, String deviceId);
+
+        List<DriverTrackingSession> findByDriverIdOrderByUpdatedAtDesc(Long driverId);
+
+        List<DriverTrackingSession> findByDriverIdAndRevokedAtIsNullOrderByUpdatedAtDesc(Long driverId);
 }

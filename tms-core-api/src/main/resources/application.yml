@@ -3,7 +3,7 @@ app:
     jwt:
       access-ttl-ms: ${JWT_ACCESS_TTL_MS:900000}
       refresh-ttl-ms: ${JWT_REFRESH_TTL_MS:1209600000}
-      allowed-clock-skew-seconds: ${JWT_SKEW_SECONDS:60}
+      allowed-clock-skew-seconds: ${JWT_SKEW_SECONDS:300}
 
 spring:
   jackson:

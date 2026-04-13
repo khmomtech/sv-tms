@@ -3,6 +3,8 @@ import angular from 'vite-plugin-angular';
 import rollupNodePolyfills from 'rollup-plugin-node-polyfills';
 
 const proxyTarget = process.env.API_PROXY_TARGET || 'http://localhost:8080';
+const telematicsProxyTarget =
+  process.env.TELEMATICS_API_PROXY_TARGET || 'http://localhost:8082';
 
 export default defineConfig({
   plugins: [angular()],
@@ -25,6 +27,32 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
         ws: true,
+        timeout: 0,
+        proxyTimeout: 0,
+      },
+      '/ws': {
+        target: proxyTarget,
+        changeOrigin: true,
+        secure: false,
+        ws: true,
+        timeout: 0,
+        proxyTimeout: 0,
+      },
+      '/tele-ws-sockjs': {
+        target: telematicsProxyTarget,
+        changeOrigin: true,
+        secure: false,
+        ws: true,
+        timeout: 0,
+        proxyTimeout: 0,
+      },
+      '/tele-ws': {
+        target: telematicsProxyTarget,
+        changeOrigin: true,
+        secure: false,
+        ws: true,
+        timeout: 0,
+        proxyTimeout: 0,
       },
       '/uploads': {
         target: proxyTarget,

@@ -161,6 +161,25 @@ public class LocationIngestService {
       return null;
     }
 
+    if (isInvalidMapFix(u.getLatitude(), u.getLongitude())) {
+      log.info(
+          "Treating invalid map fix as presence-only for driver={} lat={} lng={}",
+          u.getDriverId(),
+          u.getLatitude(),
+          u.getLongitude());
+      Map<String, Object> presence =
+          markPresence(
+              u.getDriverId(),
+              u.getBatteryLevel(),
+              u.getGpsOn(),
+              u.getSource(),
+              u.effectiveEpochMillisOr(System.currentTimeMillis()),
+              "invalid-coordinates");
+      presence.put("invalidCoordinates", Boolean.TRUE);
+      presence.put("locationAccepted", Boolean.FALSE);
+      return presence;
+    }
+
     if (log.isTraceEnabled()) {
       log.trace(
           "↑ loc driver={} lat={} lng={} speed={} acc={} src={} locSrc={} net={} ver={}",
@@ -544,6 +563,13 @@ public class LocationIngestService {
 
   private static boolean finite(Double x) {
     return x != null && !x.isNaN() && !x.isInfinite();
+  }
+
+  private static boolean isInvalidMapFix(Double latitude, Double longitude) {
+    if (!finite(latitude) || !finite(longitude)) {
+      return true;
+    }
+    return Math.abs(latitude) < 0.000001d && Math.abs(longitude) < 0.000001d;
   }
 
   private static double haversine(double lat1, double lon1, double lat2, double lon2) {

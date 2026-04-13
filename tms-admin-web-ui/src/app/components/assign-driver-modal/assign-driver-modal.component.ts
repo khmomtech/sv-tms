@@ -8,6 +8,7 @@ import { Validators, ReactiveFormsModule } from '@angular/forms';
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { DispatchService } from '../../services/dispatch.service';
+import { DriverService } from '../../services/driver.service';
 import { ToastrService } from 'ngx-toastr';
 import { DriverAutocompleteComponent } from '../../shared/components/driver-autocomplete/driver-autocomplete.component';
 
@@ -43,6 +44,7 @@ export class AssignDriverModalComponent implements OnInit, OnChanges {
   constructor(
     private readonly fb: FormBuilder,
     private readonly dispatchService: DispatchService,
+    private readonly driverService: DriverService,
     private readonly toastr: ToastrService,
   ) {}
 
@@ -80,6 +82,7 @@ export class AssignDriverModalComponent implements OnInit, OnChanges {
 
   private loadDrivers(): void {
     this.loading = true;
+    this.errorMessage = '';
     this.dispatchService.getAvailableDrivers().subscribe({
       next: (res: any) => {
         this.drivers = res?.data ?? [];
@@ -89,6 +92,29 @@ export class AssignDriverModalComponent implements OnInit, OnChanges {
       error: (err) => {
         console.error('Failed to fetch drivers:', err);
         this.errorMessage = 'Unable to load drivers.';
+        this.loading = false;
+      },
+    });
+  }
+
+  onDriverSearch(query: string): void {
+    const trimmedQuery = query.trim();
+    if (!trimmedQuery) {
+      this.loadDrivers();
+      return;
+    }
+
+    this.loading = true;
+    this.errorMessage = '';
+    this.driverService.searchDrivers(trimmedQuery).subscribe({
+      next: (res: any) => {
+        this.drivers = res?.data ?? [];
+        this.loading = false;
+        this.applyCurrentSelection();
+      },
+      error: (err) => {
+        console.error('Failed to search drivers:', err);
+        this.errorMessage = 'Unable to search drivers.';
         this.loading = false;
       },
     });

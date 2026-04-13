@@ -511,14 +511,13 @@ class LocationService {
     }
 
     if (token.isEmpty) {
-      // If we cannot obtain a fresh token, stop reconnecting to avoid floods and trigger logout.
+      // If we cannot obtain a fresh token right now, stay degraded and retry later.
       _wsConnected = false;
       online.value = false;
       _connecting = false;
-      _authInvalid = true;
-      debugPrint('[WS] 🚫 Auth invalid; stopping WS attempts until re-login');
-      SessionManager.instance
-          .markAuthInvalid(reason: 'location_ws_token_missing');
+      _authInvalid = false;
+      debugPrint('[WS] Missing token for location socket; scheduling reconnect instead of forcing logout');
+      _scheduleReconnect();
       return;
     }
 
@@ -672,7 +671,7 @@ class LocationService {
     try {
       if (_httpClient != null) {
         final res = await _httpClient!.post(
-          Uri.parse('$baseUrl/driver/location/update'),
+          Uri.parse('$baseUrl/driver/location'),
           headers: {
             HttpHeaders.authorizationHeader: 'Bearer $token',
             HttpHeaders.contentTypeHeader: 'application/json',
@@ -688,7 +687,7 @@ class LocationService {
       }
 
       final res = await http.post(
-        Uri.parse('$baseUrl/driver/location/update'),
+        Uri.parse('$baseUrl/driver/location'),
         headers: {
           HttpHeaders.authorizationHeader: 'Bearer $token',
           HttpHeaders.contentTypeHeader: 'application/json',
@@ -724,7 +723,7 @@ class LocationService {
     try {
       if (_httpClient != null) {
         final res = await _httpClient!.post(
-          Uri.parse('$baseUrl/driver/location/update/batch'),
+          Uri.parse('$baseUrl/driver/location/batch'),
           headers: {
             HttpHeaders.authorizationHeader: 'Bearer $token',
             HttpHeaders.contentTypeHeader: 'application/json',
@@ -743,7 +742,7 @@ class LocationService {
       }
 
       final res = await http.post(
-        Uri.parse('$baseUrl/driver/location/update/batch'),
+        Uri.parse('$baseUrl/driver/location/batch'),
         headers: {
           HttpHeaders.authorizationHeader: 'Bearer $token',
           HttpHeaders.contentTypeHeader: 'application/json',
@@ -1001,7 +1000,7 @@ class LocationService {
       if (token == null || token.isEmpty) return;
 
       await http.post(
-        Uri.parse('${ApiConstants.baseUrl}/api/locations/spoofing-alert'),
+        Uri.parse('${ApiConstants.baseUrl}/api/driver/location/spoofing-alert'),
         headers: {
           HttpHeaders.contentTypeHeader: 'application/json',
           HttpHeaders.authorizationHeader: 'Bearer $token',

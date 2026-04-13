@@ -23,6 +23,14 @@
     "timeout": 30000,
     "proxyTimeout": 30000
   },
+  "/ws-sockjs/info": {
+    "target": "http://localhost:8080",
+    "secure": false,
+    "changeOrigin": true,
+    "logLevel": "info",
+    "timeout": 30000,
+    "proxyTimeout": 30000
+  },
   "/ws-sockjs": {
     "target": "http://localhost:8080",
     "secure": false,
@@ -31,8 +39,33 @@
     "logLevel": "warn",
     "timeout": 0,
     "proxyTimeout": 0
-  }
-  ,
+  },
+  "/tele-ws-sockjs/info": {
+    "target": "http://localhost:8082",
+    "secure": false,
+    "changeOrigin": true,
+    "logLevel": "info",
+    "timeout": 30000,
+    "proxyTimeout": 30000
+  },
+  "/tele-ws-sockjs": {
+    "target": "http://localhost:8082",
+    "secure": false,
+    "changeOrigin": true,
+    "ws": true,
+    "logLevel": "warn",
+    "timeout": 0,
+    "proxyTimeout": 0
+  },
+  "/tele-ws": {
+    "target": "http://localhost:8082",
+    "secure": false,
+    "changeOrigin": true,
+    "ws": true,
+    "logLevel": "warn",
+    "timeout": 0,
+    "proxyTimeout": 0
+  },
   "/uploads": {
     "target": "http://localhost:8080",
     "secure": false,

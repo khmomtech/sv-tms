@@ -2,6 +2,8 @@ package com.svtrucking.devicegateway.telemetry;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -53,4 +55,19 @@ public class TelemetryPoint {
 
     @Column(name = "accuracy")
     private Double accuracy;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "publish_status", nullable = false)
+    @Builder.Default
+    private TelemetryPublishStatus publishStatus = TelemetryPublishStatus.PENDING;
+
+    @Column(name = "publish_attempts", nullable = false)
+    @Builder.Default
+    private Integer publishAttempts = 0;
+
+    @Column(name = "published_at")
+    private Instant publishedAt;
+
+    @Column(name = "last_publish_error", length = 1000)
+    private String lastPublishError;
 }

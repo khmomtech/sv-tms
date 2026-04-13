@@ -27,12 +27,20 @@ class DriverDrawer extends StatelessWidget {
         bootstrap.isScreenVisible('driver_id.visible', fallback: true);
     final showNotifications =
         bootstrap.isFeatureEnabled('notifications.enabled', fallback: true);
-    final showIncidentReport =
-        bootstrap.isFeatureEnabled('incident_report.enabled', fallback: true);
+    final showIncidentReport = bootstrap.isAnyFeatureEnabled(
+      const ['driver.incident_report.enabled', 'incident_report.enabled'],
+      fallback: true,
+    );
     final showSafetyCheck =
         bootstrap.isFeatureEnabled('safety_check.enabled', fallback: true);
-    final showLocationTracking =
-        bootstrap.isFeatureEnabled('location_tracking.enabled', fallback: true);
+    final showTelematics = bootstrap.isAnyFeatureEnabled(
+      const ['driver.telematics_ui_enabled', 'location_tracking.enabled'],
+      fallback: true,
+    );
+    final showChat = bootstrap.isAnyFeatureEnabled(
+      const ['driver.chat.enabled'],
+      fallback: true,
+    );
 
     final profile = driver.driverProfile;
     final driverName = (profile?['name'] ??
@@ -77,7 +85,8 @@ class DriverDrawer extends StatelessWidget {
           showNotifications: showNotifications,
           showIncidentReport: showIncidentReport,
           showSafetyCheck: showSafetyCheck,
-          showLocationTracking: showLocationTracking,
+          showTelematics: showTelematics,
+          showChat: showChat,
           driverId: driverId,
         ),
     ];
@@ -141,7 +150,8 @@ class DriverDrawer extends StatelessWidget {
     required bool showNotifications,
     required bool showIncidentReport,
     required bool showSafetyCheck,
-    required bool showLocationTracking,
+    required bool showTelematics,
+    required bool showChat,
     required String driverId,
   }) {
     void push(String route, {Object? arguments, bool replace = false}) {
@@ -245,7 +255,7 @@ class DriverDrawer extends StatelessWidget {
           )
         ];
       case 'trip_report':
-        if (!showLocationTracking) return const [];
+        if (!showTelematics) return const [];
         return [
           ListTile(
             leading: const Icon(Icons.list_alt_outlined),
@@ -280,6 +290,7 @@ class DriverDrawer extends StatelessWidget {
           )
         ];
       case 'messages':
+        if (!showChat) return const [];
         return [
           ListTile(
             leading: const Icon(Icons.message),

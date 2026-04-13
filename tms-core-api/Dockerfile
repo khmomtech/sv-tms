@@ -31,18 +31,16 @@ COPY device-gateway device-gateway
 COPY tms-core-api/src ./tms-core-api/src
 COPY tms-backend-shared/src ./tms-backend-shared/src
 
-# Copy additional modules required by the root reactor POM
-COPY device-gateway device-gateway
-
 # Build the backend module.
 # Skip tests compilation/run to avoid CI-only test dependencies and speed up local builds.
 RUN --mount=type=cache,target=/root/.m2 \
-    mvn -pl tms-core-api -am clean package -Dmaven.test.skip=true
+    MAVEN_OPTS="-Xms256m -Xmx768m -XX:MaxMetaspaceSize=256m -XX:+UseSerialGC -XX:+UseContainerSupport" \
+    mvn -pl tms-core-api -am clean package -Dmaven.test.skip=true -T1
 
 # ----------------------------------------------
 # Stage 2: Runtime
 # ----------------------------------------------
-FROM eclipse-temurin:21-jdk-jammy
+FROM eclipse-temurin:21-jre-jammy
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends curl \
@@ -73,7 +71,7 @@ ENV JAVA_OPTS="\
 
 VOLUME ["/app/uploads"]
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=10 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=180s --retries=10 \
  CMD curl -f http://localhost:8080/actuator/health || exit 1
 
 EXPOSE 8080

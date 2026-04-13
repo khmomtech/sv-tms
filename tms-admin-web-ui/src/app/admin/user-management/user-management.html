@@ -1,104 +1,148 @@
 <div class="container p-6 mx-auto">
+  <!-- Header -->
   <div class="flex items-center justify-between mb-6">
     <h2 class="text-3xl font-bold">User Management</h2>
-    <div class="text-sm text-gray-600">
-      <span
-        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-      >
-        {{ users.length }} user{{ users.length !== 1 ? 's' : '' }}
+    <div class="flex items-center gap-2 text-sm text-gray-600">
+      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+        {{ activeCount }} active
+      </span>
+      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+        {{ inactiveCount }} disabled
       </span>
     </div>
   </div>
 
-  <!-- Action buttons -->
-  <div class="flex flex-wrap gap-4 mb-6">
+  <!-- Toolbar: search + create -->
+  <div class="flex flex-wrap items-center gap-4 mb-6">
+    <mat-form-field appearance="outline" class="flex-1 min-w-[200px]">
+      <mat-label>Search users</mat-label>
+      <input matInput [formControl]="searchControl" placeholder="Username, email, or role…" autocomplete="off" />
+      <mat-icon matPrefix class="text-gray-400">search</mat-icon>
+      <button *ngIf="searchControl.value" mat-icon-button matSuffix (click)="searchControl.setValue('')" aria-label="Clear">
+        <mat-icon>close</mat-icon>
+      </button>
+    </mat-form-field>
+
     <button
       (click)="openCreateDialog()"
       type="button"
-      class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
+      class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2 whitespace-nowrap"
     >
       <mat-icon fontIcon="add" class="text-base"></mat-icon>
       Create User
     </button>
   </div>
 
+  <!-- Loading state -->
+  <div *ngIf="isLoading" class="flex justify-center py-12">
+    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+  </div>
+
   <!-- Users table -->
-  <div class="bg-white border rounded-lg shadow overflow-hidden">
+  <div *ngIf="!isLoading" class="bg-white border rounded-lg shadow overflow-hidden">
     <div class="overflow-x-auto">
       <table class="min-w-full divide-y divide-gray-200">
         <thead class="bg-gray-50">
           <tr>
-            <th
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
-              ID
-            </th>
-            <th
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Username
             </th>
-            <th
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Email
             </th>
-            <th
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Roles
             </th>
-            <th
-              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-            >
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Status
+            </th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Actions
             </th>
           </tr>
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
-          <tr *ngFor="let user of users" class="hover:bg-gray-50">
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-              {{ user.id }}
+          <tr *ngFor="let user of filteredUsers" class="hover:bg-gray-50" [class.opacity-60]="!user.enabled">
+            <!-- Username -->
+            <td class="px-6 py-4 whitespace-nowrap">
+              <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-sm font-bold">
+                  {{ user.username.charAt(0).toUpperCase() }}
+                </div>
+                <span class="text-sm font-medium text-gray-900">{{ user.username }}</span>
+              </div>
             </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ user.username }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ user.email }}</td>
+
+            <!-- Email -->
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ user.email }}</td>
+
+            <!-- Roles -->
             <td class="px-6 py-4 whitespace-nowrap">
               <div class="flex flex-wrap gap-1">
                 <span
                   *ngFor="let role of user.roles"
-                  class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                  class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
+                  [class]="role === 'SUPERADMIN' ? 'bg-red-100 text-red-800' :
+                            role === 'ADMIN'      ? 'bg-blue-100 text-blue-800' :
+                            role === 'MANAGER'    ? 'bg-purple-100 text-purple-800' :
+                            'bg-gray-100 text-gray-700'"
                 >
                   {{ role }}
                 </span>
               </div>
             </td>
+
+            <!-- Status -->
+            <td class="px-6 py-4 whitespace-nowrap">
+              <button
+                (click)="toggleStatus(user)"
+                [matTooltip]="user.enabled ? 'Click to disable' : 'Click to enable'"
+                class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition cursor-pointer border"
+                [class]="user.enabled
+                  ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
+                  : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'"
+              >
+                <span class="w-1.5 h-1.5 rounded-full" [class]="user.enabled ? 'bg-green-500' : 'bg-gray-400'"></span>
+                {{ user.enabled ? 'Active' : 'Disabled' }}
+              </button>
+            </td>
+
+            <!-- Actions -->
             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-              <div class="flex gap-2">
+              <div class="flex gap-1">
                 <button
                   (click)="openEditDialog(user)"
-                  class="text-indigo-600 hover:text-indigo-900 p-1 rounded"
-                  title="Edit user"
+                  class="text-indigo-600 hover:text-indigo-900 p-1.5 rounded hover:bg-indigo-50 transition"
+                  matTooltip="Edit user"
                 >
                   <mat-icon fontIcon="edit" class="text-base"></mat-icon>
                 </button>
                 <button
                   (click)="deleteUser(user)"
-                  class="text-red-600 hover:text-red-900 p-1 rounded"
-                  title="Delete user"
+                  class="text-red-500 hover:text-red-700 p-1.5 rounded hover:bg-red-50 transition"
+                  matTooltip="Delete user"
                 >
                   <mat-icon fontIcon="delete" class="text-base"></mat-icon>
                 </button>
               </div>
             </td>
           </tr>
-          <tr *ngIf="users.length === 0" class="hover:bg-gray-50">
-            <td colspan="5" class="px-6 py-8 text-center text-sm text-gray-500">
-              <mat-icon fontIcon="people" class="text-4xl text-gray-300 mb-2"></mat-icon>
-              <div>No users found</div>
+
+          <!-- Empty state -->
+          <tr *ngIf="filteredUsers.length === 0">
+            <td colspan="5" class="px-6 py-12 text-center text-sm text-gray-500">
+              <mat-icon fontIcon="people" class="text-4xl text-gray-300 block mx-auto mb-2"></mat-icon>
+              <div *ngIf="searchControl.value">No users match "{{ searchControl.value }}"</div>
+              <div *ngIf="!searchControl.value">No users found</div>
             </td>
           </tr>
         </tbody>
       </table>
+    </div>
+
+    <!-- Footer count -->
+    <div *ngIf="filteredUsers.length > 0" class="px-6 py-3 bg-gray-50 border-t text-xs text-gray-500">
+      Showing {{ filteredUsers.length }} of {{ users.length }} user{{ users.length !== 1 ? 's' : '' }}
     </div>
   </div>
 </div>

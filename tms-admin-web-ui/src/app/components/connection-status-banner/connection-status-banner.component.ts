@@ -2,6 +2,7 @@
 import { CommonModule } from '@angular/common';
 import type { OnInit } from '@angular/core';
 import { Component } from '@angular/core';
+import { combineLatest } from 'rxjs';
 
 import type { ConnectionStatus } from '../../services/connection-monitor.service';
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -18,6 +19,7 @@ import { SocketService } from '../../services/socket.service';
 })
 export class ConnectionStatusBannerComponent implements OnInit {
   status: ConnectionStatus = 'disconnected';
+  visible = false;
 
   constructor(
     private monitor: ConnectionMonitorService,
@@ -25,9 +27,12 @@ export class ConnectionStatusBannerComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.monitor.status$.subscribe((status) => {
-      this.status = status;
-    });
+    combineLatest([this.monitor.status$, this.socketService.activeDemand$]).subscribe(
+      ([status, hasDemand]) => {
+        this.status = status;
+        this.visible = hasDemand;
+      },
+    );
   }
 
   reconnect(): void {

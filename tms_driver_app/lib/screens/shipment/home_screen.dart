@@ -6,8 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:tms_driver_app/core/network/api_constants.dart';
 import 'package:tms_driver_app/models/home_layout_section_model.dart';
-import 'package:tms_driver_app/providers/notification_provider.dart';
 import 'package:tms_driver_app/providers/app_bootstrap_provider.dart';
+import 'package:tms_driver_app/providers/notification_provider.dart';
 import 'package:tms_driver_app/providers/settings_provider.dart';
 import 'package:tms_driver_app/providers/user_provider.dart';
 import 'package:tms_driver_app/routes/app_routes.dart';
@@ -52,22 +52,55 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _listenToConnectivityChanges();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final isLoggedIn = await ApiConstants.isLoggedIn();
+      final token = await ApiConstants.ensureFreshAccessToken().timeout(
+        const Duration(seconds: 12),
+        onTimeout: () async => await ApiConstants.getAccessToken(logMiss: false),
+      );
       if (!mounted) return;
-      if (!isLoggedIn) {
+      if (token == null || token.isEmpty) {
         Navigator.pushNamedAndRemoveUntil(
             context, AppRoutes.signin, (_) => false);
         return;
       }
-      try {
-        await context
-            .read<AppBootstrapProvider>()
-            .refreshFromServer()
-            .timeout(const Duration(seconds: 6));
-      } catch (e) {
-        debugPrint('[Home] Bootstrap refresh timeout/failure: $e');
+      final bootstrapProvider = context.read<AppBootstrapProvider>();
+      final deferBootstrapRefresh = bootstrapProvider.policy<bool>(
+        'driver.home.defer_bootstrap_refresh',
+        true,
+      );
+      final lazyLoadEnabled = bootstrapProvider.policy<bool>(
+        'driver.home.lazy_load_enabled',
+        true,
+      );
+
+      if (deferBootstrapRefresh) {
+        unawaited(() async {
+          try {
+            await bootstrapProvider
+                .refreshFromServer()
+                .timeout(const Duration(seconds: 6));
+            if (mounted) setState(() {});
+          } catch (e) {
+            debugPrint('[Home] Bootstrap refresh timeout/failure: $e');
+          }
+        }());
+      } else {
+        try {
+          await bootstrapProvider
+              .refreshFromServer()
+              .timeout(const Duration(seconds: 6));
+        } catch (e) {
+          debugPrint('[Home] Bootstrap refresh timeout/failure: $e');
+        }
       }
-      await _controller.initialize(context);
+
+      if (lazyLoadEnabled) {
+        unawaited(_controller.initialize(context).then((_) {
+          if (mounted) setState(() {});
+        }));
+      } else {
+        await _controller.initialize(context);
+      }
+
       _setupAutoRefresh();
       if (mounted) setState(() {});
     });
@@ -205,9 +238,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _onQuickActionTap(String actionId) {
     final bootstrap = context.read<AppBootstrapProvider>();
-    final featureKey = _featureKeyForQuickAction(actionId);
-    if (featureKey != null &&
-        !bootstrap.isFeatureEnabled(featureKey, fallback: true)) {
+    if (!_isQuickActionEnabled(bootstrap, actionId)) {
       _showSnackBar('feature.coming_soon', Colors.blue);
       return;
     }
@@ -236,17 +267,35 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  String? _featureKeyForQuickAction(String actionId) {
+  void _openCurrentTrip(HomeCurrentTripVm? trip) {
+    final dispatchId = trip?.dispatchId.trim() ?? '';
+    if (dispatchId.isEmpty) {
+      _showSnackBar('error.data_load_failed', Colors.red);
+      return;
+    }
+    Navigator.pushNamed(
+      context,
+      AppRoutes.dispatchDetail,
+      arguments: <String, dynamic>{'dispatchId': dispatchId},
+    );
+  }
+
+  bool _isQuickActionEnabled(AppBootstrapProvider bootstrap, String actionId) {
     switch (actionId) {
       case 'incident_report':
-        return 'incident_report.enabled';
       case 'report_issue':
-        return 'incident_report.enabled';
+        return bootstrap.isAnyFeatureEnabled(
+          const ['driver.incident_report.enabled', 'incident_report.enabled'],
+          fallback: true,
+        );
       case 'my_trips':
       case 'trip_report':
-        return 'location_tracking.enabled';
+        return bootstrap.isAnyFeatureEnabled(
+          const ['driver.telematics_ui_enabled', 'location_tracking.enabled'],
+          fallback: true,
+        );
       default:
-        return null;
+        return true;
     }
   }
 
@@ -264,17 +313,20 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   List<String> _quickActionIds(AppBootstrapProvider bootstrap) {
-    return bootstrap.policyStringList(
-      'nav.home.quick_actions',
-      fallback: const <String>[
-        'my_trips',
-        'incident_report',
-        'report_issue',
-        'documents',
-        'trip_report',
-        'help_center',
-      ],
-    );
+    return bootstrap
+        .policyStringList(
+          'nav.home.quick_actions',
+          fallback: const <String>[
+            'my_trips',
+            'incident_report',
+            'report_issue',
+            'documents',
+            'trip_report',
+            'help_center',
+          ],
+        )
+        .where((actionId) => _isQuickActionEnabled(bootstrap, actionId))
+        .toList();
   }
 
   List<HomeBottomNavItem> _bottomNavItems(AppBootstrapProvider bootstrap) {
@@ -311,16 +363,29 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Build home sections dynamically based on layout configuration
   List<Widget> _buildHomeSections(HomeState state, int unreadCount) {
     final sections = <Widget>[];
+    final bootstrap = context.read<AppBootstrapProvider>();
+    final forceQuickActions = bootstrap.policy<bool>(
+      'driver.home.quick_actions_always_visible',
+      true,
+    );
 
     // If no layout configured, use default order
     final layoutOrder =
         state.layoutOrder.isNotEmpty ? state.layoutOrder : HomeSectionKey.all;
+    final orderedSections = List<String>.from(layoutOrder);
+    if (forceQuickActions &&
+        !orderedSections.contains(HomeSectionKey.quickActions)) {
+      orderedSections.add(HomeSectionKey.quickActions);
+    }
     final visibleSections = state.visibleSections.isNotEmpty
         ? state.visibleSections
         : HomeSectionKey.all.toSet();
+    if (forceQuickActions) {
+      visibleSections.add(HomeSectionKey.quickActions);
+    }
 
     // Build each section in order
-    for (final sectionKey in layoutOrder) {
+    for (final sectionKey in orderedSections) {
       // Skip if not visible
       if (!visibleSections.contains(sectionKey)) continue;
 
@@ -373,8 +438,7 @@ class _HomeScreenState extends State<HomeScreen> {
               AppRoutes.safetyDetail,
               arguments: <String, dynamic>{'safety': safety},
             ),
-            mapApiError: (raw) =>
-                _controller.loadApiErrorMessage(raw, context),
+            mapApiError: (raw) => _controller.loadApiErrorMessage(raw, context),
           );
           break;
 
@@ -390,6 +454,7 @@ class _HomeScreenState extends State<HomeScreen> {
           section = CurrentTripSection(
             key: const ValueKey('home_section_trip'),
             trip: state.currentTrip,
+            onTap: () => _openCurrentTrip(state.currentTrip),
           );
           break;
 
@@ -424,6 +489,13 @@ class _HomeScreenState extends State<HomeScreen> {
     return sections;
   }
 
+  List<Widget> _buildLoadingTail() {
+    return const <Widget>[
+      LoadingPlaceholder(height: 96),
+      LoadingPlaceholder(height: 148),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -445,16 +517,16 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
           body: SafeArea(
-            child: state.isLoading && state.username == null
-                ? const Center(
-                    child: LoadingPlaceholder(height: 120, width: 140))
-                : RefreshIndicator(
-                    onRefresh: _onRefresh,
-                    child: ListView(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      children: _buildHomeSections(state, unreadCount),
-                    ),
-                  ),
+            child: RefreshIndicator(
+              onRefresh: _onRefresh,
+              child: ListView(
+                padding: const EdgeInsets.only(bottom: 16),
+                children: <Widget>[
+                  ..._buildHomeSections(state, unreadCount),
+                  if (state.isLoading) ..._buildLoadingTail(),
+                ],
+              ),
+            ),
           ),
           bottomNavigationBar: HomeBottomNav(
             currentId: _selectedBottomNavId,

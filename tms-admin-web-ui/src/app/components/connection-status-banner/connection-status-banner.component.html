@@ -1,5 +1,5 @@
 <div
-  *ngIf="status !== 'connected'"
+  *ngIf="visible && status !== 'connected'"
   class="w-full p-2 font-semibold text-center text-white flex justify-between items-center"
   [ngClass]="{
     'bg-red-600': status === 'disconnected',

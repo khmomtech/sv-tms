@@ -152,8 +152,8 @@ AUTH_DEVICE_CODE="$(remote_http_code POST "${PUBLIC_URL}/api/driver/device/regis
 assert_not_code_in "${AUTH_DEVICE_CODE}" "public /api/driver/device/register" 404 502 503
 
 # Driver-app-owned routes should exist and not 404/502.
-DRIVER_LOC_CODE="$(remote_http_code POST "${PUBLIC_URL}/api/driver/location/update" '{}')"
-assert_not_code_in "${DRIVER_LOC_CODE}" "public /api/driver/location/update" 404 502 503
+DRIVER_LOC_CODE="$(remote_http_code POST "${PUBLIC_URL}/api/driver/location" '{}')"
+assert_not_code_in "${DRIVER_LOC_CODE}" "public /api/driver/location" 404 502 503
 
 DRIVER_APP_CODE="$(remote_http_code GET "${PUBLIC_URL}/api/driver-app/home-layout")"
 assert_not_code_in "${DRIVER_APP_CODE}" "public /api/driver-app/home-layout" 404 502 503

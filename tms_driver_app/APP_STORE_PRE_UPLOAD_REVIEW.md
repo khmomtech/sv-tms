@@ -226,8 +226,11 @@ This is a professional commercial driver application for real-time
 delivery management and route tracking.
 
 ## Test Account Credentials
-Username: reviewer@test.sv
-Password: Review!234
+Username: drivertest
+Password: 123456
+
+## Review Server
+API Base URL: https://svtms.svtrucking.biz/api
 
 ## Permission Justifications
 - Location (Always): Real-time delivery route tracking while driver 

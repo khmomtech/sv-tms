@@ -18,6 +18,8 @@ cat > "$ENV_FILE" << EOF
     apiBaseUrl: '${API_BASE_URL:-/api}',
     wsSocketUrl: '${WS_SOCKET_URL:-/ws}',
     sockJsUrl: '${SOCKJS_URL:-/ws-sockjs}',
+    telematicsWsSocketUrl: '${TELEMATICS_WS_SOCKET_URL:-/tele-ws}',
+    telematicsSockJsUrl: '${TELEMATICS_SOCKJS_URL:-/tele-ws-sockjs}',
     useSockJs: ${USE_SOCKJS:-true},
     googleMapsApiKey: '${GOOGLE_MAPS_API_KEY:-}',
     firebase: {

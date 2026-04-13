@@ -6,9 +6,10 @@ import com.svtrucking.logistics.model.DriverDocument;
 import com.svtrucking.logistics.repository.DriverDocumentRepository;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -58,14 +59,16 @@ public class AdminDocumentComplianceController {
    */
   @GetMapping("/expiring")
   @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_SUPERADMIN','ROLE_SAFETY','all_functions')")
-  public ResponseEntity<ApiResponse<List<ExpiringDocumentDto>>> expiring(
-      @RequestParam(defaultValue = "30") int days) {
+  public ResponseEntity<ApiResponse<Page<ExpiringDocumentDto>>> expiring(
+      @RequestParam(defaultValue = "30") int days,
+      Pageable pageable) {
 
     LocalDate today = LocalDate.now();
     LocalDate horizon = today.plusDays(days);
 
-    List<DriverDocument> docs = driverDocumentRepository.findAllExpiring(today, horizon);
-    List<ExpiringDocumentDto> result = docs.stream().map(this::toDto).toList();
+    Page<ExpiringDocumentDto> result = driverDocumentRepository
+        .findAllExpiring(today, horizon, pageable)
+        .map(this::toDto);
     return ResponseEntity.ok(new ApiResponse<>(true, "Expiring documents", result));
   }
 
@@ -75,10 +78,11 @@ public class AdminDocumentComplianceController {
    */
   @GetMapping("/expired")
   @PreAuthorize("hasAnyAuthority('ROLE_ADMIN','ROLE_SUPERADMIN','ROLE_SAFETY','all_functions')")
-  public ResponseEntity<ApiResponse<List<ExpiringDocumentDto>>> expired() {
+  public ResponseEntity<ApiResponse<Page<ExpiringDocumentDto>>> expired(Pageable pageable) {
 
-    List<DriverDocument> docs = driverDocumentRepository.findAllExpired(LocalDate.now());
-    List<ExpiringDocumentDto> result = docs.stream().map(this::toDto).toList();
+    Page<ExpiringDocumentDto> result = driverDocumentRepository
+        .findAllExpired(LocalDate.now(), pageable)
+        .map(this::toDto);
     return ResponseEntity.ok(new ApiResponse<>(true, "Expired documents", result));
   }
 
@@ -94,8 +98,8 @@ public class AdminDocumentComplianceController {
     LocalDate soonHorizon = today.plusDays(30);
 
     long total = driverDocumentRepository.count();
-    long expired = driverDocumentRepository.findAllExpired(today).size();
-    long expiringSoon = driverDocumentRepository.findAllExpiring(today, soonHorizon).size();
+    long expired = driverDocumentRepository.countAllExpired(today);
+    long expiringSoon = driverDocumentRepository.countAllExpiring(today, soonHorizon);
     long active = Math.max(0, total - expired - expiringSoon);
     double compliancePct = total == 0 ? 100.0 : Math.round((double) active / total * 1000.0) / 10.0;
 

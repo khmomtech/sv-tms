@@ -75,12 +75,12 @@ export const routes: Routes = [
         data: { title: 'Order Management' },
       },
 
-      // Dispatch Management Feature Module
+      // Shipment Management Feature Module
       {
         path: 'dispatch',
         loadChildren: () =>
           import('./features/dispatch/dispatch.routes').then((m) => m.DISPATCH_ROUTES),
-        data: { title: 'Dispatch Management' },
+        data: { title: 'Shipment Management' },
       },
 
       // Safety Check Management
@@ -108,7 +108,7 @@ export const routes: Routes = [
         data: { title: 'Training Records', permissions: [PERMISSIONS.ADMIN_READ] },
       },
 
-      // Dispatches List (alias for convenience)
+      // Shipments List (alias for convenience)
       {
         path: 'dispatches',
         redirectTo: 'dispatch',
@@ -230,13 +230,13 @@ export const routes: Routes = [
         },
       },
 
-      // Items Management (Admin only)
+      // Item List (Admin only)
       {
         path: 'items',
         canActivate: [AdminGuard],
         canActivateChild: [AdminGuard],
         loadChildren: () => import('./features/items/items.routes').then((m) => m.ITEMS_ROUTES),
-        data: { title: 'Items Management', roles: ['ADMIN', 'SUPERADMIN'] },
+        data: { title: 'Items List', roles: ['ADMIN', 'SUPERADMIN'] },
       },
 
       // Banner Management (Admin only)

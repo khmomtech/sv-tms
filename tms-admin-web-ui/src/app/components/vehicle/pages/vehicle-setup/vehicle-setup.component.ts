@@ -15,11 +15,8 @@ import { finalize } from 'rxjs';
 import { VehicleType, TruckSize, VehicleOwnership } from '../../../../models/enums/vehicle.enums';
 import type {
   VehicleSetupRequest,
-  VehicleDocumentRequest,
-  MaintenancePolicyRequest,
-  PMScheduleRequest,
+  PMTriggerType,
 } from '../../../../models/vehicle-setup.model';
-import type { Vehicle } from '../../../../models/vehicle.model';
 import { VehicleService } from '../../../../services/vehicle.service';
 
 @Component({
@@ -92,6 +89,7 @@ export class VehicleSetupComponent implements OnInit {
 
   ngOnInit(): void {
     this.initializeForm();
+    this.updateTruckSizeValidation();
   }
 
   private initializeForm(): void {
@@ -106,7 +104,7 @@ export class VehicleSetupComponent implements OnInit {
       ],
       type: [VehicleType.TRUCK, Validators.required],
       ownership: [VehicleOwnership.OWNED, Validators.required],
-      truckSize: [''],
+      truckSize: [TruckSize.MEDIUM_TRUCK],
 
       fuelConsumption: [0, [Validators.required, Validators.min(0)]],
       mileage: [0, [Validators.required, Validators.min(0)]],
@@ -114,7 +112,7 @@ export class VehicleSetupComponent implements OnInit {
       maxVolume: [null],
       qtyPalletsCapacity: [null],
       gpsDeviceId: [''],
-      assignedZoneId: [null],
+      assignedZone: [''],
       requiredLicenseClass: [''],
       remarks: [''],
 
@@ -124,6 +122,10 @@ export class VehicleSetupComponent implements OnInit {
       }),
     });
     this.initializeRequiredDocuments();
+
+    this.vehicleForm.get('type')?.valueChanges.subscribe(() => {
+      this.updateTruckSizeValidation();
+    });
   }
 
   private initializeRequiredDocuments(): void {
@@ -156,6 +158,7 @@ export class VehicleSetupComponent implements OnInit {
   addMaintenanceSchedule(): void {
     const schedulesArray = this.maintenanceSchedules;
     schedulesArray.push(this.createMaintenanceScheduleFormGroup());
+    this.onScheduleTriggerTypeChange(schedulesArray.length - 1);
   }
 
   removeMaintenanceSchedule(index: number): void {
@@ -169,16 +172,65 @@ export class VehicleSetupComponent implements OnInit {
       description: [''],
       triggerType: ['MILEAGE', Validators.required],
       triggerInterval: [10000, [Validators.required, Validators.min(1)]],
+      triggerIntervalDays: [null, [Validators.min(1)]],
       reminderBeforeKm: [1000],
       reminderBeforeDays: [7],
       taskTypeId: [null, Validators.required],
     });
   }
 
+  isTruckType(): boolean {
+    return this.vehicleForm.get('type')?.value === VehicleType.TRUCK;
+  }
+
+  isTimeBasedTrigger(index: number): boolean {
+    return this.maintenanceSchedules.at(index)?.get('triggerType')?.value === 'TIME_BASED';
+  }
+
+  usesMileageTrigger(index: number): boolean {
+    const triggerType = this.maintenanceSchedules.at(index)?.get('triggerType')?.value;
+    return triggerType === 'MILEAGE' || triggerType === 'BOTH';
+  }
+
+  usesTimeTrigger(index: number): boolean {
+    const triggerType = this.maintenanceSchedules.at(index)?.get('triggerType')?.value;
+    return triggerType === 'TIME_BASED' || triggerType === 'BOTH';
+  }
+
+  onScheduleTriggerTypeChange(index: number): void {
+    const scheduleGroup = this.maintenanceSchedules.at(index) as FormGroup | null;
+    if (!scheduleGroup) return;
+
+    const triggerType = scheduleGroup.get('triggerType')?.value as string | undefined;
+    const triggerIntervalControl = scheduleGroup.get('triggerInterval');
+    const triggerIntervalDaysControl = scheduleGroup.get('triggerIntervalDays');
+
+    if (triggerType === 'TIME_BASED') {
+      triggerIntervalControl?.clearValidators();
+      triggerIntervalControl?.setValue(null);
+      triggerIntervalDaysControl?.setValidators([Validators.required, Validators.min(1)]);
+      triggerIntervalDaysControl?.setValue(triggerIntervalDaysControl.value ?? 30);
+    } else if (triggerType === 'BOTH') {
+      triggerIntervalControl?.setValidators([Validators.required, Validators.min(1)]);
+      triggerIntervalDaysControl?.setValidators([Validators.required, Validators.min(1)]);
+      triggerIntervalControl?.setValue(triggerIntervalControl.value ?? 10000);
+      triggerIntervalDaysControl?.setValue(triggerIntervalDaysControl.value ?? 30);
+    } else {
+      triggerIntervalControl?.setValidators([Validators.required, Validators.min(1)]);
+      triggerIntervalControl?.setValue(triggerIntervalControl.value ?? 10000);
+      triggerIntervalDaysControl?.clearValidators();
+      triggerIntervalDaysControl?.setValue(null);
+    }
+
+    triggerIntervalControl?.updateValueAndValidity();
+    triggerIntervalDaysControl?.updateValueAndValidity();
+  }
+
   onSubmit(): void {
     if (this.vehicleForm.invalid) {
       this.markFormGroupTouched(this.vehicleForm);
       this.errorMessage = 'Please fill in all required fields correctly.';
+      this.showError = true;
       return;
     }
     this.isLoading = true;
@@ -188,12 +240,41 @@ export class VehicleSetupComponent implements OnInit {
     this.showSuccess = false;
     this.licensePlateFieldError = '';
 
+    const formValue = this.vehicleForm.getRawValue();
+    const schedules = (formValue.maintenancePolicy?.schedules ?? []).map((schedule: any) => ({
+      ...schedule,
+      triggerInterval:
+        schedule.triggerType === 'TIME_BASED' ? undefined : Number(schedule.triggerInterval),
+      triggerIntervalDays: this.usesTimeBasedValue(schedule.triggerType)
+        ? Number(schedule.triggerIntervalDays)
+        : undefined,
+      reminderBeforeKm:
+        schedule.reminderBeforeKm !== null && schedule.reminderBeforeKm !== undefined
+          ? Number(schedule.reminderBeforeKm)
+          : undefined,
+      reminderBeforeDays:
+        schedule.reminderBeforeDays !== null && schedule.reminderBeforeDays !== undefined
+          ? Number(schedule.reminderBeforeDays)
+          : undefined,
+      taskTypeId: Number(schedule.taskTypeId),
+    }));
+
     const setupRequest: VehicleSetupRequest = {
-      ...this.vehicleForm.value,
-      year: this.vehicleForm.value.yearMade,
+      ...formValue,
+      licensePlate: formValue.licensePlate.trim(),
+      vin: formValue.vin?.trim() || undefined,
+      manufacturer: formValue.manufacturer.trim(),
+      model: formValue.model.trim(),
+      assignedZone: formValue.assignedZone?.trim() || undefined,
+      requiredLicenseClass: formValue.requiredLicenseClass?.trim() || undefined,
+      gpsDeviceId: formValue.gpsDeviceId?.trim() || undefined,
+      remarks: formValue.remarks?.trim() || undefined,
+      truckSize: this.isTruckType() ? formValue.truckSize : undefined,
+      maintenancePolicy: schedules.length > 0 ? { schedules } : undefined,
+      year: formValue.yearMade,
     };
-    // Convert date strings to proper format if needed
-    setupRequest.documents = setupRequest.documents?.map((doc) => ({
+
+    setupRequest.documents = setupRequest.documents?.map((doc: any) => ({
       ...doc,
       issueDate: doc.issueDate ? new Date(doc.issueDate).toISOString().split('T')[0] : undefined,
       expiryDate: doc.expiryDate ? new Date(doc.expiryDate).toISOString().split('T')[0] : undefined,
@@ -216,22 +297,13 @@ export class VehicleSetupComponent implements OnInit {
         },
         error: (error) => {
           if (error.error?.code === 'DUPLICATE_LICENSE_PLATE') {
-            this.licensePlateFieldError = error.error.message || 'Duplicate license plate';
-            this.errorMessage = '';
-            this.showError = false;
-            // Mark field as touched and focus
-            const control = this.vehicleForm.get('licensePlate');
-            control?.setErrors({ duplicate: true });
-            control?.markAsTouched();
-            setTimeout(() => {
-              this.licensePlateInput?.nativeElement?.focus();
-            }, 0);
-          } else {
-            this.errorMessage =
-              error.error?.message || 'An error occurred while setting up the vehicle.';
-            this.showError = true;
-            this.licensePlateFieldError = '';
+            this.handleDuplicateLicensePlate(error.error.message);
+            return;
           }
+
+          this.errorMessage = error.error?.message || 'An error occurred while setting up the vehicle.';
+          this.showError = true;
+          this.licensePlateFieldError = '';
         },
       });
   }
@@ -257,19 +329,44 @@ export class VehicleSetupComponent implements OnInit {
 
   private handleApiError(response: any): void {
     if (response.code === 'DUPLICATE_LICENSE_PLATE') {
-      this.licensePlateFieldError = response.message || 'Duplicate license plate';
-      this.errorMessage = '';
-      this.showError = false;
-      const control = this.vehicleForm.get('licensePlate');
-      control?.setErrors({ duplicate: true });
-      control?.markAsTouched();
-      setTimeout(() => {
-        this.licensePlateInput?.nativeElement?.focus();
-      }, 0);
+      this.handleDuplicateLicensePlate(response.message);
     } else {
-      this.errorMessage = response.message || 'Failed to setup vehicle.';
+      this.errorMessage = response.errors || response.message || 'Failed to setup vehicle.';
       this.showError = true;
       this.licensePlateFieldError = '';
     }
+  }
+
+  private handleDuplicateLicensePlate(message?: string): void {
+    this.licensePlateFieldError = message || 'Duplicate license plate';
+    this.errorMessage = '';
+    this.showError = false;
+    const control = this.vehicleForm.get('licensePlate');
+    control?.setErrors({ ...(control.errors ?? {}), duplicate: true });
+    control?.markAsTouched();
+    setTimeout(() => {
+      this.licensePlateInput?.nativeElement?.focus();
+    }, 0);
+  }
+
+  private updateTruckSizeValidation(): void {
+    const truckSizeControl = this.vehicleForm.get('truckSize');
+    if (!truckSizeControl) return;
+
+    if (this.isTruckType()) {
+      truckSizeControl.setValidators([Validators.required]);
+      truckSizeControl.setValue(truckSizeControl.value || TruckSize.MEDIUM_TRUCK, {
+        emitEvent: false,
+      });
+    } else {
+      truckSizeControl.clearValidators();
+      truckSizeControl.setValue('', { emitEvent: false });
+    }
+
+    truckSizeControl.updateValueAndValidity({ emitEvent: false });
+  }
+
+  private usesTimeBasedValue(triggerType: PMTriggerType | string | undefined): boolean {
+    return triggerType === 'TIME_BASED' || triggerType === 'BOTH';
   }
 }

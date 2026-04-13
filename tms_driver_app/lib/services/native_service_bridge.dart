@@ -46,16 +46,6 @@ class NativeServiceBridge {
     }
     _lastStartAt = now;
 
-    // If already up, avoid churn
-    try {
-      final running = await isServiceRunning();
-      if (running) {
-        _started = true;
-        _log('[Bridge] Service already running → skip start');
-        return true;
-      }
-    } catch (_) {}
-
     try {
       final prefs = await SharedPreferences.getInstance();
       final tk = token ?? await ApiConstants.getAccessToken();
@@ -84,9 +74,21 @@ class NativeServiceBridge {
       String url;
       final wsFromPrefs = (prefs.getString('wsUrl') ?? '').trim();
       if (wsUrl != null && wsUrl.isNotEmpty) {
-        url = _withFreshWsToken(wsUrl, wsAuthTokenSafe);
+        final sanitized = _sanitizeWsUrl(wsUrl);
+        if (sanitized.isNotEmpty) {
+          url = _withFreshWsToken(sanitized, wsAuthTokenSafe);
+        } else {
+          url = await ApiConstants.getDriverLocationWebSocketUrlWithToken(
+              wsAuthTokenSafe);
+        }
       } else if (wsFromPrefs.isNotEmpty) {
-        url = _withFreshWsToken(wsFromPrefs, wsAuthTokenSafe);
+        final sanitized = _sanitizeWsUrl(wsFromPrefs);
+        if (sanitized.isNotEmpty) {
+          url = _withFreshWsToken(sanitized, wsAuthTokenSafe);
+        } else {
+          url = await ApiConstants.getDriverLocationWebSocketUrlWithToken(
+              wsAuthTokenSafe);
+        }
       } else {
         url = await ApiConstants.getDriverLocationWebSocketUrlWithToken(
             wsAuthTokenSafe);
@@ -105,6 +107,11 @@ class NativeServiceBridge {
         return true;
       }
       _starting = true;
+
+      bool wasRunning = false;
+      try {
+        wasRunning = await isServiceRunning();
+      } catch (_) {}
 
       final args = <String, dynamic>{
         'token': tk,
@@ -125,7 +132,7 @@ class NativeServiceBridge {
           () => _ch.invokeMethod<bool>('startService', args));
 
       _log(
-          '[Bridge] startService (driverId=$id, base=$resolvedBaseApi, ws=${_maskWs(url)}) → ${ok == true ? "OK" : "NOK"}');
+          '[Bridge] startService${wasRunning ? " refresh" : ""} (driverId=$id, base=$resolvedBaseApi, ws=${_maskWs(url)}) → ${ok == true ? "OK" : "NOK"}');
 
       // If native returned false, sanity check once
       if (ok != true) {
@@ -312,6 +319,41 @@ class NativeServiceBridge {
       ..remove('token')
       ..['token'] = token;
     return uri.replace(queryParameters: nextParams).toString();
+  }
+
+  static String _sanitizeWsUrl(String rawUrl) {
+    final trimmed = rawUrl.trim();
+    if (trimmed.isEmpty) return '';
+    final candidate =
+        trimmed.contains('://') ? trimmed : 'https://$trimmed';
+    try {
+      final uri = Uri.parse(candidate);
+      if (uri.host.isEmpty || uri.port == 0) return '';
+
+      final scheme = uri.scheme == 'https'
+          ? 'wss'
+          : uri.scheme == 'http'
+              ? 'ws'
+              : uri.scheme;
+      if (!(scheme == 'ws' || scheme == 'wss')) return '';
+
+      var path = uri.path.trim();
+      if (path.isEmpty || path == '/') {
+        path = '/ws';
+      } else if (!path.endsWith('/ws') && path != '/ws') {
+        path = '$path/ws';
+      }
+
+      return uri
+          .replace(
+            scheme: scheme,
+            path: path,
+            fragment: '',
+          )
+          .toString();
+    } catch (_) {
+      return '';
+    }
   }
 }
 

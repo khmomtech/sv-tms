@@ -7,8 +7,10 @@ spring:
     password: ${MYSQL_PASSWORD:}
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     show-sql: true
+  flyway:
+    enabled: true
 
   data:
     redis:
@@ -33,3 +35,13 @@ logging:
   level:
     root: INFO
     org.springframework: INFO
+
+telemetry:
+  stream:
+    replay:
+      fixed-delay-ms: ${TELEMETRY_STREAM_REPLAY_FIXED_DELAY_MS:5000}
+      batch-size: ${TELEMETRY_STREAM_REPLAY_BATCH_SIZE:200}
+  outbox:
+    health:
+      warn-oldest-seconds: ${TELEMETRY_OUTBOX_HEALTH_WARN_OLDEST_SECONDS:60}
+      fail-oldest-seconds: ${TELEMETRY_OUTBOX_HEALTH_FAIL_OLDEST_SECONDS:300}

@@ -84,6 +84,13 @@ public class SecurityConfig {
     http
         .csrf(AbstractHttpConfigurer::disable)
         .cors(cors -> cors.configurationSource(appCorsConfigurationSource(allowedOrigins)))
+        .headers(headers -> headers
+                .frameOptions(frame -> frame.deny())
+                .contentTypeOptions(org.springframework.security.config.Customizer.withDefaults())
+                .httpStrictTransportSecurity(hsts -> hsts
+                        .maxAgeInSeconds(31536000)
+                        .includeSubDomains(true))
+                .xssProtection(org.springframework.security.config.Customizer.withDefaults()))
         .exceptionHandling(exceptions -> exceptions
             .authenticationEntryPoint((request, response, authException) -> {
                 response.setStatus(jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED);

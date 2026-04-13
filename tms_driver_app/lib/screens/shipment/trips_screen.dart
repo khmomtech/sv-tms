@@ -180,16 +180,26 @@ class _TripsScreenState extends State<TripsScreen> {
           Provider.of<DriverProvider>(context, listen: false);
       final dispatchProvider =
           Provider.of<DispatchProvider>(context, listen: false);
+      String? driverId = driverProvider.driverId;
 
-      if (driverProvider.driverId != null) {
-        await dispatchProvider.fetchPendingDispatches(
-            driverId: driverProvider.driverId!);
-        await dispatchProvider.fetchInProgressDispatches(
-            driverId: driverProvider.driverId!);
+      if (driverId == null || driverId.trim().isEmpty) {
+        await driverProvider.loadLoggedInDriverId();
+        driverId = driverProvider.driverId;
       }
+
+      if (driverId == null || driverId.trim().isEmpty) {
+        throw StateError('Driver account is not linked');
+      }
+
+      await Future.wait<void>([
+        dispatchProvider.fetchPendingDispatches(driverId: driverId),
+        dispatchProvider.fetchInProgressDispatches(driverId: driverId),
+      ]);
     } catch (e) {
       debugPrint('Error loading active dispatches: $e');
-      setState(() => _lastError = e.toString());
+      if (mounted) {
+        setState(() => _lastError = e.toString());
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -272,7 +282,7 @@ class _TripsScreenState extends State<TripsScreen> {
                                   Text(
                                     _lastError == null
                                         ? tr('dispatch.empty_list')
-                                        : tr('error.data_load_failed'),
+                                        : _emptyStateMessage(),
                                     textAlign: TextAlign.center,
                                     style: const TextStyle(
                                         color: Colors.grey, fontSize: 16),
@@ -312,6 +322,14 @@ class _TripsScreenState extends State<TripsScreen> {
         );
       },
     );
+  }
+
+  String _emptyStateMessage() {
+    final error = _lastError?.toLowerCase() ?? '';
+    if (error.contains('driver account is not linked')) {
+      return tr('home.errors.account_not_linked');
+    }
+    return tr('error.data_load_failed');
   }
 
   // For new stop format, use locationName/address fields

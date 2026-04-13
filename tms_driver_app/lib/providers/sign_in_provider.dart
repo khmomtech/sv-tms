@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
@@ -36,8 +37,6 @@ class SignInProvider with ChangeNotifier {
   bool _inFlight = false; // prevent double-submits
   bool _showRequestApproval = false;
   String? _requestApprovalMessage;
-  final bool _enableDeviceApprovalFlow =
-      env_app_config.AppConfig.requireApprovedDevice;
 
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
@@ -372,14 +371,25 @@ class SignInProvider with ChangeNotifier {
     }
   }
 
-  Future<bool> _startTrackingSessionOrHandleFailure(String deviceId) async {
+  Future<bool> _startTrackingSessionOrHandleFailure(
+    String deviceId, {
+    required bool enableDeviceApprovalFlow,
+    required bool requireTrackingSessionForLogin,
+  }) async {
     await ApiConstants.clearTrackingSession();
     final started = await TrackingSessionManager.instance
         .startTrackingSession(deviceIdOverride: deviceId);
     if (started) {
       return true;
     }
-    if (!_enableDeviceApprovalFlow) {
+    if (!requireTrackingSessionForLogin || !enableDeviceApprovalFlow) {
+      debugPrint(
+          '[SignIn] Tracking session start failed, but continuing login '
+          '(deviceApprovalFlow=$enableDeviceApprovalFlow, '
+          'requireTrackingSessionForLogin=$requireTrackingSessionForLogin)');
+      _requestApprovalMessage = null;
+      _errorMessage = '';
+      setShowRequestApproval(false);
       return true;
     }
 
@@ -391,6 +401,54 @@ class SignInProvider with ChangeNotifier {
     await ApiConstants.clearTokens();
     await ApiConstants.clearUser();
     return false;
+  }
+
+  void _runPostLoginWarmups({
+    required String accessToken,
+    required String driverId,
+    required AppBootstrapProvider bootstrapProvider,
+    required String resolvedDeviceId,
+  }) {
+    final autoApproveLatestLoginDevice = bootstrapProvider.policy<bool>(
+      'auth.auto_approve_latest_login_device',
+      true,
+    );
+    unawaited(Future<void>(() async {
+      try {
+        await _refreshNativeTrackingService(
+          accessToken: accessToken,
+          driverId: driverId,
+        ).timeout(const Duration(seconds: 8));
+      } catch (e) {
+        debugPrint('[SignIn] Warmup: native tracking refresh skipped: $e');
+      }
+
+      try {
+        await TopicSubscriptionService()
+            .subscribeToDynamicTopics()
+            .timeout(const Duration(seconds: 8));
+      } catch (e) {
+        debugPrint('[SignIn] Warmup: topic subscription skipped: $e');
+      }
+
+      if (driverId.isNotEmpty && autoApproveLatestLoginDevice) {
+        try {
+          await _registerDevice(driverId).timeout(const Duration(seconds: 8));
+        } catch (e) {
+          debugPrint('[SignIn] Warmup: device registration skipped: $e');
+        }
+      }
+
+      try {
+        await bootstrapProvider
+            .refreshFromServer(force: true)
+            .timeout(const Duration(seconds: 10));
+      } catch (e) {
+        debugPrint('[SignIn] Warmup: bootstrap refresh skipped: $e');
+      }
+
+      debugPrint('[SignIn] Warmups completed for deviceId=$resolvedDeviceId');
+    }));
   }
 
   // ----------------------------------------------------------------------------
@@ -412,28 +470,20 @@ class SignInProvider with ChangeNotifier {
 
     await ApiConstants.ensureInitialized();
 
-    // Quick connectivity sanity: resolve the actual API host
-    try {
-      final host = Uri.parse(ApiConstants.baseApiUrl).host;
-      final result = await InternetAddress.lookup(host)
-          .timeout(const Duration(seconds: 3));
-      if (result.isEmpty || result.first.rawAddress.isEmpty) {
-        _errorMessage = 'error.no_internet'.tr();
-        return false;
-      }
-    } on SocketException {
-      _errorMessage = 'error.no_internet'.tr();
-      return false;
-    } catch (_) {
-      // continue; server might still be reachable
-    }
-
     final info = await getDeviceInfo();
     final resolvedDeviceId = (deviceId ?? info['deviceId'] ?? '').trim();
     if (!context.mounted) return false;
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     final bootstrapProvider =
         Provider.of<AppBootstrapProvider>(context, listen: false);
+    final enableDeviceApprovalFlow = bootstrapProvider.policy<bool>(
+      'auth.device_approval_required',
+      env_app_config.AppConfig.requireApprovedDevice,
+    );
+    final requireTrackingSessionForLogin = bootstrapProvider.policy<bool>(
+      'auth.login_requires_tracking_session',
+      false,
+    );
 
     try {
       final path = _resolveLocalDirectAuthPath('/auth/driver/login');
@@ -459,7 +509,11 @@ class SignInProvider with ChangeNotifier {
 
         final code = loginData['code']?.toString();
         if (code != 'LOGIN_SUCCESS') {
-          _setErrorFromServerCode(code, loginData['message']?.toString());
+          _setErrorFromServerCode(
+            code,
+            loginData['message']?.toString(),
+            enableDeviceApprovalFlow: enableDeviceApprovalFlow,
+          );
           return false;
         }
 
@@ -469,8 +523,11 @@ class SignInProvider with ChangeNotifier {
         debugPrint('[SignIn] loginData type: ${loginData.runtimeType}');
         debugPrint('[SignIn] loginData content: $loginData');
         await ApiConstants.persistLoginResponse(loginData);
-        final trackingReady =
-            await _startTrackingSessionOrHandleFailure(resolvedDeviceId);
+        final trackingReady = await _startTrackingSessionOrHandleFailure(
+          resolvedDeviceId,
+          enableDeviceApprovalFlow: enableDeviceApprovalFlow,
+          requireTrackingSessionForLogin: requireTrackingSessionForLogin,
+        );
         if (!trackingReady) {
           return false;
         }
@@ -545,22 +602,12 @@ class SignInProvider with ChangeNotifier {
           await driverProvider.saveLoggedInDriverId(driverId, accessToken);
         }
 
-        // 🚀 Start background GPS tracking service
-        try {
-          await _refreshNativeTrackingService(
-            accessToken: accessToken,
-            driverId: driverId,
-          );
-        } catch (e) {
-          debugPrint('[SignIn] Failed to start GPS service: $e');
-          // Continue login even if service fails - user can start manually
-        }
-
-        await TopicSubscriptionService().subscribeToDynamicTopics();
-        await _registerDevice(driverId);
-        try {
-          await bootstrapProvider.refreshFromServer(force: true);
-        } catch (_) {}
+        _runPostLoginWarmups(
+          accessToken: accessToken,
+          driverId: driverId,
+          bootstrapProvider: bootstrapProvider,
+          resolvedDeviceId: resolvedDeviceId,
+        );
 
         setShowRequestApproval(false);
         if (!context.mounted) return true;
@@ -579,7 +626,7 @@ class SignInProvider with ChangeNotifier {
       // is configured to bypass enterprise approval flows, try a retry
       // without sending a deviceId so public users and App Store reviewers
       // can still sign in when the server isn't enforcing device locks.
-      if (!_enableDeviceApprovalFlow &&
+      if (!enableDeviceApprovalFlow &&
           [
             'DEVICE_ID_REQUIRED',
             'DEVICE_NOT_REGISTERED',
@@ -604,8 +651,11 @@ class SignInProvider with ChangeNotifier {
             if (retryData != null &&
                 retryData['code']?.toString() == 'LOGIN_SUCCESS') {
               await ApiConstants.persistLoginResponse(retryData);
-              final trackingReady =
-                  await _startTrackingSessionOrHandleFailure(resolvedDeviceId);
+              final trackingReady = await _startTrackingSessionOrHandleFailure(
+                resolvedDeviceId,
+                enableDeviceApprovalFlow: enableDeviceApprovalFlow,
+                requireTrackingSessionForLogin: requireTrackingSessionForLogin,
+              );
               if (!trackingReady) {
                 return false;
               }
@@ -666,21 +716,12 @@ class SignInProvider with ChangeNotifier {
                     driverId, accessToken);
               }
 
-              // 🚀 Start background GPS tracking service (retry path)
-              try {
-                await _refreshNativeTrackingService(
-                  accessToken: accessToken,
-                  driverId: driverId,
-                );
-              } catch (e) {
-                debugPrint('[SignIn] Failed to start GPS service (retry): $e');
-              }
-
-              await TopicSubscriptionService().subscribeToDynamicTopics();
-              try {
-                await bootstrapProvider.refreshFromServer(force: true);
-              } catch (_) {}
-              // Do not register device in this path
+              _runPostLoginWarmups(
+                accessToken: accessToken,
+                driverId: driverId,
+                bootstrapProvider: bootstrapProvider,
+                resolvedDeviceId: resolvedDeviceId,
+              );
               setShowRequestApproval(false);
               if (!context.mounted) return false;
               return true;
@@ -697,12 +738,16 @@ class SignInProvider with ChangeNotifier {
       debugPrint('  Show Approval Button: ${errorInfo.showApprovalButton}');
 
       // Set error state based on enhanced parsing
-      _setErrorFromServerCode(errorInfo.code, errorInfo.message);
+      _setErrorFromServerCode(
+        errorInfo.code,
+        errorInfo.message,
+        enableDeviceApprovalFlow: enableDeviceApprovalFlow,
+      );
 
       // Override approval button state from enhanced analysis only when
       // device-approval flow is enabled. By default we keep it disabled so
       // login is not blocked by enterprise device/admin approval requirements.
-      if (_enableDeviceApprovalFlow && errorInfo.showApprovalButton) {
+      if (enableDeviceApprovalFlow && errorInfo.showApprovalButton) {
         debugPrint('🔘 Enhanced handler recommends showing approval button');
         setShowRequestApproval(true);
       }
@@ -760,7 +805,11 @@ class SignInProvider with ChangeNotifier {
     }
   }
 
-  void _setErrorFromServerCode(String? code, String? serverMessage) {
+  void _setErrorFromServerCode(
+    String? code,
+    String? serverMessage, {
+    required bool enableDeviceApprovalFlow,
+  }) {
     final tail = (serverMessage == null || serverMessage.isEmpty)
         ? ''
         : ' — $serverMessage';
@@ -794,7 +843,7 @@ class SignInProvider with ChangeNotifier {
             : 'signin.error_device_not_approved'.tr();
         _errorMessage = _requestApprovalMessage!;
         // Only show the approval UI when the device-approval flow is enabled.
-        if (_enableDeviceApprovalFlow) setShowRequestApproval(true);
+        if (enableDeviceApprovalFlow) setShowRequestApproval(true);
         break;
       case 'DEVICE_ACTIVE_ON_OTHER_PHONE':
         _requestApprovalMessage = (serverMessage?.isNotEmpty == true)

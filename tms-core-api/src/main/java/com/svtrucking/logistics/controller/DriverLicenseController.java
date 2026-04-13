@@ -4,8 +4,9 @@ import com.svtrucking.logistics.core.ApiResponse;
 import com.svtrucking.logistics.dto.DriverLicenseDto;
 import com.svtrucking.logistics.service.DriverLicenseService;
 import com.svtrucking.logistics.service.FileStorageService;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -74,16 +75,17 @@ public class DriverLicenseController {
     }
   }
 
-  //  All Licenses (admin use)
+  //  All Licenses (admin use) — paginated
   @GetMapping
-  public ResponseEntity<ApiResponse<List<DriverLicenseDto>>> getAllLicenses(
-      @RequestParam(defaultValue = "false") boolean includeDeleted) {
+  public ResponseEntity<ApiResponse<Page<DriverLicenseDto>>> getAllLicenses(
+      @RequestParam(defaultValue = "false") boolean includeDeleted,
+      Pageable pageable) {
     try {
-      List<DriverLicenseDto> list =
+      Page<DriverLicenseDto> page =
           includeDeleted
-              ? driverLicenseService.getAllLicensesIncludingDeleted()
-              : driverLicenseService.getAllLicenses();
-      return ResponseEntity.ok(new ApiResponse<>(true, "Licenses fetched", list));
+              ? driverLicenseService.getAllLicensesIncludingDeleted(pageable)
+              : driverLicenseService.getAllLicenses(pageable);
+      return ResponseEntity.ok(new ApiResponse<>(true, "Licenses fetched", page));
     } catch (Exception e) {
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
           .body(new ApiResponse<>(false, "Failed to fetch licenses: " + e.getMessage()));

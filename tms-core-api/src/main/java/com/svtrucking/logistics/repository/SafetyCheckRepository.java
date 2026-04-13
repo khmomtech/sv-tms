@@ -13,10 +13,21 @@ import org.springframework.data.jpa.repository.EntityGraph;
 public interface SafetyCheckRepository
     extends JpaRepository<SafetyCheck, Long>, JpaSpecificationExecutor<SafetyCheck> {
 
-  Optional<SafetyCheck> findByCheckDateAndDriverIdAndVehicleId(
+  List<SafetyCheck> findByCheckDateAndDriverIdAndVehicleIdOrderByIdDesc(
       LocalDate checkDate, Long driverId, Long vehicleId);
 
-  Optional<SafetyCheck> findByCheckDateAndVehicleId(LocalDate checkDate, Long vehicleId);
+  List<SafetyCheck> findByCheckDateAndVehicleIdOrderByIdDesc(LocalDate checkDate, Long vehicleId);
+
+  default Optional<SafetyCheck> findLatestByCheckDateAndDriverIdAndVehicleId(
+      LocalDate checkDate, Long driverId, Long vehicleId) {
+    return findByCheckDateAndDriverIdAndVehicleIdOrderByIdDesc(checkDate, driverId, vehicleId)
+        .stream()
+        .findFirst();
+  }
+
+  default Optional<SafetyCheck> findLatestByCheckDateAndVehicleId(LocalDate checkDate, Long vehicleId) {
+    return findByCheckDateAndVehicleIdOrderByIdDesc(checkDate, vehicleId).stream().findFirst();
+  }
 
   @EntityGraph(attributePaths = {"driver", "vehicle"})
   Page<SafetyCheck> findByDriverIdAndCheckDateBetween(

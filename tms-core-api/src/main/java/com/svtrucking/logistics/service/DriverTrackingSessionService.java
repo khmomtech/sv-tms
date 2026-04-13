@@ -40,6 +40,12 @@ public class DriverTrackingSessionService {
   @Value("${app.driver.require-approved-device-for-tracking:false}")
   private boolean requireApprovedDeviceForTracking;
 
+  @Value("${app.driver.skip-device-check:false}")
+  private boolean skipDeviceCheck;
+
+  @Value("${app.driver.login-bypass:false}")
+  private boolean driverLoginBypass;
+
   @Transactional
   public TrackingSessionResponse startSession(String username, TrackingSessionStartRequest req) {
     User user = userRepository
@@ -112,7 +118,7 @@ public class DriverTrackingSessionService {
     if (!"tracking".equalsIgnoreCase(jwtUtil.extractTokenType(trackingToken))) {
       throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Not a tracking token");
     }
-    Claims claims = jwtUtil.extractAccessClaims(trackingToken);
+    Claims claims = jwtUtil.extractAccessClaimsAllowExpired(trackingToken);
     String sessionId = jwtUtil.extractSessionIdClaim(trackingToken);
     Long driverId = jwtUtil.extractDriverIdClaim(trackingToken);
     String deviceId = jwtUtil.extractDeviceIdClaim(trackingToken);
@@ -125,14 +131,14 @@ public class DriverTrackingSessionService {
         .findBySessionIdAndRevokedAtIsNull(sessionId)
         .orElseThrow(
             () -> new ResponseStatusException(
-                HttpStatus.UNAUTHORIZED, "Tracking session not active"));
+                HttpStatus.FORBIDDEN, "Tracking session not active"));
     LocalDateTime now = LocalDateTime.now();
     if (session.getExpiresAt() != null && session.getExpiresAt().isBefore(now)) {
-      throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Tracking session expired");
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Tracking session expired");
     }
     if (!session.getDriver().getId().equals(driverId)
         || !session.getDeviceId().equals(deviceId)) {
-      throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Tracking session mismatch");
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Tracking session mismatch");
     }
 
     session.setLastSeen(now);
@@ -165,6 +171,24 @@ public class DriverTrackingSessionService {
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Session not found"));
     session.setRevokedAt(LocalDateTime.now());
     trackingSessionRepository.save(session);
+  }
+
+  @Transactional
+  public int revokeActiveSessionsForDriver(Long driverId) {
+    if (driverId == null) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "driverId is required");
+    }
+    List<DriverTrackingSession> activeSessions =
+        trackingSessionRepository.findByDriverIdAndRevokedAtIsNullOrderByIssuedAtDesc(driverId);
+    if (activeSessions.isEmpty()) {
+      return 0;
+    }
+    LocalDateTime now = LocalDateTime.now();
+    for (DriverTrackingSession session : activeSessions) {
+      session.setRevokedAt(now);
+    }
+    trackingSessionRepository.saveAll(activeSessions);
+    return activeSessions.size();
   }
 
   @Transactional
@@ -203,16 +227,17 @@ public class DriverTrackingSessionService {
 
     DriverTrackingSession session = trackingSessionRepository
         .findBySessionIdAndRevokedAtIsNull(tokenSessionId)
-        .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Tracking session not active"));
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "Tracking session not active"));
     LocalDateTime now = LocalDateTime.now();
     if (session.getExpiresAt() != null && session.getExpiresAt().isBefore(now)) {
-      throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Tracking session expired");
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Tracking session expired");
     }
     if (!session.getDriver().getId().equals(tokenDriverId)) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "session driver mismatch");
     }
     assertApprovedDeviceForTracking(session.getDriver().getId(), session.getDeviceId());
     session.setLastSeen(now);
+    session.setExpiresAt(now.plusSeconds(Math.max(1L, trackingTtlMs / 1000L)));
     trackingSessionRepository.save(session);
   }
 
@@ -224,7 +249,16 @@ public class DriverTrackingSessionService {
   }
 
   private void assertApprovedDeviceForTracking(Long driverId, String deviceId) {
-    if (!requireApprovedDeviceForTracking) {
+    if (!requireApprovedDeviceForTracking || skipDeviceCheck || driverLoginBypass) {
+      if (skipDeviceCheck || driverLoginBypass) {
+        log.debug(
+            "Skipping tracking device approval check for driverId={} deviceId={} (requireApproved={}, skipDeviceCheck={}, loginBypass={})",
+            driverId,
+            deviceId,
+            requireApprovedDeviceForTracking,
+            skipDeviceCheck,
+            driverLoginBypass);
+      }
       return;
     }
     if (!deviceRegistrationService.isDeviceApproved(driverId, deviceId)) {

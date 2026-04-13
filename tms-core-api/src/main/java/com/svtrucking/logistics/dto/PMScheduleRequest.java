@@ -19,6 +19,7 @@ public class PMScheduleRequest {
     private String description;
     private PMTriggerType triggerType;
     private Integer triggerInterval;
+    private Integer triggerIntervalDays;
     private Integer reminderBeforeKm;
     private Integer reminderBeforeDays;
     private Long taskTypeId;

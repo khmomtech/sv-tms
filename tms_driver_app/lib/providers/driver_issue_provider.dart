@@ -2,15 +2,16 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
 import 'package:http_parser/http_parser.dart';
 import 'package:tms_driver_app/core/network/dio_client.dart';
 import 'package:tms_driver_app/models/driver_issue_model.dart';
+import 'package:tms_driver_app/utils/error_handler.dart';
 
 class DriverIssueProvider with ChangeNotifier {
   final DioClient _dio = DioClient();
-  List<DriverIssue> _issues = [];
+  final List<DriverIssue> _issues = [];
   int _page = 0;
   bool _hasMore = true;
   bool _isLoading = false;
@@ -103,7 +104,7 @@ class DriverIssueProvider with ChangeNotifier {
       _notifySafely();
       return created;
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = e is DioException ? _friendlyError(e) : ErrorHandler.getFriendlyMessage(e);
       rethrow;
     }
   }
@@ -155,7 +156,7 @@ class DriverIssueProvider with ChangeNotifier {
       }
 
       final jsonData = response.data;
-      dynamic data = _unwrapData(jsonData);
+      final data = _unwrapData(jsonData);
 
       List<dynamic> content;
       if (data is List) {
@@ -195,12 +196,10 @@ class DriverIssueProvider with ChangeNotifier {
       _page++;
       _notifySafely();
     } on DioException catch (e) {
-      _errorMessage = _extractMessage(
-          e.response?.data, e.response?.statusCode ?? 0,
-          fallback: e.message);
+      _errorMessage = _friendlyError(e);
       _notifySafely();
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = ErrorHandler.getFriendlyMessage(e);
       _notifySafely();
     } finally {
       _isLoading = false;
@@ -322,6 +321,27 @@ class DriverIssueProvider with ChangeNotifier {
       return body;
     }
     return fallback ?? 'Request failed (HTTP $statusCode)';
+  }
+
+  String _friendlyError(DioException e) {
+    final status = e.response?.statusCode;
+    if (status != null) {
+      return ErrorHandler.fromStatusCode(status);
+    }
+
+    final body = e.response?.data;
+    if (body is Map && body['message'] is String) {
+      return body['message'] as String;
+    }
+
+    if (e.type == DioExceptionType.connectionError ||
+        e.type == DioExceptionType.connectionTimeout ||
+        e.type == DioExceptionType.receiveTimeout ||
+        e.type == DioExceptionType.sendTimeout) {
+      return ErrorHandler.getFriendlyMessage(e.error ?? e.message ?? e);
+    }
+
+    return ErrorHandler.getFriendlyMessage(e);
   }
 
   String? _formatDate(DateTime? date) {

@@ -71,9 +71,7 @@ public class ItemDto {
 
     String normalized = rawType.trim().toUpperCase();
 
-    // Special mapping
-    if (normalized.equals("BEVERAGE"))
-      return ItemType.CONSUMER_GOODS; // or define BEVERAGE in enum if needed
+    if (normalized.equals("BEVERAGE")) return ItemType.BEVERAGE;
 
     try {
       return ItemType.valueOf(normalized);

@@ -63,8 +63,15 @@ export class RoleManagement implements OnInit {
   totalRoles = 0;
   totalPermissions = 0;
 
+  private static readonly SYSTEM_ROLES = new Set([
+    'SUPERADMIN', 'ADMIN', 'MANAGER', 'DRIVER', 'CUSTOMER',
+    'TECHNICIAN', 'SAFETY', 'LOADING', 'DISPATCH_MONITOR', 'PARTNER_ADMIN', 'USER',
+  ]);
+
   get systemRolesCount(): number {
-    return this.roles.filter((r) => r.name === 'Admin').length;
+    return this.roles.filter((r) =>
+      RoleManagement.SYSTEM_ROLES.has((r.name ?? '').toUpperCase()),
+    ).length;
   }
 
   constructor(

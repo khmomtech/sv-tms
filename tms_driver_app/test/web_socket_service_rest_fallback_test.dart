@@ -69,7 +69,7 @@ void main() {
 
     final req =
         await received.future.timeout(const Duration(seconds: 5));
-    expect(req['path'], '/api/driver/location/update');
+    expect(req['path'], '/api/driver/location');
     expect(req['auth'], 'Bearer token-abc');
     final body = req['body'] as Map<String, dynamic>;
     expect(body['driverId'], 30211);

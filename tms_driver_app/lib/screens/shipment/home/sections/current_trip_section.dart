@@ -5,16 +5,21 @@ import 'package:tms_driver_app/screens/shipment/home/home_state.dart';
 class CurrentTripSection extends StatelessWidget {
   const CurrentTripSection({
     required this.trip,
+    required this.onTap,
     super.key,
   });
 
   final HomeCurrentTripVm? trip;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Container(
+      child: InkWell(
+        onTap: (trip != null && onTap != null) ? onTap : null,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
@@ -49,6 +54,7 @@ class CurrentTripSection extends StatelessWidget {
             else
               _TripBody(trip: trip!),
           ],
+        ),
         ),
       ),
     );

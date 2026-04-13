@@ -39,6 +39,14 @@ interface RuleDraft {
   actors: Partial<Record<DispatchFlowActorType, boolean>>;
 }
 
+interface TemplateDraft {
+  id: number;
+  code: string;
+  name: string;
+  description: string;
+  active: boolean;
+}
+
 @Component({
   selector: 'app-dispatch-flow-policy',
   standalone: true,
@@ -47,9 +55,9 @@ interface RuleDraft {
     <div class="relative rounded-lg bg-white p-6">
       <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
-          <h2 class="text-xl font-bold">Dispatch Flow Policy</h2>
+          <h2 class="text-xl font-bold">Shipment Flow Policy</h2>
           <p class="text-sm text-gray-500">
-            Manage templates, actor ownership, proof policy, and live dispatch diagnostics.
+            Manage templates, actor ownership, proof policy, and live shipment diagnostics.
           </p>
         </div>
         <button
@@ -139,6 +147,54 @@ interface RuleDraft {
           <ng-container *ngIf="selectedTemplate as st">
             <div class="mb-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
               <div class="rounded border bg-slate-50 p-3">
+                <div class="mb-2 font-semibold">Template Details</div>
+                <div *ngIf="templateDraft as draft" class="grid grid-cols-1 gap-2">
+                  <input
+                    class="rounded border p-2"
+                    [(ngModel)]="draft.code"
+                    placeholder="Template code"
+                  />
+                  <input
+                    class="rounded border p-2"
+                    [(ngModel)]="draft.name"
+                    placeholder="Template name"
+                  />
+                  <input
+                    class="rounded border p-2"
+                    [(ngModel)]="draft.description"
+                    placeholder="Template description"
+                  />
+                  <label class="flex items-center gap-2 text-sm">
+                    <input type="checkbox" [(ngModel)]="draft.active" />
+                    Active
+                  </label>
+                  <div class="flex flex-wrap gap-2">
+                    <button
+                      class="rounded bg-blue-600 px-3 py-2 text-white"
+                      (click)="saveSelectedTemplate()"
+                      [disabled]="saving || !hasTemplateDraftChanges()"
+                    >
+                      Save Template
+                    </button>
+                    <button
+                      class="rounded bg-slate-300 px-3 py-2 text-slate-800"
+                      (click)="resetTemplateDraft()"
+                      [disabled]="saving || !hasTemplateDraftChanges()"
+                    >
+                      Reset
+                    </button>
+                    <button
+                      class="rounded bg-red-600 px-3 py-2 text-white"
+                      (click)="deleteSelectedTemplate()"
+                      [disabled]="saving"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="rounded border bg-slate-50 p-3">
                 <div class="mb-2 font-semibold">Published Versions</div>
                 <div class="grid grid-cols-1 gap-2">
                   <input
@@ -205,7 +261,7 @@ interface RuleDraft {
                     (click)="assignDispatches()"
                     [disabled]="saving"
                   >
-                    Assign Template To Dispatches
+                    Assign Template To Shipments
                   </button>
                 </div>
               </div>
@@ -219,16 +275,6 @@ interface RuleDraft {
                 </p>
               </div>
               <div class="flex flex-wrap items-center gap-2">
-                <label class="flex items-center gap-2 text-sm">
-                  <input type="checkbox" [(ngModel)]="st.active" (change)="saveTemplate(st)" />
-                  Template active
-                </label>
-                <button
-                  class="rounded bg-red-600 px-3 py-2 text-white"
-                  (click)="deleteSelectedTemplate()"
-                >
-                  Delete
-                </button>
                 <button
                   class="rounded bg-slate-700 px-3 py-2 text-white"
                   (click)="openCreateRuleDrawer()"
@@ -717,6 +763,7 @@ interface RuleDraft {
 export class DispatchFlowPolicyComponent implements OnInit {
   templates: DispatchFlowTemplate[] = [];
   selectedTemplate: DispatchFlowTemplate | null = null;
+  templateDraft: TemplateDraft | null = null;
   rules: DispatchFlowRule[] = [];
   versions: DispatchFlowTemplateVersion[] = [];
   resolution: DispatchFlowResolution | null = null;
@@ -825,6 +872,7 @@ export class DispatchFlowPolicyComponent implements OnInit {
 
   selectTemplate(template: DispatchFlowTemplate): void {
     this.selectedTemplate = template;
+    this.templateDraft = this.createTemplateDraft(template);
     this.closeDrawer();
     this.loadRules(template.id);
     this.loadVersions(template.id);
@@ -943,6 +991,7 @@ export class DispatchFlowPolicyComponent implements OnInit {
 
   saveTemplate(template: DispatchFlowTemplate): void {
     this.saving = true;
+    this.errorMessage = null;
     this.policyService
       .updateTemplate(template.id, {
         code: template.code,
@@ -952,8 +1001,9 @@ export class DispatchFlowPolicyComponent implements OnInit {
       })
       .pipe(finalize(() => (this.saving = false)))
       .subscribe({
-        next: () => {
-          this.successMessage = `Template ${template.code} updated.`;
+        next: (saved) => {
+          this.replaceTemplate(saved);
+          this.successMessage = `Template ${saved.code} updated.`;
         },
         error: (err) => {
           this.errorMessage = err.message ?? 'Failed to update template';
@@ -1028,15 +1078,61 @@ export class DispatchFlowPolicyComponent implements OnInit {
       .subscribe({
         next: () => {
           this.successMessage = `Template ${target.code} deleted.`;
+          this.templates = this.templates.filter((template) => template.id !== target.id);
           this.selectedTemplate = null;
+          this.templateDraft = null;
           this.rules = [];
+          this.versions = [];
           this.closeDrawer();
-          this.reloadAll();
+          if (this.templates.length > 0) {
+            this.selectTemplate(this.templates[0]);
+          }
         },
         error: (err) => {
           this.errorMessage = err.message ?? 'Failed to delete template';
         },
       });
+  }
+
+  saveSelectedTemplate(): void {
+    if (!this.selectedTemplate || !this.templateDraft) {
+      return;
+    }
+
+    const code = this.templateDraft.code.trim().toUpperCase();
+    const name = this.templateDraft.name.trim();
+    if (!code || !name) {
+      this.errorMessage = 'Template code and name are required.';
+      return;
+    }
+
+    this.saveTemplate({
+      ...this.selectedTemplate,
+      code,
+      name,
+      description: this.templateDraft.description.trim(),
+      active: this.templateDraft.active,
+    });
+  }
+
+  resetTemplateDraft(): void {
+    if (!this.selectedTemplate) {
+      return;
+    }
+    this.templateDraft = this.createTemplateDraft(this.selectedTemplate);
+  }
+
+  hasTemplateDraftChanges(): boolean {
+    if (!this.selectedTemplate || !this.templateDraft) {
+      return false;
+    }
+
+    return (
+      this.templateDraft.code.trim().toUpperCase() !== this.selectedTemplate.code ||
+      this.templateDraft.name.trim() !== this.selectedTemplate.name ||
+      this.templateDraft.description.trim() !== (this.selectedTemplate.description ?? '') ||
+      this.templateDraft.active !== this.selectedTemplate.active
+    );
   }
 
   openCreateRuleDrawer(): void {
@@ -1480,5 +1576,21 @@ export class DispatchFlowPolicyComponent implements OnInit {
   private priorityForRuleId(ruleId: number): number {
     const index = this.rules.findIndex((rule) => rule.id === ruleId);
     return index < 0 ? 100 : index + 1;
+  }
+
+  private createTemplateDraft(template: DispatchFlowTemplate): TemplateDraft {
+    return {
+      id: template.id,
+      code: template.code,
+      name: template.name,
+      description: template.description ?? '',
+      active: template.active,
+    };
+  }
+
+  private replaceTemplate(saved: DispatchFlowTemplate): void {
+    this.templates = this.templates.map((template) => (template.id === saved.id ? saved : template));
+    this.selectedTemplate = saved;
+    this.templateDraft = this.createTemplateDraft(saved);
   }
 }

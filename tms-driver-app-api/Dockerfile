@@ -18,7 +18,8 @@ COPY tms-core-api/src tms-core-api/src
 COPY tms-driver-app-api/src tms-driver-app-api/src
 
 RUN --mount=type=cache,target=/root/.m2 \
-    mvn -pl tms-driver-app-api -am clean package -Dmaven.test.skip=true
+    MAVEN_OPTS="-Xmx768m -XX:+UseContainerSupport" \
+    mvn -pl tms-driver-app-api -am clean package -Dmaven.test.skip=true -T1
 
 RUN mkdir -p /layers/driver-app \
  && cd /layers/driver-app \
@@ -30,7 +31,7 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=builder /layers/driver-app/ /app/
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=10 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=300s --retries=10 \
  CMD curl -f http://localhost:8084/actuator/health || exit 1
 EXPOSE 8084
 ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]

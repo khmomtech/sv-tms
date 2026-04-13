@@ -33,25 +33,25 @@ For Docker-based local testing:
 
 The canonical local stack is:
 
-- [LOCAL_DEVELOPMENT.md](/Users/sotheakh/Documents/develop/sv-tms/LOCAL_DEVELOPMENT.md)
+- [LOCAL_DEVELOPMENT.md](LOCAL_DEVELOPMENT.md)
 
 Use the integration guide when you want several services running together:
 
-- [INTEGRATION_DEVELOPMENT_DEBUG_GUIDE.md](/Users/sotheakh/Documents/develop/sv-tms/docs/guides/INTEGRATION_DEVELOPMENT_DEBUG_GUIDE.md)
+- [INTEGRATION_DEVELOPMENT_DEBUG_GUIDE.md](docs/guides/INTEGRATION_DEVELOPMENT_DEBUG_GUIDE.md)
 
 ## Useful Commands
 
 ### Compile selected backend modules
 
 ```bash
-cd /Users/sotheakh/Documents/develop/sv-tms
+cd sv-tms
 mvn -pl tms-core-api,tms-auth-api,tms-driver-app-api,tms-telematics-api,api-gateway -am -DskipTests compile
 ```
 
 ### Run targeted tests
 
 ```bash
-cd /Users/sotheakh/Documents/develop/sv-tms
+cd sv-tms
 mvn -pl tms-core-api -DfailIfNoTests=false test
 mvn -pl tms-auth-api -DfailIfNoTests=false test
 mvn -pl tms-driver-app-api -DfailIfNoTests=false test
@@ -61,7 +61,7 @@ mvn -pl tms-telematics-api -DfailIfNoTests=false test
 ### Run frontend checks
 
 ```bash
-cd /Users/sotheakh/Documents/develop/sv-tms/tms-admin-web-ui
+cd tms-admin-web-ui
 npm ci --legacy-peer-deps
 npm run build
 npm run lint

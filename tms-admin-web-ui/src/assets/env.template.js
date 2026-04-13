@@ -8,6 +8,8 @@
     apiBaseUrl: '/api',
     wsSocketUrl: '/ws',
     sockJsUrl: '/ws-sockjs',
+    telematicsWsSocketUrl: '/tele-ws',
+    telematicsSockJsUrl: '/tele-ws-sockjs',
     useSockJs: true,
 
     // Google Maps API Key

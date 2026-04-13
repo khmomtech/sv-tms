@@ -1,151 +1,144 @@
-<div class="flex flex-col w-full min-h-screen bg-gradient-to-b from-gray-50 to-white">
-  <!-- TopBar -->
-  <div class="bg-white border-b border-gray-200">
-    <div class="px-6 max-w-6xl mx-auto w-full py-4">
-      <p class="text-xs font-semibold text-gray-500 uppercase tracking-widest">
-        Transport Management System
-      </p>
-    </div>
-  </div>
-
-  <!-- Main Content Area -->
+<div class="flex flex-col w-full min-h-screen bg-gray-50">
   <div class="flex-1 flex flex-col">
-    <div class="px-6 max-w-6xl mx-auto w-full flex flex-col gap-8 py-6 md:py-8">
-      <!-- Page Header -->
-      <div class="p-6 bg-white rounded-lg shadow-sm border border-gray-100">
-        <h2
-          class="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent"
-        >
-          Geofence Management
-        </h2>
-        <p class="text-sm text-gray-600 mt-2">
-          Create and manage geofences using visual drawing tools. Draw zones directly on the map or
-          use the form to create precise boundaries.
-        </p>
+    <div class="px-6 max-w-6xl mx-auto w-full flex flex-col gap-6 py-6 md:py-8">
+      <div class="flex items-start justify-between gap-4 p-6 bg-white rounded-lg shadow-sm border border-gray-200">
+        <div>
+          <h2 class="text-3xl font-bold text-gray-900">{{ 'geofenceManagement.title' | translate }}</h2>
+          <p class="mt-2 text-sm text-gray-600">
+            {{ 'geofenceManagement.subtitle' | translate }}
+          </p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <button
+            *ngIf="canCreate()"
+            class="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
+            (click)="openCreateDialog()"
+          >
+            <span class="material-icons text-base">add</span>
+            <span>{{ 'geofenceManagement.new_geofence' | translate }}</span>
+          </button>
+          <button
+            class="flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors text-sm"
+            (click)="loadGeofences()"
+          >
+            <span class="material-icons text-base">refresh</span>
+            <span>{{ 'common.refresh' | translate }}</span>
+          </button>
+        </div>
       </div>
 
-      <!-- Stats Dashboard -->
-      <div class="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-4 mb-6">
-        <div
-          class="flex items-start gap-3 p-4 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md hover:-translate-y-1 transition-all cursor-pointer"
-          [title]="'All geofences in the system'"
-        >
-          <div
-            class="flex items-center justify-center w-12 h-12 rounded-lg bg-blue-500 text-white flex-shrink-0"
-          >
-            <span class="material-icons text-lg">location_on</span>
-          </div>
-          <div class="flex flex-col gap-1 flex-1">
-            <p class="text-xs font-semibold text-gray-600 uppercase tracking-wide">
-              Total Geofences
-            </p>
-            <p class="text-2xl font-bold text-gray-900">{{ totalGeofences }}</p>
-          </div>
-        </div>
+      <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-4 md:p-5">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div class="flex flex-wrap items-center gap-2">
+            <button
+              class="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors"
+              [class.border-indigo-500]="filter.status === 'all' && !filter.type && !filter.alertType"
+              [class.bg-indigo-50]="filter.status === 'all' && !filter.type && !filter.alertType"
+              [class.text-indigo-700]="filter.status === 'all' && !filter.type && !filter.alertType"
+              [class.border-gray-200]="!(filter.status === 'all' && !filter.type && !filter.alertType)"
+              [class.text-gray-700]="!(filter.status === 'all' && !filter.type && !filter.alertType)"
+              (click)="clearFilters()"
+            >
+              <span class="font-semibold">{{ 'geofenceManagement.all' | translate }}</span>
+              <span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-700">{{ totalGeofences }}</span>
+            </button>
 
-        <div
-          class="flex items-start gap-3 p-4 bg-white border rounded-lg shadow-sm hover:shadow-md hover:-translate-y-1 transition-all cursor-pointer"
-          [class.border-green-500]="filter.status === 'active'"
-          [class.border-gray-200]="filter.status !== 'active'"
-          [class.bg-green-50]="filter.status === 'active'"
-          [title]="'Currently active and monitoring'"
-          (click)="filterByStatus('active')"
-        >
-          <div
-            class="flex items-center justify-center w-12 h-12 rounded-lg bg-green-500 text-white flex-shrink-0"
-          >
-            <span class="material-icons text-lg">check_circle</span>
-          </div>
-          <div class="flex flex-col gap-1 flex-1">
-            <p class="text-xs font-semibold text-gray-600 uppercase tracking-wide">Active</p>
-            <p class="text-2xl font-bold text-gray-900">{{ activeGeofences }}</p>
-          </div>
-        </div>
+            <button
+              class="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors"
+              [class.border-green-500]="filter.status === 'active'"
+              [class.bg-green-50]="filter.status === 'active'"
+              [class.text-green-700]="filter.status === 'active'"
+              [class.border-gray-200]="filter.status !== 'active'"
+              [class.text-gray-700]="filter.status !== 'active'"
+              (click)="filterByStatus('active')"
+            >
+              <span class="font-semibold">{{ 'geofenceManagement.active' | translate }}</span>
+              <span class="rounded-full bg-white/80 px-2 py-0.5 text-xs">{{ activeGeofences }}</span>
+            </button>
 
-        <div
-          class="flex items-start gap-3 p-4 bg-white border rounded-lg shadow-sm hover:shadow-md hover:-translate-y-1 transition-all cursor-pointer"
-          [class.border-gray-500]="filter.status === 'inactive'"
-          [class.border-gray-200]="filter.status !== 'inactive'"
-          [class.bg-gray-50]="filter.status === 'inactive'"
-          [title]="'Disabled or paused geofences'"
-          (click)="filterByStatus('inactive')"
-        >
-          <div
-            class="flex items-center justify-center w-12 h-12 rounded-lg bg-gray-500 text-white flex-shrink-0"
-          >
-            <span class="material-icons text-lg">cancel</span>
-          </div>
-          <div class="flex flex-col gap-1 flex-1">
-            <p class="text-xs font-semibold text-gray-600 uppercase tracking-wide">Inactive</p>
-            <p class="text-2xl font-bold text-gray-900">{{ inactiveGeofences }}</p>
-          </div>
-        </div>
+            <button
+              class="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors"
+              [class.border-gray-500]="filter.status === 'inactive'"
+              [class.bg-gray-100]="filter.status === 'inactive'"
+              [class.text-gray-800]="filter.status === 'inactive'"
+              [class.border-gray-200]="filter.status !== 'inactive'"
+              [class.text-gray-700]="filter.status !== 'inactive'"
+              (click)="filterByStatus('inactive')"
+            >
+              <span class="font-semibold">{{ 'geofenceManagement.inactive' | translate }}</span>
+              <span class="rounded-full bg-white/80 px-2 py-0.5 text-xs">{{ inactiveGeofences }}</span>
+            </button>
 
-        <div
-          class="flex items-start gap-3 p-4 bg-white border rounded-lg shadow-sm hover:shadow-md hover:-translate-y-1 transition-all cursor-pointer"
-          [class.border-amber-500]="filter.type === GeofenceType.CIRCLE"
-          [class.border-gray-200]="filter.type !== GeofenceType.CIRCLE"
-          [class.bg-amber-50]="filter.type === GeofenceType.CIRCLE"
-          [title]="'Circular geofence zones'"
-          (click)="filterByType(GeofenceType.CIRCLE)"
-        >
-          <div
-            class="flex items-center justify-center w-12 h-12 rounded-lg bg-amber-500 text-white flex-shrink-0"
-          >
-            <span class="material-icons text-lg">circle</span>
-          </div>
-          <div class="flex flex-col gap-1 flex-1">
-            <p class="text-xs font-semibold text-gray-600 uppercase tracking-wide">Circles</p>
-            <p class="text-2xl font-bold text-gray-900">{{ circleCount }}</p>
-          </div>
-        </div>
+            <button
+              class="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors"
+              [class.border-amber-500]="filter.type === GeofenceType.CIRCLE"
+              [class.bg-amber-50]="filter.type === GeofenceType.CIRCLE"
+              [class.text-amber-700]="filter.type === GeofenceType.CIRCLE"
+              [class.border-gray-200]="filter.type !== GeofenceType.CIRCLE"
+              [class.text-gray-700]="filter.type !== GeofenceType.CIRCLE"
+              (click)="filterByType(GeofenceType.CIRCLE)"
+            >
+              <span class="font-semibold">{{ 'geofenceManagement.circles' | translate }}</span>
+              <span class="rounded-full bg-white/80 px-2 py-0.5 text-xs">{{ circleCount }}</span>
+            </button>
 
-        <div
-          class="flex items-start gap-3 p-4 bg-white border rounded-lg shadow-sm hover:shadow-md hover:-translate-y-1 transition-all cursor-pointer"
-          [class.border-violet-500]="filter.type === GeofenceType.POLYGON"
-          [class.border-gray-200]="filter.type !== GeofenceType.POLYGON"
-          [class.bg-violet-50]="filter.type === GeofenceType.POLYGON"
-          [title]="'Polygon geofence zones'"
-          (click)="filterByType(GeofenceType.POLYGON)"
-        >
-          <div
-            class="flex items-center justify-center w-12 h-12 rounded-lg bg-violet-500 text-white flex-shrink-0"
-          >
-            <span class="material-icons text-lg">change_history</span>
-          </div>
-          <div class="flex flex-col gap-1 flex-1">
-            <p class="text-xs font-semibold text-gray-600 uppercase tracking-wide">Polygons</p>
-            <p class="text-2xl font-bold text-gray-900">{{ polygonCount }}</p>
-          </div>
-        </div>
+            <button
+              class="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors"
+              [class.border-violet-500]="filter.type === GeofenceType.POLYGON"
+              [class.bg-violet-50]="filter.type === GeofenceType.POLYGON"
+              [class.text-violet-700]="filter.type === GeofenceType.POLYGON"
+              [class.border-gray-200]="filter.type !== GeofenceType.POLYGON"
+              [class.text-gray-700]="filter.type !== GeofenceType.POLYGON"
+              (click)="filterByType(GeofenceType.POLYGON)"
+            >
+              <span class="font-semibold">{{ 'geofenceManagement.polygons' | translate }}</span>
+              <span class="rounded-full bg-white/80 px-2 py-0.5 text-xs">{{ polygonCount }}</span>
+            </button>
 
-        <div
-          class="flex items-start gap-3 p-4 bg-white border rounded-lg shadow-sm hover:shadow-md hover:-translate-y-1 transition-all cursor-pointer"
-          [class.border-pink-500]="filter.alertType === AlertTypeEnum.ENTER"
-          [class.border-gray-200]="filter.alertType !== AlertTypeEnum.ENTER"
-          [class.bg-pink-50]="filter.alertType === AlertTypeEnum.ENTER"
-          [title]="'Zones triggering alerts on entry'"
-          (click)="filterByAlertType(AlertTypeEnum.ENTER)"
-        >
-          <div
-            class="flex items-center justify-center w-12 h-12 rounded-lg bg-pink-500 text-white flex-shrink-0"
-          >
-            <span class="material-icons text-lg">notifications_active</span>
+            <button
+              class="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors"
+              [class.border-pink-500]="filter.alertType === AlertTypeEnum.ENTER"
+              [class.bg-pink-50]="filter.alertType === AlertTypeEnum.ENTER"
+              [class.text-pink-700]="filter.alertType === AlertTypeEnum.ENTER"
+              [class.border-gray-200]="filter.alertType !== AlertTypeEnum.ENTER"
+              [class.text-gray-700]="filter.alertType !== AlertTypeEnum.ENTER"
+              (click)="filterByAlertType(AlertTypeEnum.ENTER)"
+            >
+              <span class="font-semibold">{{ 'geofenceManagement.entry_alerts' | translate }}</span>
+              <span class="rounded-full bg-white/80 px-2 py-0.5 text-xs">{{ entryAlertCount }}</span>
+            </button>
           </div>
-          <div class="flex flex-col gap-1 flex-1">
-            <p class="text-xs font-semibold text-gray-600 uppercase tracking-wide">Entry Alerts</p>
-            <p class="text-2xl font-bold text-gray-900">{{ entryAlertCount }}</p>
+
+          <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-600">
+            <span>
+              {{ 'geofenceManagement.showing' | translate }}
+              <strong class="text-gray-900">{{ filteredGeofences.length }}</strong>
+              {{ 'geofenceManagement.of' | translate }}
+              <strong class="text-gray-900">{{ geofences.length }}</strong>
+            </span>
+            <span *ngIf="selectedCount > 0">
+              {{ 'geofenceManagement.selected' | translate }}
+              <strong class="text-gray-900">{{ selectedCount }}</strong>
+            </span>
+            <button
+              *ngIf="activeFilterChips.length > 0"
+              class="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-700 font-medium"
+              (click)="clearFilters()"
+            >
+              <span class="material-icons text-base">filter_alt_off</span>
+              <span>{{ 'geofenceManagement.clear_quick_filters' | translate }}</span>
+            </button>
           </div>
         </div>
       </div>
 
       <div
         *ngIf="drawingMode"
-        class="drawing-indicator m-0 mx-6 max-w-[calc(100vw-48px)] bg-gradient-to-r from-purple-100 to-indigo-100 border border-purple-300 rounded-lg p-4 flex items-center gap-4"
+        class="drawing-indicator bg-gradient-to-r from-purple-100 to-indigo-100 border border-purple-300 rounded-lg p-4 flex items-center gap-4"
       >
         <span class="material-icons text-purple-600">draw</span>
         <span class="text-sm font-medium text-gray-900">
-          Drawing mode active:
+          {{ 'geofenceManagement.drawing_mode_active' | translate }}:
           {{
             drawingMode === 'circle'
               ? 'Circle'
@@ -159,26 +152,26 @@
             *ngIf="currentMeasurements.distance"
             class="text-xs bg-white bg-opacity-70 px-2 py-1 rounded"
           >
-            <strong>Radius:</strong> {{ currentMeasurements.distance / 1000 | number: '1.2-2' }} km
+            <strong>{{ 'geofenceManagement.radius' | translate }}:</strong> {{ currentMeasurements.distance / 1000 | number: '1.2-2' }} km
           </span>
           <span
             *ngIf="currentMeasurements.area"
             class="text-xs bg-white bg-opacity-70 px-2 py-1 rounded"
           >
-            <strong>Area:</strong> {{ currentMeasurements.area / 1000000 | number: '1.2-2' }} km²
+            <strong>{{ 'geofenceManagement.area' | translate }}:</strong> {{ currentMeasurements.area / 1000000 | number: '1.2-2' }} km²
           </span>
           <span
             *ngIf="currentMeasurements.perimeter"
             class="text-xs bg-white bg-opacity-70 px-2 py-1 rounded"
           >
-            <strong>Perimeter:</strong>
+            <strong>{{ 'geofenceManagement.perimeter' | translate }}:</strong>
             {{ currentMeasurements.perimeter / 1000 | number: '1.2-2' }} km
           </span>
         </div>
         <button
           class="ml-auto flex items-center gap-1 px-3 py-1 bg-white hover:bg-gray-100 rounded transition-colors"
           (click)="disableDrawingMode()"
-          [title]="'Cancel drawing'"
+          [title]="'geofenceManagement.cancel_drawing' | translate"
         >
           <span class="material-icons text-lg">close</span>
         </button>
@@ -186,30 +179,30 @@
 
       <div
         *ngIf="editingGeofenceId"
-        class="edit-indicator m-0 mx-6 max-w-[calc(100vw-48px)] bg-gradient-to-r from-orange-100 to-amber-100 border border-orange-300 rounded-lg p-4 flex items-center gap-4"
+        class="edit-indicator bg-gradient-to-r from-orange-100 to-amber-100 border border-orange-300 rounded-lg p-4 flex items-center gap-4"
       >
         <span class="material-icons text-orange-600">edit</span>
         <span class="text-sm font-medium text-gray-900"
-          >Edit mode: Drag vertices to adjust the geofence</span
+          >{{ 'geofenceManagement.edit_mode_hint' | translate }}</span
         >
         <div *ngIf="currentMeasurements" class="flex gap-4 flex-wrap items-center">
           <span
             *ngIf="currentMeasurements.distance"
             class="text-xs bg-white bg-opacity-70 px-2 py-1 rounded"
           >
-            <strong>Radius:</strong> {{ currentMeasurements.distance / 1000 | number: '1.2-2' }} km
+            <strong>{{ 'geofenceManagement.radius' | translate }}:</strong> {{ currentMeasurements.distance / 1000 | number: '1.2-2' }} km
           </span>
           <span
             *ngIf="currentMeasurements.area"
             class="text-xs bg-white bg-opacity-70 px-2 py-1 rounded"
           >
-            <strong>Area:</strong> {{ currentMeasurements.area / 1000000 | number: '1.2-2' }} km²
+            <strong>{{ 'geofenceManagement.area' | translate }}:</strong> {{ currentMeasurements.area / 1000000 | number: '1.2-2' }} km²
           </span>
           <span
             *ngIf="currentMeasurements.perimeter"
             class="text-xs bg-white bg-opacity-70 px-2 py-1 rounded"
           >
-            <strong>Perimeter:</strong>
+            <strong>{{ 'geofenceManagement.perimeter' | translate }}:</strong>
             {{ currentMeasurements.perimeter / 1000 | number: '1.2-2' }} km
           </span>
         </div>
@@ -217,7 +210,7 @@
           class="ml-auto px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors text-sm font-medium"
           (click)="stopEditingGeofence()"
         >
-          Done Editing
+          {{ 'geofenceManagement.done_editing' | translate }}
         </button>
       </div>
     </div>
@@ -225,7 +218,7 @@
 
   <!-- Table Section -->
   <div class="flex-1 flex flex-col">
-    <div class="px-6 max-w-6xl mx-auto w-full flex flex-col gap-6 py-6 md:py-8">
+    <div class="px-6 max-w-6xl mx-auto w-full flex flex-col gap-6 pb-6 md:pb-8">
       <!-- Filter Bar -->
       <div class="p-5 bg-white border border-gray-200 rounded-lg shadow-sm">
         <app-filter-bar
@@ -243,7 +236,7 @@
         >
           <div>
             <h3 class="text-lg font-semibold text-gray-900">
-              Geofences ({{ filteredGeofences.length }}/{{ geofences.length }})
+              {{ 'menu.labels.geofences' | translate }} ({{ filteredGeofences.length }}/{{ geofences.length }})
             </h3>
           </div>
           <div class="flex flex-wrap items-center gap-2">
@@ -251,26 +244,26 @@
               *ngIf="canCreate()"
               class="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-300 rounded-md hover:bg-gray-100 transition-colors text-sm"
               [class.bg-indigo-50]="drawingMode === 'circle'"
-              [title]="drawingMode === 'circle' ? 'Drawing mode active' : 'Draw a circular zone'"
+              [title]="drawingMode === 'circle' ? ('geofenceManagement.drawing_mode_active' | translate) : ('geofenceManagement.draw_circle_hint' | translate)"
               (click)="
                 drawingMode === 'circle' ? disableDrawingMode() : enableDrawingMode('circle')
               "
             >
               <span class="material-icons text-base">panorama_fish_eye</span>
-              <span class="font-medium">Draw Circle</span>
+              <span class="font-medium">{{ 'geofenceManagement.draw_circle' | translate }}</span>
             </button>
 
             <button
               *ngIf="canCreate()"
               class="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-300 rounded-md hover:bg-gray-100 transition-colors text-sm"
               [class.bg-indigo-50]="drawingMode === 'polygon'"
-              [title]="drawingMode === 'polygon' ? 'Drawing mode active' : 'Draw a polygon zone'"
+              [title]="drawingMode === 'polygon' ? ('geofenceManagement.drawing_mode_active' | translate) : ('geofenceManagement.draw_polygon_hint' | translate)"
               (click)="
                 drawingMode === 'polygon' ? disableDrawingMode() : enableDrawingMode('polygon')
               "
             >
               <span class="material-icons text-base">change_history</span>
-              <span class="font-medium">Draw Polygon</span>
+              <span class="font-medium">{{ 'geofenceManagement.draw_polygon' | translate }}</span>
             </button>
 
             <button
@@ -278,33 +271,25 @@
               class="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-300 rounded-md hover:bg-gray-100 transition-colors text-sm"
               [class.bg-indigo-50]="drawingMode === 'rectangle'"
               [title]="
-                drawingMode === 'rectangle' ? 'Drawing mode active' : 'Draw a rectangular zone'
+                drawingMode === 'rectangle' ? ('geofenceManagement.drawing_mode_active' | translate) : ('geofenceManagement.draw_rectangle_hint' | translate)
               "
               (click)="
                 drawingMode === 'rectangle' ? disableDrawingMode() : enableDrawingMode('rectangle')
               "
             >
               <span class="material-icons text-base">crop_square</span>
-              <span class="font-medium">Draw Rectangle</span>
-            </button>
-
-            <button
-              *ngIf="canCreate()"
-              class="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors text-sm"
-              (click)="openCreateDialog()"
-            >
-              <span class="material-icons text-base">add</span>
-              <span class="font-medium">New Geofence</span>
+              <span class="font-medium">{{ 'geofenceManagement.draw_rectangle' | translate }}</span>
             </button>
 
             <!-- Import/Export Dropdown -->
             <div class="relative">
               <button
                 class="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-300 rounded-md hover:bg-gray-100 transition-colors text-sm"
-                [title]="'Import/Export'"
+                [title]="'geofenceManagement.import_export' | translate"
                 (click)="toggleImportExportMenu()"
               >
                 <span class="material-icons text-base">cloud_upload</span>
+                <span class="hidden sm:inline font-medium">{{ 'geofenceManagement.import_export' | translate }}</span>
               </button>
               <div *ngIf="importExportMenuOpen" class="custom-dropdown" [@.disabled]="true">
                 <button
@@ -312,7 +297,7 @@
                   (click)="openImportDialog(); importExportMenuOpen = false"
                 >
                   <span class="material-icons text-sm">upload_file</span>
-                  <span>Import from CSV/GeoJSON</span>
+                  <span>{{ 'geofenceManagement.import_from_csv_geojson' | translate }}</span>
                 </button>
                 <div class="custom-dropdown-divider"></div>
                 <button
@@ -321,14 +306,14 @@
                   (click)="toggleExportSelectedMenu()"
                 >
                   <span class="material-icons text-sm">download</span>
-                  <span>Export Selected</span>
+                  <span>{{ 'geofenceManagement.export_selected' | translate }}</span>
                 </button>
                 <button
                   class="custom-dropdown-item w-full text-left"
                   (click)="toggleExportAllMenu()"
                 >
                   <span class="material-icons text-sm">download_done</span>
-                  <span>Export All</span>
+                  <span>{{ 'geofenceManagement.export_all' | translate }}</span>
                 </button>
 
                 <!-- Export Selected Submenu -->
@@ -340,7 +325,7 @@
                     (click)="exportSelectedToCSV(); importExportMenuOpen = false"
                   >
                     <span class="material-icons text-sm">table_chart</span>
-                    <span>as CSV</span>
+                    <span>{{ 'geofenceManagement.as_csv' | translate }}</span>
                   </button>
                   <button
                     class="custom-dropdown-item w-full text-left text-sm"
@@ -348,7 +333,7 @@
                     (click)="exportSelectedToGeoJSON(); importExportMenuOpen = false"
                   >
                     <span class="material-icons text-sm">map</span>
-                    <span>as GeoJSON</span>
+                    <span>{{ 'geofenceManagement.as_geojson' | translate }}</span>
                   </button>
                 </div>
 
@@ -360,26 +345,19 @@
                     (click)="exportAllToCSV(); importExportMenuOpen = false"
                   >
                     <span class="material-icons text-sm">table_chart</span>
-                    <span>as CSV</span>
+                    <span>{{ 'geofenceManagement.as_csv' | translate }}</span>
                   </button>
                   <button
                     class="custom-dropdown-item w-full text-left text-sm"
                     (click)="exportAllToGeoJSON(); importExportMenuOpen = false"
                   >
                     <span class="material-icons text-sm">map</span>
-                    <span>as GeoJSON</span>
+                    <span>{{ 'geofenceManagement.as_geojson' | translate }}</span>
                   </button>
                 </div>
               </div>
             </div>
 
-            <button
-              class="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-300 rounded-md hover:bg-gray-100 transition-colors text-sm"
-              (click)="loadGeofences()"
-            >
-              <span class="material-icons text-base">refresh</span>
-              <span class="font-medium">Refresh</span>
-            </button>
           </div>
         </div>
 
@@ -390,7 +368,7 @@
         >
           <div class="flex items-center gap-2 text-blue-900 font-medium">
             <span class="material-icons text-lg">check_circle</span>
-            <span>{{ selectedCount }} selected</span>
+            <span>{{ selectedCount }} {{ 'geofenceManagement.selected_label' | translate }}</span>
           </div>
           <div class="flex gap-2">
             <button
@@ -398,21 +376,21 @@
               (click)="bulkActivate()"
             >
               <span class="material-icons text-lg">check_circle</span>
-              <span>Activate</span>
+              <span>{{ 'geofenceManagement.activate' | translate }}</span>
             </button>
             <button
               class="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors text-sm"
               (click)="bulkDeactivate()"
             >
               <span class="material-icons text-lg">cancel</span>
-              <span>Deactivate</span>
+              <span>{{ 'geofenceManagement.deactivate' | translate }}</span>
             </button>
             <button
               class="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-sm"
               (click)="bulkDelete()"
             >
               <span class="material-icons text-lg">delete</span>
-              <span>Delete</span>
+              <span>{{ 'common.delete' | translate }}</span>
             </button>
           </div>
         </div>
@@ -421,7 +399,7 @@
           <div
             class="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"
           ></div>
-          <p class="text-gray-600">Loading geofences...</p>
+          <p class="text-gray-600">{{ 'geofenceManagement.loading_geofences' | translate }}</p>
         </div>
 
         <div
@@ -429,13 +407,13 @@
           class="flex flex-col items-center justify-center p-12 gap-4"
         >
           <span class="material-icons text-4xl text-gray-400">location_off</span>
-          <p class="text-gray-600">No geofences found</p>
+          <p class="text-gray-600">{{ 'geofenceManagement.no_geofences_found' | translate }}</p>
           <button
             *ngIf="canCreate()"
             class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors text-sm font-medium"
             (click)="openCreateDialog()"
           >
-            Create Your First Geofence
+            {{ 'geofenceManagement.create_first_geofence' | translate }}
           </button>
         </div>
 
@@ -444,12 +422,12 @@
           class="flex flex-col items-center justify-center p-12 gap-4"
         >
           <span class="material-icons text-4xl text-gray-400">filter_list</span>
-          <p class="text-gray-600">No geofences match your filters</p>
+          <p class="text-gray-600">{{ 'geofenceManagement.no_geofences_match_filters' | translate }}</p>
           <button
             class="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors text-sm"
             (click)="clearFilters()"
           >
-            Clear Filters
+            {{ 'common.clear_filters' | translate }}
           </button>
         </div>
 
@@ -469,32 +447,32 @@
                 <th
                   class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide"
                 >
-                  Name
+                  {{ 'common.name' | translate }}
                 </th>
                 <th
                   class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide"
                 >
-                  Type
+                  {{ 'common.type' | translate }}
                 </th>
                 <th
                   class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide"
                 >
-                  Alert Type
+                  {{ 'geofenceManagement.alert_type' | translate }}
                 </th>
                 <th
                   class="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wide"
                 >
-                  Details
+                  {{ 'common.details' | translate }}
                 </th>
                 <th
                   class="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wide"
                 >
-                  Status
+                  {{ 'common.status' | translate }}
                 </th>
                 <th
                   class="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wide"
                 >
-                  Actions
+                  {{ 'common.actions' | translate }}
                 </th>
               </tr>
             </thead>
@@ -582,11 +560,11 @@
                       class="flex items-center gap-1"
                     >
                       <span class="material-icons text-sm">polyline</span>
-                      Polygon boundary
+                      {{ 'geofenceManagement.polygon_boundary' | translate }}
                     </div>
                     <div *ngIf="geofence.speedLimitKmh" class="flex items-center gap-1">
                       <span class="material-icons text-sm">speed</span>
-                      {{ geofence.speedLimitKmh }} km/h limit
+                      {{ geofence.speedLimitKmh }} {{ 'geofenceManagement.kmh_limit' | translate }}
                     </div>
                   </div>
                 </td>
@@ -598,7 +576,7 @@
                     [class.text-green-800]="geofence.active"
                     [class.text-gray-800]="!geofence.active"
                   >
-                    {{ geofence.active ? 'Active' : 'Inactive' }}
+                    {{ (geofence.active ? 'geofenceManagement.active' : 'geofenceManagement.inactive') | translate }}
                   </span>
                 </td>
                 <td class="px-4 py-3 text-center">
@@ -621,14 +599,14 @@
                         "
                       >
                         <span class="material-icons text-sm">info</span>
-                        <span>View Details</span>
+                        <span>{{ 'common.view_details' | translate }}</span>
                       </button>
                       <button
                         class="custom-dropdown-item w-full text-left"
                         (click)="fitGeofenceBounds(geofence); closeRowMenu()"
                       >
                         <span class="material-icons text-sm">zoom_in</span>
-                        <span>Zoom to Geofence</span>
+                        <span>{{ 'geofenceManagement.zoom_to_geofence' | translate }}</span>
                       </button>
                       <button
                         *ngIf="canUpdate()"
@@ -636,7 +614,7 @@
                         (click)="startEditingGeofence(geofence); closeRowMenu()"
                       >
                         <span class="material-icons text-sm">edit_location</span>
-                        <span>Edit Shape on Map</span>
+                        <span>{{ 'geofenceManagement.edit_shape_on_map' | translate }}</span>
                       </button>
                       <button
                         *ngIf="canUpdate()"
@@ -644,7 +622,17 @@
                         (click)="openEditDialog(geofence); closeRowMenu()"
                       >
                         <span class="material-icons text-sm">edit</span>
-                        <span>Edit</span>
+                        <span>{{ 'common.edit' | translate }}</span>
+                      </button>
+                      <button
+                        *ngIf="canUpdate()"
+                        class="custom-dropdown-item w-full text-left"
+                        (click)="toggleGeofenceActive(geofence); closeRowMenu()"
+                      >
+                        <span class="material-icons text-sm">{{
+                          geofence.active ? 'pause_circle' : 'play_circle'
+                        }}</span>
+                        <span>{{ (geofence.active ? 'geofenceManagement.deactivate' : 'geofenceManagement.activate') | translate }}</span>
                       </button>
                       <div *ngIf="canDelete()" class="custom-dropdown-divider"></div>
                       <button
@@ -653,7 +641,7 @@
                         (click)="deleteGeofence(geofence); closeRowMenu()"
                       >
                         <span class="material-icons text-sm">delete</span>
-                        <span>Delete</span>
+                        <span>{{ 'common.delete' | translate }}</span>
                       </button>
                     </div>
                   </div>
@@ -664,18 +652,18 @@
         </div>
       </div>
 
-      <!-- Geofence Events Map -->
+      <!-- Geofence Events -->
       <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <!-- Header -->
         <div
           class="flex flex-wrap items-center justify-between gap-3 px-5 py-3 border-b border-gray-200 bg-gray-50"
         >
           <div class="flex items-center gap-2">
-            <h3 class="text-base font-semibold text-gray-900">Geofence Events</h3>
+            <h3 class="text-base font-semibold text-gray-900">{{ 'geofenceManagement.geofence_events' | translate }}</h3>
             <!-- Live indicator -->
             <span class="flex items-center gap-1 text-xs font-medium text-emerald-600">
               <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              Live
+              {{ 'liveMap.live' | translate }}
             </span>
             <span
               *ngIf="filteredEvents.length > 0"
@@ -686,8 +674,17 @@
           </div>
 
           <div class="flex items-center gap-2">
+            <button
+              type="button"
+              (click)="showEventsPanel = !showEventsPanel"
+              class="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-md hover:bg-gray-50 transition-colors"
+            >
+              <span class="material-icons text-sm">{{ showEventsPanel ? 'expand_less' : 'expand_more' }}</span>
+              {{ (showEventsPanel ? 'common.hide' : 'common.show') | translate }}
+            </button>
             <!-- Time filter pills -->
             <div
+              *ngIf="showEventsPanel"
               class="inline-flex rounded-md border border-gray-200 overflow-hidden text-xs font-medium"
             >
               <button
@@ -713,14 +710,14 @@
               class="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-md hover:bg-gray-50 transition-colors"
             >
               <span class="material-icons text-sm">clear_all</span>
-              Clear
+              {{ 'common.clear' | translate }}
             </button>
           </div>
         </div>
 
         <!-- No events empty state -->
         <div
-          *ngIf="filteredEvents.length === 0"
+          *ngIf="showEventsPanel && filteredEvents.length === 0"
           class="flex flex-col items-center justify-center py-16 gap-4 text-center"
         >
           <div class="relative">
@@ -733,16 +730,16 @@
           </div>
           <div>
             <p class="text-sm font-medium text-gray-600">
-              No geofence events in the last {{ eventTimeFilter }}
+              {{ 'geofenceManagement.no_geofence_events' | translate: { time: eventTimeFilter } }}
             </p>
             <p class="text-xs text-gray-400 mt-1">
-              Events appear here in real-time as drivers enter or exit zones.
+              {{ 'geofenceManagement.events_realtime_hint' | translate }}
             </p>
           </div>
         </div>
 
         <!-- Two-panel: Map + Feed -->
-        <div *ngIf="filteredEvents.length > 0" class="flex h-80">
+        <div *ngIf="showEventsPanel && filteredEvents.length > 0" class="flex h-80">
           <!-- Mini Google Map (left 55%) -->
           <div class="flex-1 border-r border-gray-200 relative overflow-hidden">
             <google-map
@@ -763,13 +760,13 @@
                 <span
                   class="inline-block w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-white shadow-sm"
                 ></span>
-                Entered
+                {{ 'geofenceManagement.entered' | translate }}
               </span>
               <span class="flex items-center gap-1">
                 <span
                   class="inline-block w-3 h-3 rounded-full bg-red-500 ring-2 ring-white shadow-sm"
                 ></span>
-                Exited
+                {{ 'geofenceManagement.exited' | translate }}
               </span>
             </div>
           </div>
@@ -806,7 +803,7 @@
                     class="font-medium"
                     [class.text-emerald-600]="isEntryEvent(event)"
                     [class.text-red-600]="!isEntryEvent(event)"
-                    >{{ isEntryEvent(event) ? 'Entered' : 'Exited' }}</span
+                    >{{ (isEntryEvent(event) ? 'geofenceManagement.entered' : 'geofenceManagement.exited') | translate }}</span
                   >
                   {{ event.geofenceName }}
                 </p>
@@ -821,69 +818,70 @@
     </div>
   </div>
 
-  <!-- Interactive Map Section - Full Width, Edge-to-Edge -->
-  <div class="w-screen relative left-1/2 right-1/2 -mx-[50vw] bg-white">
-    <!-- Map Section Header -->
-    <div class="border-b border-gray-200 bg-white">
-      <div class="max-w-6xl mx-auto px-6 py-4 md:py-5">
-        <div class="flex justify-between items-center gap-4 flex-wrap">
+      <!-- Interactive Map -->
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div class="flex items-center justify-between gap-4 px-5 py-4 border-b border-gray-200 bg-gray-50">
           <div>
-            <h3 class="text-lg md:text-xl font-bold text-gray-900">Interactive Map</h3>
-            <p class="text-xs md:text-sm text-gray-500 mt-1">
-              View and manage all geofences on map
-            </p>
+            <h3 class="text-lg font-semibold text-gray-900">{{ 'geofenceManagement.interactive_map' | translate }}</h3>
+            <p class="text-sm text-gray-500 mt-1">{{ 'geofenceManagement.map_hint' | translate }}</p>
           </div>
-          <button
-            class="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all shadow-sm hover:shadow-md"
-            [title]="'Refresh geofences'"
-            (click)="loadGeofences()"
-          >
-            <span class="material-icons text-lg">refresh</span>
-            <span class="hidden sm:inline text-sm font-medium">Refresh</span>
-          </button>
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              (click)="showMapPanel = !showMapPanel"
+              class="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-md hover:bg-gray-50 transition-colors"
+            >
+              <span class="material-icons text-sm">{{ showMapPanel ? 'expand_less' : 'expand_more' }}</span>
+              {{ (showMapPanel ? 'common.hide' : 'common.show') | translate }}
+            </button>
+            <button
+              class="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all shadow-sm hover:shadow-md"
+              [title]="'geofenceManagement.refresh_geofences' | translate"
+              (click)="loadGeofences()"
+            >
+              <span class="material-icons text-lg">refresh</span>
+              <span class="hidden sm:inline text-sm font-medium">{{ 'common.refresh' | translate }}</span>
+            </button>
+          </div>
         </div>
-      </div>
-    </div>
 
-    <!-- Map Legend - Responsive Grid -->
-    <div class="border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
-      <div class="max-w-6xl mx-auto px-6 py-4">
-        <p class="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-3">Legend</p>
+        <div *ngIf="showMapPanel" class="border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+      <div class="px-6 py-4">
+        <p class="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-3">{{ 'common.legend' | translate }}</p>
         <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
           <div class="flex items-center gap-2 p-2 rounded hover:bg-white transition-colors">
             <span
               class="flex-shrink-0 w-4 h-4 rounded-full shadow-sm"
               style="background-color: #10b981"
             ></span>
-            <span class="text-xs md:text-sm text-gray-700 font-medium">Entry Alert</span>
+            <span class="text-xs md:text-sm text-gray-700 font-medium">{{ 'geofenceManagement.entry_alert' | translate }}</span>
           </div>
           <div class="flex items-center gap-2 p-2 rounded hover:bg-white transition-colors">
             <span
               class="flex-shrink-0 w-4 h-4 rounded-full shadow-sm"
               style="background-color: #ef4444"
             ></span>
-            <span class="text-xs md:text-sm text-gray-700 font-medium">Exit Alert</span>
+            <span class="text-xs md:text-sm text-gray-700 font-medium">{{ 'geofenceManagement.exit_alert' | translate }}</span>
           </div>
           <div class="flex items-center gap-2 p-2 rounded hover:bg-white transition-colors">
             <span
               class="flex-shrink-0 w-4 h-4 rounded-full shadow-sm"
               style="background-color: #3b82f6"
             ></span>
-            <span class="text-xs md:text-sm text-gray-700 font-medium">Both Alerts</span>
+            <span class="text-xs md:text-sm text-gray-700 font-medium">{{ 'geofenceManagement.both_alerts' | translate }}</span>
           </div>
           <div class="flex items-center gap-2 p-2 rounded hover:bg-white transition-colors">
             <span
               class="flex-shrink-0 w-4 h-4 rounded-full shadow-sm"
               style="background-color: #6b7280"
             ></span>
-            <span class="text-xs md:text-sm text-gray-700 font-medium">No Alerts</span>
+            <span class="text-xs md:text-sm text-gray-700 font-medium">{{ 'geofenceManagement.no_alerts' | translate }}</span>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Map Container - Full Width -->
-    <div class="w-full h-72 sm:h-96 md:h-[500px] lg:h-[600px]">
+    <div *ngIf="showMapPanel" class="w-full h-72 sm:h-96 md:h-[500px] lg:h-[600px]">
       <google-map
         [center]="mapCenter"
         [zoom]="mapZoom"
@@ -892,6 +890,7 @@
         class="w-full h-full"
         (mapInitialized)="onMapReady($event)"
       ></google-map>
+    </div>
     </div>
 
     <!-- Info Window -->
@@ -917,25 +916,25 @@
 
         <div class="space-y-1 text-xs mb-3">
           <div class="flex justify-between">
-            <span class="font-semibold text-gray-700">Type:</span>
+            <span class="font-semibold text-gray-700">{{ 'common.type' | translate }}:</span>
             <span class="text-gray-600">{{ geofenceTypeLabel(content.geofence.type) }}</span>
           </div>
           <div class="flex justify-between">
-            <span class="font-semibold text-gray-700">Alert:</span>
+            <span class="font-semibold text-gray-700">{{ 'geofenceManagement.alert' | translate }}:</span>
             <span class="text-gray-600">{{ alertTypeLabel(content.geofence.alertType) }}</span>
           </div>
           <div *ngIf="content.geofence.speedLimitKmh" class="flex justify-between">
-            <span class="font-semibold text-gray-700">Speed Limit:</span>
+            <span class="font-semibold text-gray-700">{{ 'geofenceManagement.speed_limit' | translate }}:</span>
             <span class="text-gray-600">{{ content.geofence.speedLimitKmh }} km/h</span>
           </div>
           <div class="flex justify-between">
-            <span class="font-semibold text-gray-700">Status:</span>
+            <span class="font-semibold text-gray-700">{{ 'common.status' | translate }}:</span>
             <span
               class="px-2 py-1 rounded text-xs font-medium"
               [class.bg-green-100]="content.geofence.active"
               [class.bg-gray-100]="!content.geofence.active"
             >
-              {{ content.geofence.active ? 'Active' : 'Inactive' }}
+              {{ (content.geofence.active ? 'geofenceManagement.active' : 'geofenceManagement.inactive') | translate }}
             </span>
           </div>
         </div>
@@ -958,14 +957,14 @@
             (click)="openEditFromInfoWindow(content.geofence)"
           >
             <span class="material-icons text-sm">edit</span>
-            Edit
+            {{ 'common.edit' | translate }}
           </button>
           <button
             class="flex items-center gap-1 px-2 py-1 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300 transition-colors"
             (click)="fitGeofenceBounds(content.geofence)"
           >
             <span class="material-icons text-sm">zoom_in</span>
-            Zoom
+            {{ 'geofenceManagement.zoom' | translate }}
           </button>
           <button
             *ngIf="canDelete()"
@@ -979,4 +978,3 @@
       </div>
     </map-info-window>
   </div>
-</div>

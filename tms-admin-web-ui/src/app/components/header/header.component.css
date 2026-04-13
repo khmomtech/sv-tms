@@ -1,0 +1,46 @@
+.header-shell {
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.header-actions > * {
+  flex-shrink: 0;
+}
+
+.lang-switch {
+  min-height: 56px;
+}
+
+.lang-option {
+  min-width: 92px;
+}
+
+.lang-divider {
+  width: 1px;
+  height: 26px;
+  background: linear-gradient(180deg, rgba(148, 163, 184, 0) 0%, rgba(148, 163, 184, 0.9) 50%, rgba(148, 163, 184, 0) 100%);
+}
+
+.account-trigger {
+  min-height: 72px;
+}
+
+@media (max-width: 640px) {
+  .header-shell {
+    gap: 0.75rem;
+  }
+
+  .lang-switch {
+    min-height: 48px;
+  }
+
+  .lang-option {
+    min-width: 74px;
+    padding-inline: 0.875rem;
+  }
+
+  .account-trigger {
+    min-height: 56px;
+    min-width: auto;
+    padding-inline: 0.875rem;
+  }
+}

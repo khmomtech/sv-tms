@@ -1,21 +1,23 @@
 <!-- Modal Overlay -->
 <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/75">
   <div class="w-full max-w-md p-6 bg-white rounded shadow-xl">
-    <h3 class="mb-4 text-lg font-semibold">Change Driver</h3>
+    <h3 class="mb-4 text-lg font-semibold">{{ 'dispatchList.change_driver' | translate }}</h3>
 
     <form [formGroup]="form" (ngSubmit)="submit()">
       <!-- Driver Autocomplete Component -->
       <app-driver-autocomplete
         [drivers]="drivers"
-        [label]="'Select Driver'"
-        [placeholder]="'Search driver by name or phone...'"
+        [label]="'dispatchList.select_driver' | translate"
+        [placeholder]="'dispatchList.search_driver_by_name_or_phone' | translate"
         [required]="true"
         [showStatus]="true"
+        [enableLiveSearch]="true"
         [errorMessage]="
           form.get('driverId')?.invalid && form.get('driverId')?.touched
-            ? 'Driver selection is required.'
+            ? ('dispatchList.driver_selection_required' | translate)
             : ''
         "
+        (searchQuery)="onDriverSearch($event)"
         formControlName="driverId"
       ></app-driver-autocomplete>
 
@@ -25,7 +27,7 @@
           (click)="cancel()"
           class="px-4 py-2 border border-gray-300 rounded hover:bg-gray-100"
         >
-          Cancel
+          {{ 'dispatchList.cancel' | translate }}
         </button>
 
         <button
@@ -33,7 +35,7 @@
           class="px-4 py-2 text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50"
           [disabled]="form.invalid"
         >
-          Update
+          {{ 'dispatchList.update' | translate }}
         </button>
       </div>
     </form>

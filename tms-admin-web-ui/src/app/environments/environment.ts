@@ -17,6 +17,8 @@ type RuntimeEnv = {
   wsSocketUrl?: string;
   wsUrl?: string;
   sockJsUrl?: string;
+  telematicsWsSocketUrl?: string;
+  telematicsSockJsUrl?: string;
   useSockJs?: boolean | string;
   googleMapsApiKey?: string;
   mapboxAccessToken?: string;
@@ -71,7 +73,11 @@ export const environment = {
   // Backwards-compatible websocket alias
   wsUrl: runtimeEnv.wsUrl || runtimeEnv.wsSocketUrl || '/ws',
   sockJsUrl: runtimeEnv.sockJsUrl || '/ws-sockjs',
-  useSockJs: toBool(runtimeEnv.useSockJs, true),
+  telematicsWsSocketUrl: runtimeEnv.telematicsWsSocketUrl || '/tele-ws',
+  telematicsSockJsUrl: runtimeEnv.telematicsSockJsUrl || '/tele-ws-sockjs',
+  // Prefer native WebSocket in local dev because Angular dev-server proxying for SockJS
+  // `/info` requests is unreliable, while direct `/ws` proxying works.
+  useSockJs: toBool(runtimeEnv.useSockJs, toBool(runtimeEnv.production, false)),
   googleMapsApiKey: runtimeEnv.googleMapsApiKey || '',
   mapboxAccessToken: runtimeEnv.mapboxAccessToken || '',
   // Legal URLs

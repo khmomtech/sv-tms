@@ -112,6 +112,47 @@ class LiveDriverQueryServiceTest {
   }
 
   @Test
+  @DisplayName("live driver query excludes invalid zero-zero coordinates")
+  void excludesInvalidZeroZeroCoordinates() {
+    long validDriverId = 30213L;
+    long invalidDriverId = 30214L;
+    Instant now = Instant.now();
+
+    DriverLatestLocation valid =
+        DriverLatestLocation.builder()
+            .driverId(validDriverId)
+            .latitude(11.5564)
+            .longitude(104.9282)
+            .lastSeen(Timestamp.from(now.minusSeconds(5)))
+            .isOnline(true)
+            .build();
+
+    DriverLatestLocation invalid =
+        DriverLatestLocation.builder()
+            .driverId(invalidDriverId)
+            .latitude(0.0)
+            .longitude(0.0)
+            .lastSeen(Timestamp.from(now.minusSeconds(5)))
+            .isOnline(true)
+            .build();
+
+    when(latestRepo.findSince(any())).thenReturn(List.of(valid, invalid));
+    when(driverDirectoryReadService.findByIds(anySet()))
+        .thenReturn(
+            java.util.Map.of(
+                validDriverId,
+                new DriverDirectoryReadService.DriverDirectoryRow(validDriverId, "Valid Driver", "090000001")));
+    when(assignmentReadService.findActiveByDriverIds(anySet())).thenReturn(java.util.Map.of());
+
+    List<LiveDriverDto> out = service.getLiveDrivers(true, 120, null, null, null, null);
+
+    assertThat(out).hasSize(1);
+    assertThat(out.get(0).getDriverId()).isEqualTo(validDriverId);
+    assertThat(out.get(0).getLatitude()).isEqualTo(11.5564);
+    assertThat(out.get(0).getLongitude()).isEqualTo(104.9282);
+  }
+
+  @Test
   @DisplayName("getLatestForDriver exposes telemetry freshness fields")
   void latestForDriverExposesFreshnessFields() {
     long driverId = 50001L;
@@ -137,5 +178,85 @@ class LiveDriverQueryServiceTest {
     assertThat(dto.getIngestLagSeconds()).isNotNull();
     assertThat(dto.getLastSeenSeconds()).isGreaterThanOrEqualTo(0);
     assertThat(dto.getIngestLagSeconds()).isGreaterThanOrEqualTo(0);
+  }
+
+  @Test
+  @DisplayName("live driver query exposes resolved geocode status when location name exists")
+  void liveDriversExposeResolvedGeocodeStatus() {
+    long driverId = 60001L;
+    DriverLatestLocation latest =
+        DriverLatestLocation.builder()
+            .driverId(driverId)
+            .latitude(11.5564)
+            .longitude(104.9282)
+            .locationName("Sangkat Boeung Kak, Phnom Penh")
+            .lastSeen(Timestamp.from(Instant.now().minusSeconds(10)))
+            .isOnline(true)
+            .build();
+
+    when(latestRepo.findSince(any())).thenReturn(List.of(latest));
+    when(driverDirectoryReadService.findByIds(anySet()))
+        .thenReturn(
+            java.util.Map.of(
+                driverId,
+                new DriverDirectoryReadService.DriverDirectoryRow(driverId, "Driver One", "090000000")));
+    when(assignmentReadService.findActiveByDriverIds(anySet())).thenReturn(java.util.Map.of());
+
+    List<LiveDriverDto> out = service.getLiveDrivers(true, 120, null, null, null, null);
+
+    assertThat(out).hasSize(1);
+    assertThat(out.get(0).getLocationName()).isEqualTo("Sangkat Boeung Kak, Phnom Penh");
+    assertThat(out.get(0).getGeocodeStatus()).isEqualTo("resolved");
+  }
+
+  @Test
+  @DisplayName("live driver query exposes pending geocode status for online drivers without address")
+  void liveDriversExposePendingGeocodeStatus() {
+    long driverId = 60002L;
+    DriverLatestLocation latest =
+        DriverLatestLocation.builder()
+            .driverId(driverId)
+            .latitude(11.5564)
+            .longitude(104.9282)
+            .locationName("Unknown location")
+            .lastSeen(Timestamp.from(Instant.now().minusSeconds(5)))
+            .isOnline(true)
+            .build();
+
+    when(latestRepo.findSince(any())).thenReturn(List.of(latest));
+    when(driverDirectoryReadService.findByIds(anySet()))
+        .thenReturn(
+            java.util.Map.of(
+                driverId,
+                new DriverDirectoryReadService.DriverDirectoryRow(driverId, "Driver Two", "090000001")));
+    when(assignmentReadService.findActiveByDriverIds(anySet())).thenReturn(java.util.Map.of());
+
+    List<LiveDriverDto> out = service.getLiveDrivers(true, 120, null, null, null, null);
+
+    assertThat(out).hasSize(1);
+    assertThat(out.get(0).getLocationName()).isNull();
+    assertThat(out.get(0).getGeocodeStatus()).isEqualTo("pending");
+  }
+
+  @Test
+  @DisplayName("latestForDriver exposes failed geocode status for offline drivers without address")
+  void latestForDriverExposesFailedGeocodeStatus() {
+    long driverId = 60003L;
+    DriverLatestLocation latest =
+        DriverLatestLocation.builder()
+            .driverId(driverId)
+            .latitude(11.57)
+            .longitude(104.91)
+            .locationName("Unknown location")
+            .lastSeen(Timestamp.from(Instant.now().minusSeconds(600)))
+            .isOnline(false)
+            .build();
+    when(latestRepo.findById(driverId)).thenReturn(java.util.Optional.of(latest));
+
+    var out = service.getLatestForDriver(driverId);
+
+    assertThat(out).isPresent();
+    assertThat(out.get().getLocationName()).isNull();
+    assertThat(out.get().getGeocodeStatus()).isEqualTo("failed");
   }
 }

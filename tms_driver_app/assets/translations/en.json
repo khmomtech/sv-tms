@@ -381,7 +381,9 @@
       "load_failed_with_parts": "Unable to load data: {parts}",
       "api_connection": "Cannot connect to API. Please check URL or backend.\nAPI: {api}",
       "unauthorized": "Unauthorized. Please sign in again.",
+      "forbidden": "This section is not available for your account.",
       "driver_not_assigned": "This account is not linked to a driver. Please ask admin to create/link the driver account again.",
+      "invalid_response": "Server returned an invalid response. Please try again shortly.",
       "api_generic": "API connection issue: {error}",
       "parts": {
         "session": "Session",

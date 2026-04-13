@@ -4,6 +4,8 @@ import jakarta.persistence.Access;
 import jakarta.persistence.AccessType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -15,9 +17,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/**
- * Simple chat/message entity used for driver <-> admin messages.
- */
 @Entity
 @Access(AccessType.FIELD)
 @Table(name = "driver_chat_messages")
@@ -32,20 +31,27 @@ public class DriverChatMessage {
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
-  /** Driver who owns/receives this message. */
   @Column(name = "driver_id", nullable = false)
   private Long driverId;
 
-  /** Role that created the message ("ADMIN" or "DRIVER"). */
   @Column(name = "sender_role", length = 20, nullable = false)
   private String senderRole;
 
-  /** Username or identifier of sender. */
   @Column(name = "sender", length = 100)
   private String sender;
 
   @Column(name = "message", columnDefinition = "TEXT", nullable = false)
   private String message;
+
+  @Enumerated(EnumType.STRING)
+  @Column(name = "message_type", length = 20, nullable = false)
+  private DriverChatMessageType messageType;
+
+  @Column(name = "agora_channel_name", length = 128)
+  private String agoraChannelName;
+
+  @Column(name = "call_session_id")
+  private Long callSessionId;
 
   @Column(name = "created_at", nullable = false)
   private LocalDateTime createdAt;

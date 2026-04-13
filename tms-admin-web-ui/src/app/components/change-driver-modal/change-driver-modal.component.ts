@@ -5,9 +5,11 @@ import type { FormGroup } from '@angular/forms';
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { FormBuilder } from '@angular/forms';
 import { Validators, ReactiveFormsModule } from '@angular/forms';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { DispatchService } from '../../services/dispatch.service';
+import { DriverService } from '../../services/driver.service';
 import { ToastrService } from 'ngx-toastr';
 import { DriverAutocompleteComponent } from '../../shared/components/driver-autocomplete/driver-autocomplete.component';
 
@@ -15,7 +17,7 @@ import { DriverAutocompleteComponent } from '../../shared/components/driver-auto
   selector: 'app-change-driver-modal',
   standalone: true,
   templateUrl: './change-driver-modal.component.html',
-  imports: [CommonModule, ReactiveFormsModule, DriverAutocompleteComponent],
+  imports: [CommonModule, ReactiveFormsModule, DriverAutocompleteComponent, TranslateModule],
 })
 export class ChangeDriverModalComponent implements OnInit {
   @Input() dispatchId!: number;
@@ -27,7 +29,9 @@ export class ChangeDriverModalComponent implements OnInit {
   constructor(
     private readonly fb: FormBuilder,
     private readonly dispatchService: DispatchService,
+    private readonly driverService: DriverService,
     private readonly toastr: ToastrService,
+    private readonly translate: TranslateService,
   ) {}
 
   ngOnInit(): void {
@@ -50,19 +54,38 @@ export class ChangeDriverModalComponent implements OnInit {
     });
   }
 
+  onDriverSearch(query: string): void {
+    const trimmedQuery = query.trim();
+    if (!trimmedQuery) {
+      this.loadDrivers();
+      return;
+    }
+
+    this.driverService.searchDrivers(trimmedQuery).subscribe({
+      next: (res: any) => {
+        this.drivers = res?.data ?? [];
+      },
+      error: (err) => {
+        console.error('Failed to search drivers:', err);
+      },
+    });
+  }
+
   submit(): void {
     if (this.form.valid) {
       const selectedDriverId = this.form.value.driverId;
       this.dispatchService.changeDriver(this.dispatchId, selectedDriverId).subscribe({
         next: () => {
-          this.toastr.success('Driver changed successfully.');
+          this.toastr.success(this.translate.instant('dispatchList.driver_changed_success'));
           this.closed.emit();
         },
         error: (err) => {
           console.error('Failed to change driver:', err);
           // If the service rethrows HttpErrorResponse, prefer the server message
           const serverMessage = err?.error?.message ?? err?.message;
-          this.toastr.error(serverMessage || 'Failed to change driver.');
+          this.toastr.error(
+            serverMessage || this.translate.instant('dispatchList.driver_changed_failed'),
+          );
         },
       });
     }

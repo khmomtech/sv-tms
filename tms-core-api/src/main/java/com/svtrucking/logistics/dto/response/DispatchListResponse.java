@@ -60,7 +60,7 @@ public class DispatchListResponse {
                         dispatch.getTransportOrder().getCustomer() != null ?
                         dispatch.getTransportOrder().getCustomer().getName() : null)
                 .driverId(dispatch.getDriver() != null ? dispatch.getDriver().getId() : null)
-                .driverName(dispatch.getDriver() != null ? dispatch.getDriver().getName() : null)
+                .driverName(dispatch.getDriver() != null ? dispatch.getDriver().getFullName() : null)
                 .vehicleLicensePlate(dispatch.getVehicle() != null ? 
                         dispatch.getVehicle().getLicensePlate() : null)
                 .createdDate(dispatch.getCreatedDate())

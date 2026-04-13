@@ -21,7 +21,7 @@ Physical device (screen recording)
 - Use QuickTime (Connect iPhone → New Movie Recording → select device) or built-in iOS screen recorder.
 - Steps to record:
   1. Install TestFlight build or deploy from Xcode.
-  2. Log in with reviewer@test.sv / Review!234.
+  2. Tap "App Review Login" or log in with drivertest / 123456.
   3. Tap "On Duty" and allow foreground location when prompted.
   4. Open a job, take/upload POD photo, and confirm submission.
 

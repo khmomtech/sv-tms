@@ -13,7 +13,7 @@ class HomeLocaleStrings {
   final String shiftStart;
   final String shiftEnd;
   final String loadFailed;
-  final String Function(String parts) loadFailedWithParts;
+  final String loadFailedWithPartsTemplate;
   final String partsSession;
   final String partsNotifications;
   final String partsWebSocket;
@@ -35,7 +35,7 @@ class HomeLocaleStrings {
     required this.shiftStart,
     required this.shiftEnd,
     required this.loadFailed,
-    required this.loadFailedWithParts,
+    required this.loadFailedWithPartsTemplate,
     required this.partsSession,
     required this.partsNotifications,
     required this.partsWebSocket,
@@ -59,10 +59,8 @@ class HomeLocaleStrings {
       shiftStart: context.tr('home.shift.sample_start_time'),
       shiftEnd: context.tr('home.shift.sample_end_time'),
       loadFailed: context.tr('home.errors.load_failed'),
-      loadFailedWithParts: (parts) => context.tr(
-        'home.errors.load_failed_with_parts',
-        namedArgs: {'parts': parts},
-      ),
+      loadFailedWithPartsTemplate:
+          context.tr('home.errors.load_failed_with_parts'),
       partsSession: context.tr('home.errors.parts.session'),
       partsNotifications: context.tr('home.errors.parts.notifications'),
       partsWebSocket: context.tr('home.errors.parts.websocket'),
@@ -73,4 +71,8 @@ class HomeLocaleStrings {
       partsVehicle: context.tr('home.errors.parts.vehicle'),
     );
   }
+
+  String loadFailedWithParts(String parts) => loadFailedWithPartsTemplate
+      .replaceAll('{parts}', parts)
+      .replaceAll('%s', parts);
 }

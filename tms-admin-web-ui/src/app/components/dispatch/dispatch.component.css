@@ -1,0 +1,28 @@
+.dispatch-map-container {
+  height: 420px;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 0.75rem;
+  box-shadow: inset 0 2px 8px rgba(15, 23, 42, 0.08);
+}
+
+.dispatch-map-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  height: 2rem;
+  padding: 0 0.4rem;
+  border: 2px solid #fff;
+  border-radius: 9999px;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: 0 6px 12px rgba(15, 23, 42, 0.18);
+  cursor: pointer;
+}
+
+.dispatch-map-marker-muted {
+  opacity: 0.72;
+}

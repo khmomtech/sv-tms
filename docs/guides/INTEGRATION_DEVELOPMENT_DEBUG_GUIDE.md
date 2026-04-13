@@ -45,7 +45,7 @@ Docker service counts:
 From the repository root:
 
 ```bash
-cd /Users/sotheakh/Documents/develop/sv-tms
+cd sv-tms
 docker compose -f docker-compose.local-dev.yml up -d --build
 ```
 
@@ -70,7 +70,7 @@ Use this when you want Docker for infrastructure but host-run services for faste
 ### 1. Start infrastructure only
 
 ```bash
-cd /Users/sotheakh/Documents/develop/sv-tms
+cd sv-tms
 docker compose -f docker-compose.local-dev.yml up -d mysql redis mongo postgres kafka
 ```
 
@@ -79,14 +79,14 @@ docker compose -f docker-compose.local-dev.yml up -d mysql redis mongo postgres 
 Core API:
 
 ```bash
-cd /Users/sotheakh/Documents/develop/sv-tms/tms-core-api
+cd tms-core-api
 ./mvnw spring-boot:run -Dspring-boot.run.profiles=local
 ```
 
 Telematics API:
 
 ```bash
-cd /Users/sotheakh/Documents/develop/sv-tms
+cd sv-tms
 export JWT_ACCESS_SECRET='changeme-dev-secret-32-chars-min!!!'
 export TELEMATICS_INTERNAL_API_KEY='dev-internal-key'
 mvn -pl tms-telematics-api spring-boot:run
@@ -95,7 +95,7 @@ mvn -pl tms-telematics-api spring-boot:run
 Auth API:
 
 ```bash
-cd /Users/sotheakh/Documents/develop/sv-tms
+cd sv-tms
 export MYSQL_PORT=3307
 mvn -pl tms-auth-api -am spring-boot:run
 ```
@@ -103,7 +103,7 @@ mvn -pl tms-auth-api -am spring-boot:run
 Driver App API:
 
 ```bash
-cd /Users/sotheakh/Documents/develop/sv-tms
+cd sv-tms
 export MYSQL_PORT=3307
 export TELEMATICS_PROXY_BASE_URL='http://localhost:8082'
 export TELEMATICS_PROXY_ENABLED='true'
@@ -113,7 +113,7 @@ mvn -pl tms-driver-app-api -am spring-boot:run
 API Gateway:
 
 ```bash
-cd /Users/sotheakh/Documents/develop/sv-tms
+cd sv-tms
 export CORE_API_BASE_URL='http://localhost:8080'
 export AUTH_API_BASE_URL='http://localhost:8083'
 export DRIVER_APP_API_BASE_URL='http://localhost:8084'
@@ -130,7 +130,7 @@ Notes:
 ### 3. Start the admin UI
 
 ```bash
-cd /Users/sotheakh/Documents/develop/sv-tms/tms-admin-web-ui
+cd tms-admin-web-ui
 npm ci --legacy-peer-deps
 npm start
 ```
@@ -142,7 +142,7 @@ The proxy defaults to `http://127.0.0.1:8086`.
 Example for Android emulator:
 
 ```bash
-cd /Users/sotheakh/Documents/develop/sv-tms/tms_driver_app
+cd tms_driver_app
 flutter pub get
 flutter run
 ```
@@ -215,10 +215,10 @@ Stop host-run services with `Ctrl + C`.
 Stop Compose services:
 
 ```bash
-cd /Users/sotheakh/Documents/develop/sv-tms
+cd sv-tms
 docker compose -f docker-compose.local-dev.yml down
 ```
 
 ## Reference
 
-- [LOCAL_DEVELOPMENT.md](/Users/sotheakh/Documents/develop/sv-tms/LOCAL_DEVELOPMENT.md)
+- [LOCAL_DEVELOPMENT.md](LOCAL_DEVELOPMENT.md)

@@ -22,12 +22,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class TelemetryController {
 
     private final TelemetryPointRepository repository;
-    private final TelemetryStreamService streamService;
+    private final TelemetryOutboxPublisher outboxPublisher;
 
     public TelemetryController(TelemetryPointRepository repository,
-                               @org.springframework.beans.factory.annotation.Autowired(required = false) TelemetryStreamService streamService) {
+                               TelemetryOutboxPublisher outboxPublisher) {
         this.repository = repository;
-        this.streamService = streamService;
+        this.outboxPublisher = outboxPublisher;
     }
 
     @PostMapping
@@ -43,11 +43,6 @@ public class TelemetryController {
                 continue;
             }
 
-            boolean exists = repository.findByDeviceIdAndSequenceNumber(dto.getDeviceId(), dto.getSequenceNumber()).isPresent();
-            if (exists) {
-                continue;
-            }
-
             TelemetryPoint entity = TelemetryPoint.builder()
                 .deviceId(dto.getDeviceId())
                 .sequenceNumber(dto.getSequenceNumber())
@@ -57,22 +52,13 @@ public class TelemetryController {
                 .latitude(dto.getLatitude())
                 .longitude(dto.getLongitude())
                 .accuracy(dto.getAccuracy())
+                .publishStatus(TelemetryPublishStatus.PENDING)
+                .publishAttempts(0)
                 .build();
 
             try {
-                repository.save(entity);
-
-                if (streamService != null) {
-                    streamService.publish(TelemetryStreamService.TelemetryEvent.builder()
-                            .driverId(entity.getDriverId())
-                            .latitude(entity.getLatitude())
-                            .longitude(entity.getLongitude())
-                            .sessionId(entity.getDeviceId())
-                            .seq(String.valueOf(entity.getSequenceNumber()))
-                            .eventTime(entity.getRecordedAt())
-                            .receivedAt(entity.getReceivedAt())
-                            .build());
-                }
+                TelemetryPoint saved = repository.saveAndFlush(entity);
+                outboxPublisher.publishNow(saved);
             } catch (DataIntegrityViolationException e) {
                 // Idempotent behavior: ignore duplicates generated from concurrent retries
             }

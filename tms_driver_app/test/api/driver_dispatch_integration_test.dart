@@ -26,47 +26,109 @@ void main() {
     return;
   }
 
-  test('driver can login and list dispatches', () async {
-    final adminToken = await _loginAdmin(baseUrl);
-    expect(adminToken, isNotEmpty, reason: 'Admin login failed');
-
+  test('driver can login and driver app endpoints return expected shapes', () async {
+    late final _DriverAuth driverAuth;
     try {
-      await _ensureDeviceApproved(
+      driverAuth = await _loginDriver(
         baseUrl,
-        adminToken: adminToken,
-        driverId: driverId,
+        username: driverUsername,
+        password: driverPassword,
         deviceId: deviceId,
       );
-    } on _SkipTest catch (e) {
-      // Device endpoints may be permission-restricted in some environments.
-      print('SKIP: ${e.message}');
-      return;
-    }
+    } catch (e) {
+      final message = e.toString().toLowerCase();
+      final needsDeviceApproval = message.contains('device') ||
+          message.contains('approve') ||
+          message.contains('registered');
+      if (!needsDeviceApproval) {
+        rethrow;
+      }
 
-    final driverAuth = await _loginDriver(
-      baseUrl,
-      username: driverUsername,
-      password: driverPassword,
-      deviceId: deviceId,
-    );
+      final adminToken = await _loginAdmin(baseUrl);
+      expect(adminToken, isNotEmpty, reason: 'Admin login failed');
+
+      try {
+        await _ensureDeviceApproved(
+          baseUrl,
+          adminToken: adminToken,
+          driverId: driverId,
+          deviceId: deviceId,
+        );
+      } on _SkipTest catch (e) {
+        print('SKIP: ${e.message}');
+        return;
+      }
+
+      driverAuth = await _loginDriver(
+        baseUrl,
+        username: driverUsername,
+        password: driverPassword,
+        deviceId: deviceId,
+      );
+    }
     expect(driverAuth.accessToken, isNotEmpty, reason: 'Driver login failed');
+    expect(driverAuth.loginBody.containsKey('data'), isTrue,
+        reason: 'Driver login response should include data');
+    expect(driverAuth.driverId, isNotNull,
+        reason: 'Driver login response should include driverId');
+
+    final authHeaders = {'Authorization': 'Bearer ${driverAuth.accessToken}'};
+
+    final pendingRes = await http.get(
+      Uri.parse('$baseUrl/driver/dispatches/me/pending?sort=startTime,DESC&page=0&size=100'),
+      headers: authHeaders,
+    );
+    expect(pendingRes.statusCode, 200,
+        reason: 'Pending dispatches should be reachable: ${pendingRes.body}');
+    _expectPageShape(jsonDecode(pendingRes.body), endpoint: 'me/pending');
+
+    final inProgressRes = await http.get(
+      Uri.parse('$baseUrl/driver/dispatches/me/in-progress?sort=startTime,DESC&page=0&size=100'),
+      headers: authHeaders,
+    );
+    expect(inProgressRes.statusCode, 200,
+        reason:
+            'In-progress dispatches should be reachable: ${inProgressRes.body}');
+    _expectPageShape(jsonDecode(inProgressRes.body), endpoint: 'me/in-progress');
+
+    final completedRes = await http.get(
+      Uri.parse('$baseUrl/driver/dispatches/me/completed?sort=endTime,DESC&page=0&size=100'),
+      headers: authHeaders,
+    );
+    expect(completedRes.statusCode, 200,
+        reason: 'Completed dispatches should be reachable: ${completedRes.body}');
+    _expectPageShape(jsonDecode(completedRes.body), endpoint: 'me/completed');
 
     final listRes = await http.get(
       Uri.parse('$baseUrl/driver/dispatches/driver/$driverId'),
-      headers: {'Authorization': 'Bearer ${driverAuth.accessToken}'},
+      headers: authHeaders,
     );
     expect(listRes.statusCode, 200);
-    final listBody = jsonDecode(listRes.body);
-    expect(listBody is Map, true);
-    expect(listBody.containsKey('content'), true,
-        reason: 'Dispatch page response missing content key');
+    _expectPageShape(jsonDecode(listRes.body), endpoint: 'driver/{id}');
 
     // Status-filtered endpoint should also be reachable.
     final statusRes = await http.get(
       Uri.parse('$baseUrl/driver/dispatches/driver/$driverId/status?status=ASSIGNED'),
-      headers: {'Authorization': 'Bearer ${driverAuth.accessToken}'},
+      headers: authHeaders,
     );
     expect(statusRes.statusCode, 200);
+    _expectPageShape(jsonDecode(statusRes.body), endpoint: 'driver/{id}/status');
+
+    final bannerRes = await http.get(
+      Uri.parse('$baseUrl/driver/banners/active'),
+      headers: authHeaders,
+    );
+    expect(bannerRes.statusCode, 200,
+        reason: 'Driver banners should be reachable: ${bannerRes.body}');
+    _expectWrappedData(jsonDecode(bannerRes.body), endpoint: 'driver/banners/active');
+
+    final bootstrapRes = await http.get(
+      Uri.parse('$baseUrl/driver-app/bootstrap'),
+      headers: authHeaders,
+    );
+    expect(bootstrapRes.statusCode, 200,
+        reason: 'Driver bootstrap should be reachable: ${bootstrapRes.body}');
+    _expectWrappedData(jsonDecode(bootstrapRes.body), endpoint: 'driver-app/bootstrap');
   });
 }
 
@@ -85,9 +147,11 @@ Future<String> _loginAdmin(String baseUrl) async {
 }
 
 class _DriverAuth {
-  _DriverAuth(this.accessToken, this.refreshToken);
+  _DriverAuth(this.accessToken, this.refreshToken, this.loginBody, this.driverId);
   final String accessToken;
   final String refreshToken;
+  final Map loginBody;
+  final int? driverId;
 }
 
 Future<_DriverAuth> _loginDriver(
@@ -112,10 +176,28 @@ Future<_DriverAuth> _loginDriver(
   final Map body = data['data'] is Map ? data['data'] as Map : data as Map;
   final access = (body['token'] ?? body['accessToken'] ?? '') as String? ?? '';
   final refresh = (body['refreshToken'] ?? '') as String? ?? '';
+  final user = body['user'] is Map ? body['user'] as Map : const <String, dynamic>{};
+  final driverId = int.tryParse('${user['driverId'] ?? ''}');
   if (access.isEmpty) {
     throw Exception('Driver login missing access token: ${resp.body}');
   }
-  return _DriverAuth(access, refresh);
+  return _DriverAuth(access, refresh, data as Map, driverId);
+}
+
+void _expectWrappedData(dynamic decoded, {required String endpoint}) {
+  expect(decoded is Map, isTrue, reason: '$endpoint should return a JSON object');
+  final map = decoded as Map;
+  expect(map.containsKey('data'), isTrue,
+      reason: '$endpoint should include data property');
+}
+
+void _expectPageShape(dynamic decoded, {required String endpoint}) {
+  expect(decoded is Map, isTrue, reason: '$endpoint should return a JSON object');
+  final map = decoded as Map;
+  final dynamic page = map['data'] is Map ? map['data'] : map;
+  expect(page is Map, isTrue, reason: '$endpoint should return page object');
+  expect((page as Map).containsKey('content'), isTrue,
+      reason: '$endpoint should include content list');
 }
 
 Future<void> _ensureDeviceApproved(

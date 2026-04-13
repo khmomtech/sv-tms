@@ -6,6 +6,7 @@ import { Router } from '@angular/router';
 
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../../services/auth.service';
+import { PermissionGuardService } from '../../../services/permission-guard.service';
 
 @Component({
   selector: 'app-login',
@@ -18,6 +19,7 @@ export class LoginComponent {
   username: string = '';
   password: string = '';
   errorMessage: string = '';
+  isLoggingIn = false;
 
   // Expose URLs to template
   readonly privacyPolicyUrl = environment.privacyPolicyUrl;
@@ -25,6 +27,7 @@ export class LoginComponent {
 
   constructor(
     private authService: AuthService,
+    private permissionGuardService: PermissionGuardService,
     private router: Router,
     private translate: TranslateService,
   ) {}
@@ -35,16 +38,28 @@ export class LoginComponent {
       return;
     }
 
+    this.isLoggingIn = true;
+    this.errorMessage = '';
+
     this.authService.login(this.username, this.password).subscribe({
       next: (response) => {
         // AuthService already persisted token + user in its tap.
         if (response?.user?.roles?.length) {
-          this.redirectUser(response.user.roles);
+          // Load effective permissions from server so guards are accurate immediately.
+          // Non-admin roles (DRIVER, CUSTOMER) will get a silent 403 which is caught inside.
+          this.permissionGuardService.loadEffectivePermissions().subscribe({
+            complete: () => {
+              this.isLoggingIn = false;
+              this.redirectUser(response.user.roles);
+            },
+          });
         } else {
+          this.isLoggingIn = false;
           this.errorMessage = this.translate.instant('auth.login.roles_missing');
         }
       },
       error: (err) => {
+        this.isLoggingIn = false;
         const backendMsg = err?.error?.message || err?.error?.error || err?.message;
         if (err?.status === 401 || err?.status === 403) {
           this.errorMessage =

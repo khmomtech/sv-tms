@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#1976d2" />
     <meta
       name="description"
-      content="SV-TMS Logistics Dashboard - Fleet and dispatch management system"
+      content="SV-TMS Logistics Dashboard - Fleet and shipment management system"
     />
     <link rel="manifest" href="manifest.json" />
     <title>Logistics Dashboard - SV-TMS</title>
@@ -33,7 +33,7 @@
         googleScript.src =
           'https://maps.googleapis.com/maps/api/js?key=' +
           encodeURIComponent(key) +
-          '&libraries=places,marker,drawing&v=weekly';
+          '&libraries=places,marker,drawing&v=weekly&loading=async';
         googleScript.async = true;
         googleScript.defer = true;
         document.head.appendChild(googleScript);

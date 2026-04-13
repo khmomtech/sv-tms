@@ -1,6 +1,7 @@
 package com.svtrucking.logistics.security;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -131,6 +132,14 @@ public class JwtUtil {
 
   public Claims extractAccessClaims(String token) {
     return extractAllClaims(token);
+  }
+
+  public Claims extractAccessClaimsAllowExpired(String token) {
+    try {
+      return extractAllClaims(token);
+    } catch (ExpiredJwtException e) {
+      return e.getClaims();
+    }
   }
 
   public String extractTokenType(String token) {

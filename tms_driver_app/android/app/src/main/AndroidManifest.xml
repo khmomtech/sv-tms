@@ -74,8 +74,8 @@
         <!-- Flutter / Maps / FCM meta -->
         <meta-data android:name="flutterEmbedding" android:value="2" />
         <!-- Maps API key: set MAPS_API_KEY in android/local.properties or via CI secret -->
-        <meta-data android:name="com.google.android.geo.API_KEY"
-            android:value="${MAPS_API_KEY}" />
+        <!-- <meta-data android:name="com.google.android.geo.API_KEY"
+            android:value="${MAPS_API_KEY}" /> -->
         <meta-data android:name="com.google.android.maps.v2.renderer" android:value="latest" />
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"

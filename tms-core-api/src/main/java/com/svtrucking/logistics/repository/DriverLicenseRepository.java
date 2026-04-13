@@ -3,6 +3,8 @@ package com.svtrucking.logistics.repository;
 import com.svtrucking.logistics.model.DriverLicense;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
@@ -22,4 +24,8 @@ public interface DriverLicenseRepository extends JpaRepository<DriverLicense, Lo
   List<DriverLicense> findAllIncludingDeleted();
 
   List<DriverLicense> findAllByOrderByIdDesc();
+
+  Page<DriverLicense> findAll(Pageable pageable);
+
+  Page<DriverLicense> findAllByOrderByIdDesc(Pageable pageable);
 }

@@ -41,7 +41,7 @@ public class AdminSettingController {
 
   // ---------- READ ONE ----------
   @GetMapping("/value")
-  @PreAuthorize("hasAnyRole('ROLE_ADMIN','SUPER_ADMIN','SYSTEM_ADMIN','OPS_MANAGER')")
+  @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN','SYSTEM_ADMIN','OPS_MANAGER')")
   public Object getValue(
       @RequestParam String groupCode,
       @RequestParam String keyCode,
@@ -52,7 +52,7 @@ public class AdminSettingController {
 
   // ---------- LIST GROUP ----------
   @GetMapping("/values")
-  @PreAuthorize("hasAnyRole('ROLE_ADMIN','SUPER_ADMIN','SYSTEM_ADMIN','OPS_MANAGER')")
+  @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN','SYSTEM_ADMIN','OPS_MANAGER')")
   public List<SettingReadResponse> listValues(
       @RequestParam String groupCode,
       @RequestParam(defaultValue = "GLOBAL") String scope,
@@ -63,14 +63,14 @@ public class AdminSettingController {
 
   // ---------- UPSERT ONE ----------
   @PostMapping("/value")
-  @PreAuthorize("hasAnyRole('ROLE_ADMIN','SUPER_ADMIN','SYSTEM_ADMIN','OPS_MANAGER')")
+  @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN','SYSTEM_ADMIN','OPS_MANAGER')")
   public SettingReadResponse upsert(@RequestBody SettingWriteRequest req) {
     return settingService.upsert(req, currentUsername());
   }
 
   // ---------- BULK UPSERT ----------
   @PostMapping("/bulk")
-  @PreAuthorize("hasAnyRole('ROLE_ADMIN','SUPER_ADMIN','SYSTEM_ADMIN','OPS_MANAGER')")
+  @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN','SYSTEM_ADMIN','OPS_MANAGER')")
   public List<SettingReadResponse> bulk(@RequestBody SettingBulkWriteRequest req) {
     if (req.dryRun()) {
       // Dry-run: return echo of requests as placeholders; real app could also validate each
@@ -99,7 +99,7 @@ public class AdminSettingController {
    * Matches the call made by Angular {@code SettingsService.audit()}.
    */
   @GetMapping("/audit")
-  @PreAuthorize("hasAnyRole('ROLE_ADMIN','SUPER_ADMIN','SYSTEM_ADMIN','OPS_MANAGER')")
+  @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN','SYSTEM_ADMIN','OPS_MANAGER')")
   public Page<SettingAudit> audit(
       @RequestParam(required = false) String groupCode,
       @RequestParam(required = false) String keyCode,

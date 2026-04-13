@@ -41,6 +41,8 @@ public interface LocationHistoryRepository extends JpaRepository<LocationHistory
 
     boolean existsByDriverIdAndPointId(Long driverId, String pointId);
 
+    boolean existsByDriverIdAndSessionIdAndSeq(Long driverId, String sessionId, Long seq);
+
     // ── History lookup ───────────────────────────────────────────────────────
 
     List<LocationHistory> findByDriverIdOrderByTimestampDesc(Long driverId);

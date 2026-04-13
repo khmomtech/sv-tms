@@ -1,10 +1,10 @@
 <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
   <div class="w-full max-w-md p-6 bg-white rounded-lg shadow-lg">
-    <h3 class="mb-4 text-lg font-bold">Assign Truck</h3>
+    <h3 class="mb-4 text-lg font-bold">{{ 'assignTruckDriver.assign_truck' | translate }}</h3>
 
     <form [formGroup]="form" (ngSubmit)="submit()">
       <select formControlName="vehicleId" class="w-full p-2 mb-4 border rounded">
-        <option [ngValue]="null">-- Select Truck --</option>
+        <option [ngValue]="null">{{ 'assignTruckDriver.select_truck' | translate }}</option>
         <option *ngFor="let truck of trucks" [value]="truck.id">
           {{ truck.licensePlate }}
         </option>
@@ -16,14 +16,14 @@
           [disabled]="form.invalid"
           class="px-4 py-2 text-white bg-blue-600 rounded hover:bg-blue-700"
         >
-          ✔ Confirm
+          {{ 'dispatchList.confirm' | translate }}
         </button>
         <button
           type="button"
           (click)="cancel()"
           class="px-4 py-2 text-gray-700 border rounded hover:bg-gray-100"
         >
-          ✖ Cancel
+          {{ 'dispatchList.cancel' | translate }}
         </button>
       </div>
     </form>

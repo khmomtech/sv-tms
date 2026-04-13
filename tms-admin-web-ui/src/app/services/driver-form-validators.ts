@@ -16,6 +16,7 @@ export interface PhoneValidationConfig {
 
 export class DriverFormValidators {
   private static readonly EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  private static readonly PERSON_NAME_PATTERN = /^[\p{L}\p{M}\s'’-]+$/u;
 
   private static readonly PHONE_PATTERNS: Record<
     string,
@@ -103,8 +104,8 @@ export class DriverFormValidators {
       return { isValid: false, message: 'First name must not exceed 50 characters' };
     }
 
-    // Check for valid characters (letters, spaces, hyphens, apostrophes)
-    if (!/^[a-zA-Z\s'-]+$/.test(value)) {
+    // Allow names in any language, including Khmer, plus common separators.
+    if (!this.PERSON_NAME_PATTERN.test(value.trim())) {
       return {
         isValid: false,
         message: 'First name can only contain letters, spaces, hyphens, and apostrophes',
@@ -130,7 +131,7 @@ export class DriverFormValidators {
       return { isValid: false, message: 'Last name must not exceed 50 characters' };
     }
 
-    if (!/^[a-zA-Z\s'-]+$/.test(value)) {
+    if (!this.PERSON_NAME_PATTERN.test(value.trim())) {
       return {
         isValid: false,
         message: 'Last name can only contain letters, spaces, hyphens, and apostrophes',

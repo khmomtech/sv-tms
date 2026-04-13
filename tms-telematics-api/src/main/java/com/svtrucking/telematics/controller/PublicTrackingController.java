@@ -106,7 +106,8 @@ public class PublicTrackingController {
                 gpsData.put("speed", loc.getSpeed());
                 gpsData.put("heading", loc.getHeading());
                 gpsData.put("locationName", loc.getLocationName());
-                gpsData.put("lastSeen", loc.getLastSeen());
+                gpsData.put("lastSeen", loc.getLastReceivedAt() != null ? loc.getLastReceivedAt() : loc.getLastSeen());
+                gpsData.put("lastEventTime", loc.getLastEventTime());
                 gpsData.put("isOnline", loc.getIsOnline());
                 response.put("location", gpsData);
                 response.put("hasLocation", true);

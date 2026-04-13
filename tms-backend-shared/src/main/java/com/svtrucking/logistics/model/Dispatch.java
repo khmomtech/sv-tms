@@ -29,6 +29,7 @@ import lombok.Setter;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.OneToOne;
+import jakarta.persistence.PostLoad;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Version;
@@ -56,7 +57,7 @@ public class Dispatch {
 
   @Version
   @Column(name = "version", nullable = false)
-  private Long version;
+  private long version = 0L;
 
   // Unique Route or Trip Code
   @Column(name = "route_code")
@@ -109,6 +110,11 @@ public class Dispatch {
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "created_by", nullable = true)
   private User createdBy;
+
+  @PostLoad
+  private void ensureVersionInitialized() {
+    // version is a primitive long — always initialized, no null check needed
+  }
 
   @Column(name = "trip_type")
   private String tripType; // e.g., BULK, REGULAR, etc.
@@ -250,9 +256,7 @@ public class Dispatch {
   protected void onCreate() {
     this.createdDate = LocalDateTime.now();
     this.updatedDate = LocalDateTime.now();
-    if (this.version == null) {
-      this.version = 0L;
-    }
+    // version is a primitive long, always 0L by default — no null check needed
   }
 
   @PreUpdate

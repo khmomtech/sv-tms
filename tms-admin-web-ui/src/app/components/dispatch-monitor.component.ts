@@ -5,6 +5,7 @@ import { NgZone } from '@angular/core';
 import { Component } from '@angular/core';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
+import { TranslateModule } from '@ngx-translate/core';
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { Router } from '@angular/router';
 import { RouterModule } from '@angular/router';
@@ -33,6 +34,7 @@ import { ImagePreviewModalComponent } from '../shared/image-preview-modal/image-
     FormsModule,
     ReactiveFormsModule,
     RouterModule,
+    TranslateModule,
     ImagePreviewModalComponent,
     SvSafeDatePipe,
     MatIconModule,
@@ -66,13 +68,14 @@ export class DispatchMonitorComponent implements OnInit, OnDestroy {
   destinationTo = '';
   truckPlate = '';
   tripNo = '';
-  startDate: string = new Date().toISOString().slice(0, 10);
-  endDate: string = new Date().toISOString().slice(0, 10);
+  startDate = '';
+  endDate = '';
 
   autoRefresh = true;
   refreshInterval = 15000;
   intervalId: ReturnType<typeof setInterval> | null = null;
   lastRefreshedAt = '';
+  filtersVisible = false;
 
   refreshOptions = [
     { value: 2000, label: '2 seconds' },
@@ -392,6 +395,55 @@ export class DispatchMonitorComponent implements OnInit, OnDestroy {
     }
   }
 
+  get activeFilterCount(): number {
+    return [
+      this.selectedStatus,
+      this.mySelectedDriver || this.selectedDriver,
+      this.searchRouteCode,
+      this.customerName,
+      this.destinationTo,
+      this.truckPlate,
+      this.tripNo,
+      this.startDate,
+      this.endDate,
+    ].filter((value) => !!String(value ?? '').trim()).length;
+  }
+
+  applyDatePreset(preset: 'TODAY' | 'LAST_7_DAYS' | 'LAST_30_DAYS'): void {
+    const now = new Date();
+    const end = new Date(now);
+    const start = new Date(now);
+
+    if (preset === 'LAST_7_DAYS') {
+      start.setDate(start.getDate() - 6);
+    } else if (preset === 'LAST_30_DAYS') {
+      start.setDate(start.getDate() - 29);
+    }
+
+    this.startDate = start.toISOString().slice(0, 10);
+    this.endDate = end.toISOString().slice(0, 10);
+    this.applyFilters();
+  }
+
+  getActionButtonLabel(dispatchId?: number): string {
+    if (!dispatchId) return '';
+    const action = this.flowActionByDispatchId[dispatchId];
+    if (!action) return '';
+    if (action.loading) return 'Loading...';
+    if (!action.targetStatus) return '';
+    return `Update to ${this.formatStatusLabel(action.targetStatus)}`;
+  }
+
+  private formatStatusLabel(status?: string | null): string {
+    return (status || '')
+      .trim()
+      .toLowerCase()
+      .split('_')
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
+  }
+
   private loadFlowActionsForCurrentRows(rows: Dispatch[]): void {
     const ids = (rows || []).map((r) => r.id).filter((id): id is number => typeof id === 'number');
     if (!ids.length) return;
@@ -413,7 +465,7 @@ export class DispatchMonitorComponent implements OnInit, OnDestroy {
           }
           this.flowActionByDispatchId[id] = {
             loading: false,
-            label: this.resolveActionLabel(action.actionLabel),
+            label: this.formatStatusLabel(action.targetStatus),
             targetStatus: action.targetStatus,
             disabled:
               !!action.requiresAdminApproval ||
@@ -454,21 +506,6 @@ export class DispatchMonitorComponent implements OnInit, OnDestroy {
       actions.find((a) => !a.isDestructive) ||
       actions[0]
     );
-  }
-
-  private resolveActionLabel(raw?: string | null): string {
-    const label = (raw || '').trim();
-    if (!label) return 'Next Action';
-    const shortKey = label.replace(/^dispatch\.action\./, '').replace(/^action\./, '');
-    const map: Record<string, string> = {
-      confirm_pickup: 'Confirm Pickup',
-      arrive_at_loading: 'Arrive At Loading',
-      get_ticket: 'Get Ticket',
-      enter_queue: 'Add To Queue',
-      start_loading: 'Start Loading',
-      finish_loading: 'Mark Loaded',
-    };
-    return map[shortKey] || shortKey.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
   }
 
   private resolveWarehouseCode(dispatch: Dispatch): WarehouseCode {

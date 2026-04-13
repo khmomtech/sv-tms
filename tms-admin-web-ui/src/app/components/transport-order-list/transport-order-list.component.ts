@@ -9,6 +9,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { Subscription } from 'rxjs';
 
@@ -20,6 +21,7 @@ import { STATUS_BADGE_MAPPING, OrderStatus } from '../../models/order-status.enu
 import { DateFormatterService } from '../../services/date-formatter.service';
 import { ConfirmService } from '../../services/confirm.service';
 import type { TransportOrderApiResponse } from '../../models/transport-order-api.model';
+import { UiLanguageService } from '../../shared/services/ui-language.service';
 
 @Component({
   selector: 'app-transport-order-list',
@@ -31,6 +33,7 @@ import type { TransportOrderApiResponse } from '../../models/transport-order-api
     RouterModule,
     FormsModule,
     MatIconModule,
+    TranslateModule,
     TransportOrderEditModalComponent,
   ],
 })
@@ -45,6 +48,8 @@ export class TransportOrderListComponent implements OnInit, OnDestroy {
     private eRef: ElementRef,
     private dateFormatter: DateFormatterService,
     private confirm: ConfirmService,
+    private translate: TranslateService,
+    private uiLanguageService: UiLanguageService,
   ) {}
 
   orders: TransportOrder[] = [];
@@ -68,6 +73,8 @@ export class TransportOrderListComponent implements OnInit, OnDestroy {
   // Pagination
   currentPage = 0;
   pageSize = 20;
+  pageSizes = [10, 20, 50, 100];
+  totalElements = 0;
   totalPages = 0;
   pages: number[] = [];
 
@@ -177,13 +184,14 @@ export class TransportOrderListComponent implements OnInit, OnDestroy {
         next: (response) => {
           const content = response?.data?.content ?? [];
           const totalPages = response?.data?.totalPages ?? 0;
+          const totalElements = response?.data?.totalElements ?? content.length;
           const mappedOrders = this.mapOrders(content);
-          this.setOrderList(mappedOrders, totalPages);
+          this.setOrderList(mappedOrders, totalPages, totalElements);
         },
         error: (err) => {
           console.error('Error applying filters:', err);
           this.isLoading = false;
-          this.errorMessage = 'Failed to load orders. Please try again.';
+          this.errorMessage = this.translate.instant('orders.messages.load_failed');
           this.orders = [];
         },
       });
@@ -227,6 +235,30 @@ export class TransportOrderListComponent implements OnInit, OnDestroy {
       this.currentPage = page;
       this.applyFilters();
     }
+  }
+
+  firstPage(): void {
+    this.goToPage(0);
+  }
+
+  prevPage(): void {
+    this.goToPage(this.currentPage - 1);
+  }
+
+  nextPage(): void {
+    this.goToPage(this.currentPage + 1);
+  }
+
+  lastPage(): void {
+    this.goToPage(Math.max(this.totalPages - 1, 0));
+  }
+
+  onPageSizeChange(size: number | string): void {
+    const parsed = Number(size) || 20;
+    if (parsed === this.pageSize) return;
+    this.pageSize = parsed;
+    this.currentPage = 0;
+    this.applyFilters();
   }
 
   toggleFilters(): void {
@@ -394,16 +426,18 @@ export class TransportOrderListComponent implements OnInit, OnDestroy {
     );
   }
 
-  private setOrderList(data: TransportOrder[], totalPages: number): void {
+  private setOrderList(data: TransportOrder[], totalPages: number, totalElements: number): void {
     let list = data;
     if (this.pendingOnlyMode) {
       list = data.filter((o) => o.status === 'PENDING' || o.status === 'CANCELLED');
       // Show all matching items on a single page for Pending view
       this.totalPages = list.length > 0 ? 1 : 0;
+      this.totalElements = list.length;
       this.pages = this.totalPages > 0 ? [0] : [];
       this.currentPage = 0;
     } else {
       this.totalPages = totalPages;
+      this.totalElements = totalElements;
       this.pages = Array.from({ length: totalPages }, (_, i) => i);
     }
 
@@ -412,12 +446,32 @@ export class TransportOrderListComponent implements OnInit, OnDestroy {
     this.isLoading = false;
   }
 
+  get resultFrom(): number {
+    if (this.totalElements === 0) return 0;
+    return this.currentPage * this.pageSize + 1;
+  }
+
+  get resultTo(): number {
+    if (this.totalElements === 0) return 0;
+    return Math.min((this.currentPage + 1) * this.pageSize, this.totalElements);
+  }
+
   getStatusBadgeClass(status: string): string {
     return STATUS_BADGE_MAPPING[status as OrderStatus] || 'badge-pending';
   }
 
   isActionInProgress(orderId: number | undefined): boolean {
     return orderId != null && this.actionInProgress.has(orderId);
+  }
+
+  getTranslatedPageTitle(): string {
+    return this.uiLanguageService.translateRouteLabel(this.pageTitle || 'Shipment Order');
+  }
+
+  getTranslatedStatus(status: string): string {
+    const key = `orders.status.${status.toLowerCase()}`;
+    const translated = this.translate.instant(key);
+    return translated !== key ? translated : this.formatStatusDisplay(status);
   }
 
   formatStatusDisplay(status: string): string {

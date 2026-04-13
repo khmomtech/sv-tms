@@ -73,7 +73,7 @@ public class DriverMobileController {
     }
   }
 
-  @GetMapping({"/me", "/me/profile"})
+  @GetMapping("/me")
   @PreAuthorize("hasAnyAuthority('ROLE_DRIVER','ROLE_ADMIN','ROLE_SUPERADMIN')")
   public ResponseEntity<ApiResponse<DriverDto>> getMyProfile() {
     try {
@@ -95,37 +95,6 @@ public class DriverMobileController {
       log.error("Failed to load current driver profile: {}", e.getMessage(), e);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
           .body(ApiResponse.fail(messages.get("api.driver.profile.load_failed")));
-    }
-  }
-
-  @GetMapping("/me/id-card")
-  @PreAuthorize("hasAnyAuthority('ROLE_DRIVER','ROLE_ADMIN','ROLE_SUPERADMIN')")
-  public ResponseEntity<ApiResponse<Map<String, Object>>> getMyIdCard() {
-    try {
-      Long driverId = currentDriverIdOrThrow();
-      Driver driver = findDriverOrThrow(driverId);
-
-      Map<String, Object> payload = new LinkedHashMap<>();
-      payload.put("driverId", driver.getId());
-      payload.put("idCardExpiry", driver.getIdCardExpiry());
-      payload.put("firstName", driver.getFirstName());
-      payload.put("lastName", driver.getLastName());
-      payload.put("name", driver.getName());
-      payload.put("phone", driver.getPhone());
-      payload.put("profilePicture", driver.getProfilePicture());
-      return ResponseEntity.ok(
-          ApiResponse.success(messages.get("api.driver.id_card.retrieved"), payload));
-    } catch (DriverNotFoundException e) {
-      log.warn("Current driver id-card not found: {}", e.getMessage());
-      return ResponseEntity.status(HttpStatus.NOT_FOUND)
-          .body(ApiResponse.fail(messages.get("api.driver.id_card.not_found")));
-    } catch (ResponseStatusException e) {
-      log.warn("Current driver id-card rejected: {}", e.getReason());
-      return responseStatusFailure(e);
-    } catch (Exception e) {
-      log.error("Failed to load current driver id-card: {}", e.getMessage(), e);
-      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-          .body(ApiResponse.fail(messages.get("api.driver.id_card.load_failed")));
     }
   }
 

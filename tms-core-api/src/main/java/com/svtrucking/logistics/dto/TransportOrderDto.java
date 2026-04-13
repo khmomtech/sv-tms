@@ -191,7 +191,13 @@ public class TransportOrderDto {
                         order.getItems() != null
                                 ? order.getItems().stream()
                                         .filter(Objects::nonNull)
-                                        .filter(i -> i.getItem() != null && i.getItem().getItemCode() != null)
+                                        .filter(i -> {
+                                            try {
+                                                return i.getItem() != null && i.getItem().getItemCode() != null;
+                                            } catch (jakarta.persistence.EntityNotFoundException ex) {
+                                                return false; // orphaned FK — skip
+                                            }
+                                        })
                                         .collect(Collectors.toMap(
                                                 i -> i.getItem().getItemCode(),
                                                 i -> OrderItemDto.fromEntity(i),

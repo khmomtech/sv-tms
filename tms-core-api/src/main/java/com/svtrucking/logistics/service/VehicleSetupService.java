@@ -7,6 +7,7 @@ import com.svtrucking.logistics.dto.VehicleSetupRequest;
 import com.svtrucking.logistics.dto.MaintenancePolicyRequest;
 import com.svtrucking.logistics.dto.PMScheduleDto;
 import com.svtrucking.logistics.dto.PMScheduleRequest;
+import com.svtrucking.logistics.enums.PMTriggerType;
 import com.svtrucking.logistics.enums.VehicleStatus;
 import com.svtrucking.logistics.enums.VehicleDocumentType;
 import com.svtrucking.logistics.model.Vehicle;
@@ -143,7 +144,7 @@ public class VehicleSetupService {
      * Setup maintenance policy for vehicle
      */
     private void setupMaintenancePolicy(Long vehicleId, MaintenancePolicyRequest policy) {
-        if (policy == null) {
+        if (policy == null || policy.getSchedules() == null || policy.getSchedules().isEmpty()) {
             log.debug("No maintenance policy provided for vehicle: {}", vehicleId);
             return;
         }
@@ -152,13 +153,24 @@ public class VehicleSetupService {
 
         // Create PM schedules based on policy
         for (PMScheduleRequest schedule : policy.getSchedules()) {
+            Integer intervalKm = null;
+            Integer intervalDays = null;
+
+            if (schedule.getTriggerType() == PMTriggerType.DATE) {
+                intervalDays = schedule.getTriggerIntervalDays() != null
+                        ? schedule.getTriggerIntervalDays()
+                        : schedule.getTriggerInterval();
+            } else {
+                intervalKm = schedule.getTriggerInterval();
+            }
+
             PMScheduleDto pmSchedule = PMScheduleDto.builder()
                     .pmName(schedule.getScheduleName())
                     .description(schedule.getDescription())
                     .vehicleId(vehicleId)
                     .triggerType(schedule.getTriggerType())
-                    .intervalKm(schedule.getTriggerInterval())
-                    .intervalDays(schedule.getReminderBeforeDays())
+                    .intervalKm(intervalKm)
+                    .intervalDays(intervalDays)
                     .maintenanceTaskTypeId(schedule.getTaskTypeId())
                     .active(true)
                     .build();

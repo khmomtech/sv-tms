@@ -79,23 +79,27 @@ public class DispatchFlowAdminService {
         .toList();
   }
 
-  @Transactional
+  @Transactional(transactionManager = "jpaTransactionManager")
   public DispatchFlowTemplateDto createTemplate(DispatchFlowTemplateUpsertRequest request) {
     DispatchFlowTemplate template = new DispatchFlowTemplate();
     applyTemplateRequest(template, request);
     Long userId = currentUserIdOrNull();
     template.setCreatedBy(userId);
     template.setUpdatedBy(userId);
-    return DispatchFlowTemplateDto.fromEntity(templateRepository.save(template));
+    DispatchFlowTemplate saved = templateRepository.saveAndFlush(template);
+    return DispatchFlowTemplateDto.fromEntity(
+        templateRepository.findById(saved.getId()).orElse(saved));
   }
 
-  @Transactional
+  @Transactional(transactionManager = "jpaTransactionManager")
   public DispatchFlowTemplateDto updateTemplate(Long id, DispatchFlowTemplateUpsertRequest request) {
     DispatchFlowTemplate template = templateRepository.findById(id)
         .orElseThrow(() -> new ResourceNotFoundException("Template not found"));
     applyTemplateRequest(template, request);
     template.setUpdatedBy(currentUserIdOrNull());
-    return DispatchFlowTemplateDto.fromEntity(templateRepository.save(template));
+    DispatchFlowTemplate saved = templateRepository.saveAndFlush(template);
+    return DispatchFlowTemplateDto.fromEntity(
+        templateRepository.findById(saved.getId()).orElse(saved));
   }
 
   @Transactional(readOnly = true)
@@ -106,7 +110,7 @@ public class DispatchFlowAdminService {
         .toList();
   }
 
-  @Transactional
+  @Transactional(transactionManager = "jpaTransactionManager")
   public DispatchFlowTemplateVersionDto publishTemplateVersion(Long templateId, DispatchFlowPublishRequest request) {
     DispatchFlowTemplate template = templateRepository.findById(templateId)
         .orElseThrow(() -> new ResourceNotFoundException("Template not found"));
@@ -149,7 +153,7 @@ public class DispatchFlowAdminService {
     return DispatchFlowTemplateVersionDto.fromEntity(version);
   }
 
-  @Transactional
+  @Transactional(transactionManager = "jpaTransactionManager")
   public DispatchFlowTemplateVersionDto rollbackVersion(Long versionId, DispatchFlowPublishRequest request) {
     DispatchFlowTemplateVersion version = templateVersionRepository.findById(versionId)
         .orElseThrow(() -> new ResourceNotFoundException("Template version not found"));
@@ -176,7 +180,7 @@ public class DispatchFlowAdminService {
     return toRuleDtos(rules);
   }
 
-  @Transactional
+  @Transactional(transactionManager = "jpaTransactionManager")
   public DispatchFlowRuleDto createRule(Long templateId, DispatchFlowRuleUpsertRequest request) {
     DispatchFlowTemplate template = templateRepository.findById(templateId)
         .orElseThrow(() -> new ResourceNotFoundException("Template not found"));
@@ -192,7 +196,7 @@ public class DispatchFlowAdminService {
         dispatchFlowRuleMetadataService.parseProofPolicy(saved.getMetadataJson()));
   }
 
-  @Transactional
+  @Transactional(transactionManager = "jpaTransactionManager")
   public DispatchFlowRuleDto updateRule(Long ruleId, DispatchFlowRuleUpsertRequest request) {
     DispatchFlowTransitionRule rule = ruleRepository.findById(ruleId)
         .orElseThrow(() -> new ResourceNotFoundException("Rule not found"));
@@ -205,7 +209,7 @@ public class DispatchFlowAdminService {
         dispatchFlowRuleMetadataService.parseProofPolicy(saved.getMetadataJson()));
   }
 
-  @Transactional
+  @Transactional(transactionManager = "jpaTransactionManager")
   public DispatchFlowRuleDto updateRuleActors(Long ruleId, DispatchFlowRuleActorsUpdateRequest request) {
     DispatchFlowTransitionRule rule = ruleRepository.findById(ruleId)
         .orElseThrow(() -> new ResourceNotFoundException("Rule not found"));
@@ -233,7 +237,7 @@ public class DispatchFlowAdminService {
         dispatchFlowRuleMetadataService.parseProofPolicy(rule.getMetadataJson()));
   }
 
-  @Transactional
+  @Transactional(transactionManager = "jpaTransactionManager")
   public List<DispatchFlowRuleDto> reorderRules(Long templateId, DispatchFlowRuleReorderRequest request) {
     ensureTemplateExists(templateId);
     List<DispatchFlowTransitionRule> rules = ruleRepository.findByTemplateIdOrderByPriorityAsc(templateId);
@@ -270,7 +274,7 @@ public class DispatchFlowAdminService {
     return listRules(templateId);
   }
 
-  @Transactional
+  @Transactional(transactionManager = "jpaTransactionManager")
   public void deleteRule(Long ruleId) {
     if (!ruleRepository.existsById(ruleId)) {
       throw new ResourceNotFoundException("Rule not found");
@@ -279,7 +283,7 @@ public class DispatchFlowAdminService {
     ruleRepository.deleteById(ruleId);
   }
 
-  @Transactional
+  @Transactional(transactionManager = "jpaTransactionManager")
   public void deleteTemplate(Long templateId) {
     DispatchFlowTemplate template = templateRepository.findById(templateId)
         .orElseThrow(() -> new ResourceNotFoundException("Template not found"));
@@ -428,7 +432,7 @@ public class DispatchFlowAdminService {
         .build();
   }
 
-  @Transactional
+  @Transactional(transactionManager = "jpaTransactionManager")
   public DispatchWorkflowBindingDto assignDispatchTemplate(Long dispatchId, DispatchFlowAssignDispatchRequest request) {
     Dispatch dispatch = dispatchRepository.findById(dispatchId)
         .orElseThrow(() -> new ResourceNotFoundException("Dispatch not found"));
@@ -437,7 +441,7 @@ public class DispatchFlowAdminService {
     return getWorkflowBinding(dispatchId);
   }
 
-  @Transactional
+  @Transactional(transactionManager = "jpaTransactionManager")
   public List<DispatchWorkflowBindingDto> assignDispatchTemplates(DispatchFlowAssignDispatchRequest request) {
     if (request.getDispatchIds() == null || request.getDispatchIds().isEmpty()) {
       throw new IllegalArgumentException("dispatchIds is required");
@@ -457,7 +461,7 @@ public class DispatchFlowAdminService {
         .toList();
   }
 
-  @Transactional
+  @Transactional(transactionManager = "jpaTransactionManager")
   public DispatchProofEventDto reviewProofEvent(Long eventId, DispatchProofReviewDecisionRequest request) {
     DispatchProofEvent event = dispatchProofEventRepository.findById(eventId)
         .orElseThrow(() -> new ResourceNotFoundException("Proof event not found"));

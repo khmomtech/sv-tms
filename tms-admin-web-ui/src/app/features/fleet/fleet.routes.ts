@@ -137,11 +137,15 @@ export const FLEET_ROUTES: Routes = [
       },
       {
         path: 'setup',
+        canActivate: [PermissionGuard],
         loadComponent: () =>
           import('../../components/vehicle/pages/vehicle-setup/vehicle-setup.component').then(
             (m) => m.VehicleSetupComponent,
           ),
-        data: { title: 'Vehicle Master Setup' },
+        data: {
+          title: 'Vehicle Master Setup',
+          permissions: [PERMISSIONS.VEHICLE_CREATE],
+        },
       },
       {
         path: 'create',

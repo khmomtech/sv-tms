@@ -1,112 +1,211 @@
-<h2 class="mb-4 text-xl font-semibold">📥 Import Items from Excel</h2>
+<div class="max-w-5xl mx-auto p-6">
 
-<!-- File Upload -->
-<div class="mb-4">
-  <input type="file" (change)="handleFileInput($event)" accept=".xlsx, .xls" />
-</div>
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h2 class="text-2xl font-bold text-gray-800">Import Items</h2>
+      <p class="text-sm text-gray-500 mt-1">Upload an Excel file to bulk import items</p>
+    </div>
+    <button
+      (click)="downloadTemplate()"
+      class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
+    >
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+      </svg>
+      Download Template
+    </button>
+  </div>
 
-<!-- Column Mapping UI -->
-<div *ngIf="excelColumns.length > 0" class="mb-6">
-  <h3 class="text-lg font-medium">🛠️ Map Excel Columns</h3>
+  <!-- Steps -->
+  <div class="flex items-center gap-2 mb-6 text-sm">
+    <div class="step-badge" [class.active]="!file" [class.done]="!!file">1. Upload</div>
+    <div class="step-divider"></div>
+    <div class="step-badge" [class.active]="!!file && !isPreviewReady" [class.done]="isPreviewReady">2. Map Columns</div>
+    <div class="step-divider"></div>
+    <div class="step-badge" [class.active]="isPreviewReady">3. Confirm</div>
+  </div>
+
+  <!-- STEP 1: Drop Zone -->
   <div
-    *ngFor="
-      let field of [
-        'itemCode',
-        'itemName',
-        'itemNameKh',
-        'quantity',
-        'unit',
-        'size',
-        'weight',
-        'itemType',
-        'palletType',
-        'status',
-      ]
-    "
-    class="flex items-center gap-2 mb-2"
+    class="drop-zone"
+    [class.dragging]="isDragging"
+    [class.has-file]="!!file"
+    (dragover)="onDragOver($event)"
+    (dragleave)="onDragLeave($event)"
+    (drop)="onDrop($event)"
+    (click)="fileInput.click()"
   >
-    <label class="w-32 font-medium capitalize">{{ fieldLabels[field] || field }}</label>
-    <select [(ngModel)]="columnMapping[field]" class="w-full p-1 border rounded">
-      <option value="">-- Select column --</option>
-      <option *ngFor="let col of excelColumns" [value]="col">{{ col }}</option>
-    </select>
+    <input
+      #fileInput
+      type="file"
+      accept=".xlsx,.xls"
+      class="hidden"
+      (change)="onFileInputChange($event)"
+    />
+
+    <ng-container *ngIf="!file">
+      <svg class="w-10 h-10 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+          d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+      </svg>
+      <p class="text-gray-600 font-medium">Drag & drop your Excel file here</p>
+      <p class="text-gray-400 text-sm mt-1">or click to browse</p>
+      <p class="text-gray-400 text-xs mt-3">.xlsx, .xls supported</p>
+    </ng-container>
+
+    <ng-container *ngIf="file">
+      <svg class="w-8 h-8 text-green-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+      <p class="text-gray-800 font-medium">{{ file.name }}</p>
+      <p class="text-gray-400 text-sm mt-1">Click to change file</p>
+    </ng-container>
   </div>
-  <button
-    (click)="generatePreview()"
-    class="px-4 py-2 mt-4 text-white bg-blue-600 rounded hover:bg-blue-700"
-  >
-    👁️ Generate Preview
-  </button>
-</div>
 
-<!-- Preview Table -->
-<div *ngIf="isPreviewReady && previewItems.length > 0" class="mt-6">
-  <h3 class="mb-2 text-lg font-medium">🔍 Preview ({{ previewItems.length }} records)</h3>
+  <!-- STEP 2: Column Mapping -->
+  <div *ngIf="excelColumns.length > 0" class="mt-6 bg-white border border-gray-200 rounded-xl p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-semibold text-gray-800">Map Columns</h3>
+      <span class="text-xs text-gray-400">{{ excelColumns.length }} columns detected</span>
+    </div>
 
-  <table border="1" cellpadding="6" cellspacing="0" class="w-full text-left">
-    <thead class="bg-gray-200">
-      <tr>
-        <th>Item Code</th>
-        <th>Name</th>
-        <th>Name (Khmer)</th>
-        <th>Quantity</th>
-        <th>Unit</th>
-        <th>Size</th>
-        <th>Weight</th>
-        <th>Type</th>
-        <th>Pallet Type</th>
-        <th>Status</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr *ngFor="let i of previewItems">
-        <td>{{ i.itemCode }}</td>
-        <td>{{ i.itemName }}</td>
-        <td>{{ i.itemNameKh }}</td>
-        <td>{{ i.quantity }}</td>
-        <td>{{ i.unit }}</td>
-        <td>{{ i.size }}</td>
-        <td>{{ i.weight }}</td>
-        <td>{{ i.itemType }}</td>
-        <td>{{ i.palletType }}</td>
-        <td>{{ i.status }}</td>
-      </tr>
-    </tbody>
-  </table>
-
-  <!-- Confirm Import & Export Buttons -->
-  <div class="flex gap-4 mt-4">
-    <button
-      (click)="confirmImport()"
-      [disabled]="loading"
-      class="px-4 py-2 text-white bg-green-600 rounded hover:bg-green-700"
-    >
-      {{ loading ? '⏳ Importing...' : ' Confirm Import' }}
-    </button>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div
+        *ngFor="let field of ['itemCode','itemName','itemNameKh','quantity','unit','size','weight','itemType','palletType','status','sortOrder']"
+        class="flex items-center gap-3"
+      >
+        <label class="w-36 text-sm font-medium text-gray-600 shrink-0">
+          {{ fieldLabels[field] || field }}
+          <span *ngIf="field === 'itemName'" class="text-red-500">*</span>
+        </label>
+        <select
+          [(ngModel)]="columnMapping[field]"
+          class="flex-1 text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-300"
+          [class.border-green-400]="columnMapping[field]"
+        >
+          <option value="">— not mapped —</option>
+          <option *ngFor="let col of excelColumns" [value]="col">{{ col }}</option>
+        </select>
+      </div>
+    </div>
 
     <button
-      *ngIf="failedItems.length > 0"
-      (click)="exportFailedToExcel()"
-      class="px-4 py-2 text-white bg-red-600 rounded hover:bg-red-700"
+      (click)="generatePreview()"
+      class="mt-5 px-5 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
     >
-      ⬇️ Export Failed Records ({{ failedItems.length }})
+      Generate Preview
     </button>
   </div>
+
+  <!-- STEP 3: Preview Table -->
+  <div *ngIf="isPreviewReady && previewItems.length > 0" class="mt-6">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="font-semibold text-gray-800">
+        Preview
+        <span class="ml-2 text-sm font-normal text-gray-400">{{ previewItems.length }} records</span>
+      </h3>
+      <div class="flex gap-3">
+        <button
+          (click)="confirmImport()"
+          [disabled]="loading"
+          class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
+        >
+          <svg *ngIf="!loading" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+          </svg>
+          <svg *ngIf="loading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+          </svg>
+          {{ loading ? 'Importing…' : 'Confirm Import' }}
+        </button>
+
+        <button
+          *ngIf="failedItems.length > 0"
+          (click)="exportFailedToExcel()"
+          class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+          </svg>
+          Export Failed ({{ failedItems.length }})
+        </button>
+      </div>
+    </div>
+
+    <div class="overflow-x-auto rounded-xl border border-gray-200">
+      <table class="w-full text-sm text-left">
+        <thead class="bg-gray-50 text-gray-600 uppercase text-xs tracking-wide">
+          <tr>
+            <th class="px-4 py-3">#</th>
+            <th class="px-4 py-3">Item Code</th>
+            <th class="px-4 py-3">Name</th>
+            <th class="px-4 py-3">Name (Khmer)</th>
+            <th class="px-4 py-3">Qty</th>
+            <th class="px-4 py-3">Unit</th>
+            <th class="px-4 py-3">Size</th>
+            <th class="px-4 py-3">Weight</th>
+            <th class="px-4 py-3">Type</th>
+            <th class="px-4 py-3">Pallet Type</th>
+            <th class="px-4 py-3">Status</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+          <tr *ngFor="let i of previewItems; let idx = index" class="hover:bg-gray-50">
+            <td class="px-4 py-2 text-gray-400">{{ idx + 1 }}</td>
+            <td class="px-4 py-2 font-mono text-xs">{{ i.itemCode }}</td>
+            <td class="px-4 py-2 font-medium">{{ i.itemName }}</td>
+            <td class="px-4 py-2 text-gray-500">{{ i.itemNameKh }}</td>
+            <td class="px-4 py-2">{{ i.quantity }}</td>
+            <td class="px-4 py-2">{{ i.unit }}</td>
+            <td class="px-4 py-2">{{ i.size }}</td>
+            <td class="px-4 py-2">{{ i.weight }}</td>
+            <td class="px-4 py-2">{{ i.itemType }}</td>
+            <td class="px-4 py-2">{{ i.palletType }}</td>
+            <td class="px-4 py-2">
+              <span
+                class="px-2 py-0.5 rounded-full text-xs font-medium"
+                [class.bg-green-100]="i.status === 1"
+                [class.text-green-700]="i.status === 1"
+                [class.bg-gray-100]="i.status === 0"
+                [class.text-gray-500]="i.status === 0"
+              >
+                {{ i.status === 1 ? 'Active' : 'Inactive' }}
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- No valid rows -->
+  <div *ngIf="isPreviewReady && previewItems.length === 0" class="mt-6 flex items-center gap-3 p-4 bg-yellow-50 border border-yellow-200 rounded-xl text-yellow-800 text-sm">
+    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+        d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+    </svg>
+    No valid items found. Make sure <strong class="mx-1">Item Name</strong> is mapped and rows are not empty.
+  </div>
+
 </div>
 
-<!-- No Preview Case -->
-<div *ngIf="isPreviewReady && previewItems.length === 0" class="mt-4 text-red-600">
-  ⚠️ No valid items found in the file.
-</div>
-
-<!-- Toast Notification -->
+<!-- Toast -->
 <div
   *ngIf="showToast"
-  class="fixed px-4 py-2 text-white rounded shadow-lg bottom-4 right-4"
-  [ngClass]="{
-    'bg-green-600': toastType === 'success',
-    'bg-red-600': toastType === 'error',
-  }"
+  class="fixed bottom-5 right-5 flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-white text-sm transition-all z-50"
+  [class.bg-green-600]="toastType === 'success'"
+  [class.bg-red-500]="toastType === 'error'"
 >
+  <svg *ngIf="toastType === 'success'" class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+  </svg>
+  <svg *ngIf="toastType === 'error'" class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+  </svg>
   {{ toastMessage }}
 </div>

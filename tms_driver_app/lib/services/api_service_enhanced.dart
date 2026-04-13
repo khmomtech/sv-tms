@@ -301,8 +301,9 @@ class ApiServiceEnhanced {
         debugPrint('🔑 Token expiring soon, attempting refresh...');
         final newToken = await ApiConstants.refreshAccessToken();
         if (newToken == null) {
-          debugPrint('Token refresh failed - clearing credentials');
-          await ApiConstants.clearTokens();
+          debugPrint(
+            'Token refresh unavailable - keeping existing credentials until backend confirms invalid session',
+          );
         } else {
           debugPrint('Token refreshed successfully');
         }
@@ -549,9 +550,6 @@ class _AuthInterceptor extends Interceptor {
           debugPrint('Retry after token refresh failed: $e');
         }
       }
-
-      // Token refresh failed - clear tokens
-      await ApiConstants.clearTokens();
     }
 
     super.onError(err, handler);

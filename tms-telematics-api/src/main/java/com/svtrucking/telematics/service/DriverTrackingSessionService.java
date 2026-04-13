@@ -162,21 +162,26 @@ public class DriverTrackingSessionService {
         }
         if (payloadSessionId != null && !payloadSessionId.isBlank()
                 && !payloadSessionId.equals(tokenSessionId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "sessionId mismatch");
+            log.warn(
+                    "Ignoring stale payload sessionId for driver {}: payloadSessionId={}, tokenSessionId={}",
+                    tokenDriverId,
+                    payloadSessionId,
+                    tokenSessionId);
         }
 
         DriverTrackingSession session = trackingSessionRepository
                 .findBySessionIdAndRevokedAtIsNull(tokenSessionId)
                 .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.UNAUTHORIZED, "Tracking session not active"));
+                        HttpStatus.FORBIDDEN, "Tracking session not active"));
         LocalDateTime now = LocalDateTime.now();
         if (session.getExpiresAt() != null && session.getExpiresAt().isBefore(now)) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Tracking session expired");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Tracking session expired");
         }
         if (!session.getDriverId().equals(tokenDriverId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "session driver mismatch");
         }
         session.setLastSeen(now);
+        session.setExpiresAt(now.plusSeconds(Math.max(1L, jwtUtil.getTrackingTtlMs() / 1000L)));
         trackingSessionRepository.save(session);
     }
 

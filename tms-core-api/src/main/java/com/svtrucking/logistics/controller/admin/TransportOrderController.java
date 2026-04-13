@@ -16,9 +16,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import jakarta.servlet.http.HttpServletRequest;
 
 @Slf4j
 @RestController
@@ -47,9 +49,10 @@ public class TransportOrderController {
   }
 
   @GetMapping("/list")
-  public ResponseEntity<ApiResponse<List<TransportOrderDto>>> getAllOrderLists() {
-    log.info("Fetching all transport orders (non-paginated)");
-    return ResponseEntity.ok(transportOrderService.getAllOrderLists());
+  public ResponseEntity<ApiResponse<List<TransportOrderDto>>> getAllOrderLists(
+      @RequestParam(defaultValue = "500") int limit) {
+    log.info("Fetching transport orders list (limit={})", limit);
+    return ResponseEntity.ok(transportOrderService.getAllOrderLists(limit));
   }
 
   @GetMapping("/search")
@@ -167,8 +170,19 @@ public class TransportOrderController {
             true, "Unscheduled orders loaded", transportOrderService.getUnscheduledOrders()));
   }
 
-  @PostMapping("/import-bulk")
-  public ResponseEntity<ApiResponse<?>> importBulkOrders(@RequestParam("file") MultipartFile file) {
+  @PostMapping(value = "/import-bulk", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+  public ResponseEntity<ApiResponse<?>> importBulkOrders(
+      @RequestParam(name = "file", required = false) MultipartFile file,
+      HttpServletRequest request) {
+    if (file == null || file.isEmpty()) {
+      log.warn(
+          "Bulk import request missing file part: contentType={}, contentLength={}, transferEncoding={}",
+          request.getContentType(),
+          request.getContentLengthLong(),
+          request.getHeader("Transfer-Encoding"));
+      return ResponseEntity.badRequest().body(new ApiResponse<>(false, "File is required", null));
+    }
+
     try {
       log.info(
           "Received bulk import request: file={}, size={} bytes",

@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:tms_driver_app/core/constants/app_colors.dart';
 import 'package:tms_driver_app/models/conversation_model.dart';
+import 'package:tms_driver_app/providers/app_bootstrap_provider.dart';
 import 'package:tms_driver_app/providers/chat_provider.dart';
 import 'package:tms_driver_app/routes/app_routes.dart';
 
@@ -62,6 +63,12 @@ class _MessagesInboxScreenState extends State<MessagesInboxScreen>
     _tabController = TabController(length: 3, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      final bootstrap = context.read<AppBootstrapProvider>();
+      final chatEnabled = bootstrap.isAnyFeatureEnabled(
+        const ['driver.chat.enabled'],
+        fallback: true,
+      );
+      if (!chatEnabled) return;
       context.read<ChatProvider>().loadMessages();
     });
   }
@@ -151,6 +158,11 @@ class _MessagesInboxScreenState extends State<MessagesInboxScreen>
 
     return Consumer<ChatProvider>(
       builder: (context, provider, child) {
+        final bootstrap = context.watch<AppBootstrapProvider>();
+        final chatEnabled = bootstrap.isAnyFeatureEnabled(
+          const ['driver.chat.enabled'],
+          fallback: true,
+        );
         final conversations = _buildConversations(provider);
         final unreadConversations =
             conversations.where((c) => c.unreadCount > 0).toList();
@@ -195,26 +207,46 @@ class _MessagesInboxScreenState extends State<MessagesInboxScreen>
               ],
             ),
           ),
-          body: TabBarView(
-            controller: _tabController,
-            children: [
-              _buildConversationList(conversations, theme),
-              _buildConversationList(unreadConversations, theme),
-              _buildConversationList(archivedConversations, theme),
-            ],
-          ),
-          floatingActionButton: FloatingActionButton(
-            backgroundColor: AppColors.primary,
-            onPressed: () {
-              Navigator.pushNamed(
-                context,
-                AppRoutes.messagesChat,
-                arguments: const ChatRouteArgs(entryPoint: 'support_center'),
-              );
-            },
-            child:
-                const Icon(Icons.mark_chat_unread_rounded, color: Colors.white),
-          ),
+          body: chatEnabled
+              ? TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildConversationList(conversations, theme),
+                    _buildConversationList(unreadConversations, theme),
+                    _buildConversationList(archivedConversations, theme),
+                  ],
+                )
+              : const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Text(
+                      'Support chat is disabled right now.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Color(0xFF6C7A96),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+          floatingActionButton: chatEnabled
+              ? FloatingActionButton(
+                  backgroundColor: AppColors.primary,
+                  onPressed: () {
+                    Navigator.pushNamed(
+                      context,
+                      AppRoutes.messagesChat,
+                      arguments:
+                          const ChatRouteArgs(entryPoint: 'support_center'),
+                    );
+                  },
+                  child: const Icon(
+                    Icons.mark_chat_unread_rounded,
+                    color: Colors.white,
+                  ),
+                )
+              : null,
         );
       },
     );

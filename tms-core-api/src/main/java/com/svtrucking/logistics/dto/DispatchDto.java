@@ -89,6 +89,7 @@ public class DispatchDto {
   // Timestamps
   private LocalDateTime createdDate;
   private LocalDateTime updatedDate;
+  private String cancelReason;
 
   // Stops and Items
   private List<DispatchStopDto> stops;
@@ -146,6 +147,7 @@ public class DispatchDto {
         .createdByUsername(getSafeCreatedByUsername(dispatch))
         .createdDate(dispatch.getCreatedDate())
         .updatedDate(dispatch.getUpdatedDate())
+        .cancelReason(dispatch.getCancelReason())
         .stops(mapStopsSafely(dispatch))
         .items(mapItemsSafely(dispatch))
         .build();

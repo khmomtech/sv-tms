@@ -1,27 +1,27 @@
 <header
-  class="flex flex-wrap items-center justify-between gap-4 p-4 bg-white shadow-md sm:flex-nowrap"
+  class="header-shell flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-white shadow-sm sm:flex-nowrap sm:px-5"
 >
   <!-- 👋 Left: Logo, Title & Sidebar Toggle -->
   <h1
-    class="flex items-center justify-between w-full text-xl font-semibold text-gray-800 sm:text-2xl sm:w-auto sm:justify-start"
+    class="flex items-center justify-between w-full text-lg font-semibold text-gray-800 sm:w-auto sm:justify-start sm:text-xl"
   >
     <!-- ☰ Sidebar Toggle -->
     <button
       (click)="onToggleSidebar()"
-      class="mr-4 text-2xl hover:text-blue-950 focus:outline-none"
+      class="mr-3 flex h-10 w-10 items-center justify-center rounded-xl text-2xl text-slate-700 transition hover:bg-slate-100 hover:text-blue-950 focus:outline-none"
       [attr.aria-label]="'layout.header.toggle_sidebar' | translate"
     >
       ☰
     </button>
 
     <!-- 🏢 Company Name -->
-    <span class="flex items-center gap-2">
+    <span class="flex items-center gap-2 min-w-0">
       <!-- <img src="assets/svtrucking-logo.png" alt="SVTRUCKING Logo" class="w-8 h-8 rounded-full" /> -->
-      <span class="font-bold text-blue-800">{{ pageTitle || '' }}</span>
+      <span class="font-bold text-blue-900 truncate">{{ pageTitle || '' }}</span>
     </span>
     <nav
       [attr.aria-label]="'layout.header.breadcrumb' | translate"
-      class="ml-4 text-sm text-gray-500"
+      class="hidden ml-4 text-sm text-gray-500 xl:block"
     >
       <ol class="flex items-center gap-1">
         <li>
@@ -49,7 +49,7 @@
 
   <!-- 🛠️ Right: Notifications + User Menu -->
   <div
-    class="flex flex-wrap items-center justify-end w-full gap-3 sm:flex-nowrap sm:gap-4 sm:w-auto"
+    class="header-actions flex flex-wrap items-center justify-end w-full gap-3 sm:flex-nowrap sm:w-auto"
   >
     <!-- 🔔 Notifications Dropdown -->
     <app-notification-dropdown
@@ -61,26 +61,30 @@
     ></app-notification-dropdown>
 
     <div
-      class="inline-flex items-center p-1 bg-gray-100 border border-gray-200 rounded-xl"
+      class="lang-switch inline-flex items-center p-1 bg-slate-50 border border-slate-200 rounded-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]"
       role="group"
       [attr.aria-label]="'layout.header.language_switcher' | translate"
     >
       <button
         type="button"
-        class="px-3 py-1.5 text-xs font-semibold rounded-lg transition"
+        class="lang-option px-4 py-2 text-sm font-semibold rounded-xl transition"
         [ngClass]="
-          isLanguage('kh') ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-200'
+          isLanguage('kh')
+            ? 'bg-blue-600 text-white shadow-sm shadow-blue-200/70'
+            : 'text-slate-600 hover:bg-slate-200/70'
         "
         (click)="setLanguage('kh')"
       >
-        KM
+        KH
       </button>
-      <span class="px-1 text-xs text-gray-400">|</span>
+      <span class="lang-divider" aria-hidden="true"></span>
       <button
         type="button"
-        class="px-3 py-1.5 text-xs font-semibold rounded-lg transition"
+        class="lang-option px-4 py-2 text-sm font-semibold rounded-xl transition"
         [ngClass]="
-          isLanguage('en') ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-200'
+          isLanguage('en')
+            ? 'bg-blue-600 text-white shadow-sm shadow-blue-200/70'
+            : 'text-slate-600 hover:bg-slate-200/70'
         "
         (click)="setLanguage('en')"
       >
@@ -101,25 +105,31 @@
     <div *ngIf="user" class="relative user-menu">
       <button
         (click)="toggleDropdown()"
-        class="flex items-center gap-3 px-4 py-2.5 text-white bg-blue-500 rounded-xl hover:bg-blue-600 shadow-sm min-w-[200px] max-w-[260px]"
+        class="account-trigger flex items-center gap-3 rounded-3xl bg-gradient-to-r from-blue-600 to-blue-500 px-4 py-2.5 text-white shadow-[0_10px_28px_rgba(37,99,235,0.22)] transition hover:from-blue-700 hover:to-blue-600 min-w-[188px] max-w-[240px]"
         [attr.aria-label]="'layout.header.open_user_menu' | translate"
       >
         <div
-          class="w-8 h-8 rounded-full bg-white/80 text-blue-700 text-[11px] font-bold flex items-center justify-center"
+          class="flex h-10 w-10 items-center justify-center rounded-full bg-white/85 text-sm font-bold text-blue-700 ring-1 ring-white/50"
         >
           {{ (user.username || 'U').slice(0, 2).toUpperCase() }}
         </div>
-        <span class="hidden sm:inline truncate font-medium">{{ user.username }}</span>
+        <div class="hidden min-w-0 text-left sm:block">
+          <div class="text-[11px] font-medium uppercase tracking-[0.16em] text-blue-100/90">
+            Admin
+          </div>
+          <div class="truncate text-lg font-semibold leading-none">{{ user.username }}</div>
+        </div>
+        <span class="material-icons ml-auto hidden text-[18px] text-white/90 sm:inline">expand_more</span>
       </button>
 
       <!-- 👇 Dropdown Menu -->
       <div
         *ngIf="isDropdownOpen"
-        class="absolute right-0 z-10 w-48 mt-2 bg-white rounded-lg shadow-lg"
+        class="absolute right-0 z-10 w-52 mt-2 overflow-hidden bg-white border border-slate-200 rounded-2xl shadow-xl"
       >
         <button
           (click)="logout()"
-          class="block w-full px-4 py-2 text-left text-gray-700 hover:bg-gray-200"
+          class="block w-full px-4 py-3 text-left text-gray-700 transition hover:bg-slate-100"
         >
           {{ t('Logout') }}
         </button>

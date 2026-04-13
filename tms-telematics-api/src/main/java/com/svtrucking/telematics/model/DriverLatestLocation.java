@@ -61,6 +61,12 @@ public class DriverLatestLocation {
     @Column(name = "last_seen")
     private Timestamp lastSeen;
 
+    @Column(name = "last_received_at")
+    private Timestamp lastReceivedAt;
+
+    @Column(name = "last_event_time")
+    private Timestamp lastEventTime;
+
     @Column(name = "is_online")
     private Boolean isOnline;
 
@@ -106,6 +112,10 @@ public class DriverLatestLocation {
             longitude = -180d;
         if (this.lastSeen == null)
             this.lastSeen = new Timestamp(now);
+        if (this.lastReceivedAt == null)
+            this.lastReceivedAt = this.lastSeen;
+        if (this.lastEventTime == null)
+            this.lastEventTime = this.lastSeen;
         if (this.isOnline == null)
             this.isOnline = Boolean.TRUE;
     }
@@ -114,11 +124,15 @@ public class DriverLatestLocation {
     public void preUpdate() {
         if (this.lastSeen == null)
             this.lastSeen = new Timestamp(System.currentTimeMillis());
+        if (this.lastReceivedAt == null)
+            this.lastReceivedAt = this.lastSeen;
     }
 
     public void touchOnline() {
         this.isOnline = Boolean.TRUE;
-        this.lastSeen = new Timestamp(System.currentTimeMillis());
+        Timestamp now = new Timestamp(System.currentTimeMillis());
+        this.lastSeen = now;
+        this.lastReceivedAt = now;
     }
 
     @Transient

@@ -1,5 +1,7 @@
 package com.svtrucking.telematics.controller.internal;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.svtrucking.telematics.model.DriverSnapshot;
 import com.svtrucking.telematics.repository.DriverSnapshotRepository;
 import jakarta.validation.Valid;
@@ -24,6 +26,7 @@ import org.springframework.web.bind.annotation.*;
 public class DriverSyncController {
 
     private final DriverSnapshotRepository snapshotRepository;
+    private final ObjectMapper objectMapper;
 
     @PatchMapping("/driver-sync")
     public ResponseEntity<Map<String, Object>> syncDriver(
@@ -59,12 +62,13 @@ public class DriverSyncController {
     /** Bulk upsert — sent on service start-up or after batch driver imports. */
     @PatchMapping("/driver-sync/bulk")
     public ResponseEntity<Map<String, Object>> syncDriversBulk(
-            @Valid @RequestBody BulkSyncRequest req) {
-        if (req.getDrivers() == null || req.getDrivers().isEmpty()) {
+            @RequestBody JsonNode req) {
+        java.util.List<DriverSyncRequest> drivers = extractDrivers(req);
+        if (drivers.isEmpty()) {
             return ResponseEntity.ok(Map.of("ok", true, "synced", 0));
         }
         int count = 0;
-        for (DriverSyncRequest item : req.getDrivers()) {
+        for (DriverSyncRequest item : drivers) {
             if (item.getDriverId() == null)
                 continue;
             try {
@@ -86,6 +90,33 @@ public class DriverSyncController {
         }
         log.info("[driver-sync] Bulk synced {} drivers", count);
         return ResponseEntity.ok(Map.of("ok", true, "synced", count));
+    }
+
+    private java.util.List<DriverSyncRequest> extractDrivers(JsonNode req) {
+        if (req == null || req.isNull()) {
+            return java.util.List.of();
+        }
+        try {
+            if (req.isArray()) {
+                java.util.List<DriverSyncRequest> out = new java.util.ArrayList<>();
+                for (JsonNode node : req) {
+                    DriverSyncRequest item = objectMapper.treeToValue(node, DriverSyncRequest.class);
+                    out.add(item);
+                }
+                return out;
+            }
+            if (req.isObject() && req.has("drivers") && req.get("drivers").isArray()) {
+                java.util.List<DriverSyncRequest> out = new java.util.ArrayList<>();
+                for (JsonNode node : req.get("drivers")) {
+                    DriverSyncRequest item = objectMapper.treeToValue(node, DriverSyncRequest.class);
+                    out.add(item);
+                }
+                return out;
+            }
+        } catch (Exception e) {
+            log.warn("[driver-sync] bulk payload parse failed: {}", e.getMessage());
+        }
+        return java.util.List.of();
     }
 
     // ── Inner DTOs ──────────────────────────────────────────────────────────

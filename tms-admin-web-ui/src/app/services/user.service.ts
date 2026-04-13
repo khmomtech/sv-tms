@@ -9,6 +9,7 @@ export interface UserDto {
   id: number;
   username: string;
   email: string;
+  enabled: boolean;
   roles: string[];
 }
 
@@ -17,6 +18,7 @@ export interface RegisterRequest {
   password: string;
   email: string;
   roles: string[];
+  enabled?: boolean;
 }
 
 @Injectable({
@@ -41,6 +43,13 @@ export class UserService {
 
   deleteUser(id: number): Observable<any> {
     return this.http.delete(`${this.apiUrl}/${id}`);
+  }
+
+  toggleStatus(id: number, enabled: boolean): Observable<{ message: string; user: UserDto }> {
+    return this.http.patch<{ message: string; user: UserDto }>(
+      `${this.apiUrl}/${id}/status?enabled=${enabled}`,
+      {},
+    );
   }
 
   registerDriverAccount(driverId: number, request: RegisterRequest): Observable<any> {

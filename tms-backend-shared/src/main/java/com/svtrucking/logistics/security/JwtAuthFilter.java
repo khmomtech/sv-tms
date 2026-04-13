@@ -1,5 +1,6 @@
 package com.svtrucking.logistics.security;
 
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
 import io.micrometer.core.instrument.Counter;
@@ -119,12 +120,24 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     } catch (ExpiredJwtException e) {
       expiredCounter.increment();
       logger.debug("Access token expired (path={}): {}", request.getRequestURI(), e.getMessage());
+      if (handleRecoverableTrackingExpiry(request, token, e, filterChain, response)) {
+        return;
+      }
       sendJsonError(
           response, HttpServletResponse.SC_UNAUTHORIZED, "TOKEN_EXPIRED", "Access token expired");
       return;
     } catch (JwtException | IllegalArgumentException e) {
       invalidCounter.increment();
       logger.warn("Invalid JWT (path={}): {}", request.getRequestURI(), e.getMessage());
+      String tokenType = jwtUtil.extractTokenType(token);
+      if (isRecoverableTrackingWritePath(request) && "tracking".equalsIgnoreCase(tokenType)) {
+        sendJsonError(
+            response,
+            HttpServletResponse.SC_FORBIDDEN,
+            "STALE_TRACKING_TOKEN",
+            "Tracking token invalid; clear and reacquire tracking session");
+        return;
+      }
       sendJsonError(response, HttpServletResponse.SC_UNAUTHORIZED, "INVALID_TOKEN", "Invalid JWT");
       return;
     }
@@ -137,5 +150,55 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     resp.setStatus(status);
     resp.setContentType("application/json");
     resp.getWriter().write("{\"error\":\"" + code + "\",\"message\":\"" + message + "\"}");
+  }
+
+  private boolean handleRecoverableTrackingExpiry(
+      HttpServletRequest request,
+      String token,
+      ExpiredJwtException exception,
+      FilterChain filterChain,
+      HttpServletResponse response)
+      throws IOException, ServletException {
+    Claims claims = exception.getClaims() != null ? exception.getClaims() : jwtUtil.extractAccessClaimsAllowExpired(token);
+    Object rawType = claims != null ? claims.get("typ") : null;
+    String tokenType = rawType == null ? "access" : String.valueOf(rawType);
+    if (!"tracking".equalsIgnoreCase(tokenType)) {
+      return false;
+    }
+    if (isTrackingRefreshPath(request)) {
+      String username = claims.getSubject();
+      if (username == null || username.isBlank()) {
+        return false;
+      }
+      UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+      UsernamePasswordAuthenticationToken authToken =
+          new UsernamePasswordAuthenticationToken(
+              userDetails, null, userDetails.getAuthorities());
+      authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+      SecurityContextHolder.getContext().setAuthentication(authToken);
+      logger.debug("Allowed expired tracking token through refresh path for user={}", username);
+      filterChain.doFilter(request, response);
+      return true;
+    }
+    if (isRecoverableTrackingWritePath(request)) {
+      sendJsonError(
+          response,
+          HttpServletResponse.SC_FORBIDDEN,
+          "STALE_TRACKING_TOKEN",
+          "Tracking token expired; clear and reacquire tracking session");
+      return true;
+    }
+    return false;
+  }
+
+  private boolean isRecoverableTrackingWritePath(HttpServletRequest request) {
+    String path = request.getRequestURI();
+    return "/api/driver/location/update".equals(path)
+        || "/api/driver/location/update/batch".equals(path)
+        || "/api/driver/presence/heartbeat".equals(path);
+  }
+
+  private boolean isTrackingRefreshPath(HttpServletRequest request) {
+    return "/api/driver/tracking/session/refresh".equals(request.getRequestURI());
   }
 }

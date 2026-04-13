@@ -54,13 +54,18 @@ public class LocationHistorySpoolService {
         if (!spoolEnabled || batch == null || batch.isEmpty())
             return;
         try {
-            Path file = resolveCurrentSpoolFile();
             List<String> lines = batch.stream().map(this::toRecord).map(this::safeJson).toList();
+            if (!canAppend(lines)) {
+                log.error("Spool disk threshold exceeded. Rejecting {} history records to preserve existing backlog.", batch.size());
+                if (meterRegistry != null)
+                    meterRegistry.counter("location.history.spool.rejected.records").increment(batch.size());
+                return;
+            }
+            Path file = resolveCurrentSpoolFile();
             Files.write(file, lines, StandardCharsets.UTF_8,
                     StandardOpenOption.CREATE, StandardOpenOption.APPEND);
             if (meterRegistry != null)
                 meterRegistry.counter("location.history.spool.appended.records").increment(batch.size());
-            enforceDiskBudget();
         } catch (Exception e) {
             log.error("Failed to append {} history records to spool: {}", batch.size(), e.toString(), e);
         }
@@ -165,32 +170,19 @@ public class LocationHistorySpoolService {
         }
     }
 
-    private void enforceDiskBudget() {
+    private boolean canAppend(List<String> lines) {
         long maxBytes = maxDiskMb * 1024L * 1024L;
         if (maxBytes <= 0)
-            return;
+            return true;
         try {
-            List<Path> files = listSpoolFilesOldestFirst();
-            long total = files.stream().mapToLong(this::safeFileSize).sum();
-            if (total <= maxBytes)
-                return;
-            long target = (long) (maxBytes * 0.8);
-            int deleted = 0;
-            for (Path file : files) {
-                if (total <= target)
-                    break;
-                long size = safeFileSize(file);
-                Files.deleteIfExists(file);
-                total -= size;
-                deleted++;
-            }
-            if (deleted > 0) {
-                log.error("Spool disk threshold exceeded. Deleted {} oldest spool files.", deleted);
-                if (meterRegistry != null)
-                    meterRegistry.counter("location.history.spool.deleted.files").increment(deleted);
-            }
+            long total = currentSpoolBytes();
+            long appendBytes = lines.stream()
+                    .mapToLong(line -> line.getBytes(StandardCharsets.UTF_8).length + 1L)
+                    .sum();
+            return total + appendBytes <= maxBytes;
         } catch (Exception e) {
-            log.warn("Failed to enforce spool disk budget: {}", e.toString());
+            log.warn("Failed to evaluate spool disk budget: {}", e.toString());
+            return false;
         }
     }
 

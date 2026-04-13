@@ -43,6 +43,13 @@ public class TelematicsSecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource(allowedOrigins)))
+                .headers(headers -> headers
+                        .frameOptions(frame -> frame.deny())
+                        .contentTypeOptions(org.springframework.security.config.Customizer.withDefaults())
+                        .httpStrictTransportSecurity(hsts -> hsts
+                                .maxAgeInSeconds(31536000)
+                                .includeSubDomains(true))
+                        .xssProtection(org.springframework.security.config.Customizer.withDefaults()))
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((req, res, e) -> {
                             res.setStatus(jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED);
@@ -77,21 +84,25 @@ public class TelematicsSecurityConfig {
                         // Internal endpoints — guarded by InternalApiKeyFilter (not JWT)
                         .requestMatchers("/api/internal/**").permitAll()
                         .requestMatchers(HttpMethod.POST,
-                                "/api/driver/tracking-session/start",
-                                "/api/driver/tracking/session/start")
+                                "/api/driver/tracking/session/start",
+                                "/api/driver/tracking-session/start")
                         .hasAuthority("ROLE_API_USER")
+                        .requestMatchers(HttpMethod.POST, "/api/driver/logout").permitAll()
                         .requestMatchers(HttpMethod.POST,
+                                "/api/driver/location",
+                                "/api/driver/location/batch",
                                 "/api/driver/location/update",
+                                "/api/driver/location/update/batch",
                                 "/api/driver/presence/heartbeat",
-                                "/api/driver/logout",
+                                "/api/driver/location/spoofing-alert",
                                 "/api/locations/spoofing-alert",
-                                "/api/driver/tracking-session/refresh",
                                 "/api/driver/tracking/session/refresh",
-                                "/api/driver/tracking-session/stop",
-                                "/api/driver/tracking/session/stop")
+                                "/api/driver/tracking-session/refresh",
+                                "/api/driver/tracking/session/stop",
+                                "/api/driver/tracking-session/stop")
                         .hasAnyAuthority("ROLE_DRIVER_TRACKING", "ROLE_API_USER")
                         // Admin live-track and geofences — requires API user token
-                        .requestMatchers("/api/admin/telematics/**", "/api/admin/geofences/**")
+                        .requestMatchers("/api/admin/telematics/**", "/api/admin/drivers/**", "/api/admin/geofences/**")
                         .hasAuthority("ROLE_API_USER")
                         .anyRequest().authenticated())
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

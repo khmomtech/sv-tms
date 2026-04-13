@@ -235,11 +235,36 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
       final wsPref = (prefs.getString('wsUrl') ?? '').trim();
       String wsUrl;
       if (wsPref.isNotEmpty) {
-        final uri = Uri.parse(wsPref);
-        final nextParams = Map<String, String>.from(uri.queryParameters)
-          ..remove('token')
-          ..['token'] = token;
-        wsUrl = uri.replace(queryParameters: nextParams).toString();
+        final candidate = wsPref.contains('://') ? wsPref : 'https://$wsPref';
+        try {
+          final uri = Uri.parse(candidate);
+          if (uri.host.isEmpty || uri.port == 0) {
+            wsUrl =
+                await ApiConstants.getDriverLocationWebSocketUrlWithToken(token);
+          } else {
+            final scheme = uri.scheme == 'https'
+                ? 'wss'
+                : uri.scheme == 'http'
+                    ? 'ws'
+                    : uri.scheme;
+            final nextParams = Map<String, String>.from(uri.queryParameters)
+              ..remove('token')
+              ..['token'] = token;
+            wsUrl = uri
+                .replace(
+                  scheme: scheme,
+                  path: (uri.path.isEmpty || uri.path == '/')
+                      ? '/ws'
+                      : uri.path,
+                  queryParameters: nextParams,
+                  fragment: '',
+                )
+                .toString();
+          }
+        } catch (_) {
+          wsUrl =
+              await ApiConstants.getDriverLocationWebSocketUrlWithToken(token);
+        }
       } else {
         wsUrl =
             await ApiConstants.getDriverLocationWebSocketUrlWithToken(token);

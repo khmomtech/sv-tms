@@ -201,3 +201,18 @@ The intended ownership model is:
   - runtime UX behavior
   - feature visibility
   - lazy loading and non-blocking home behavior
+
+## 11. Canonical Telematics Endpoints
+
+The driver app should use only the canonical telematics routes:
+- `POST /api/driver/tracking/session/start`
+- `POST /api/driver/tracking/session/refresh`
+- `POST /api/driver/tracking/session/stop`
+- `POST /api/driver/location`
+- `POST /api/driver/location/batch`
+- `POST /api/driver/presence/heartbeat`
+- `POST /api/driver/location/spoofing-alert`
+
+Legacy aliases still exist for compatibility, but they are deprecated and return deprecation headers.
+
+See [Telematics API Migration Note](./TELEMATICS_API_MIGRATION_NOTE.md) for the published URL contract and sunset policy.

@@ -34,7 +34,7 @@ public class DriverValidator {
 
     // Validation constants
     private static final Pattern PHONE_PATTERN = Pattern.compile("^[+]?[0-9]{8,15}$");
-    private static final Pattern LICENSE_PATTERN = Pattern.compile("^[A-Z0-9]{5,20}$");
+    private static final Pattern LICENSE_PATTERN = Pattern.compile("^[A-Z0-9][A-Z0-9\\-]{3,18}[A-Z0-9]$");
     private static final Set<String> ALLOWED_IMAGE_EXTENSIONS = Set.of(".jpg", ".jpeg", ".png", ".webp");
     private static final long MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
@@ -221,7 +221,7 @@ public class DriverValidator {
     private void validateLicenseFormat(String licenseNumber) {
         if (!LICENSE_PATTERN.matcher(licenseNumber.toUpperCase()).matches()) {
             throw new InvalidDriverDataException("licenseNumber",
-                    "invalid format. Expected: 5-20 alphanumeric characters");
+                    "invalid format. Expected: 5-20 characters (letters, digits, hyphens)");
         }
     }
 

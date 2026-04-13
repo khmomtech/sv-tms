@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
-import type { OnInit } from '@angular/core';
-import { Component, ViewChild } from '@angular/core';
+import type { AfterViewInit, OnDestroy, OnInit } from '@angular/core';
+import { Component, ElementRef, ViewChild } from '@angular/core';
 import type {
   FormGroup,
   FormArray,
@@ -11,12 +11,13 @@ import type {
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { FormBuilder } from '@angular/forms';
 import { Validators, FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { GoogleMap, GoogleMapsModule } from '@angular/google-maps';
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { ActivatedRoute } from '@angular/router';
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import mapboxgl from 'mapbox-gl';
 import { ToastrService } from 'ngx-toastr';
 
+import { environment } from '../../environments/environment';
 import type { Dispatch } from '../../models/dispatch.model';
 import type { Driver } from '../../models/driver.model';
 import type { TransportOrder } from '../../models/transport-order.model';
@@ -32,6 +33,25 @@ import { AppVehicleModalComponent } from '../app-vehicle-modal/app-vehicle-modal
 
 import { DispatchFormComponent } from './dispatch-form.component';
 
+type LatLng = {
+  lat: number;
+  lng: number;
+};
+
+type RouteSummaryLeg = {
+  from: string;
+  to: string;
+  distance: string;
+  duration: string;
+};
+
+type DispatchMarker = {
+  coordinates: string;
+  type: string;
+  label: string;
+  info: string;
+};
+
 @Component({
   selector: 'app-dispatch',
   templateUrl: './dispatch.component.html',
@@ -40,7 +60,6 @@ import { DispatchFormComponent } from './dispatch-form.component';
     CommonModule,
     FormsModule,
     ReactiveFormsModule,
-    GoogleMapsModule,
     AppOrderModalComponent,
     AppDriverModalComponent,
     AppVehicleModalComponent,
@@ -49,10 +68,17 @@ import { DispatchFormComponent } from './dispatch-form.component';
   ],
   styleUrls: ['./dispatch.component.css'],
 })
-export class DispatchComponent implements OnInit {
-  @ViewChild(GoogleMap) map!: GoogleMap;
-  mapReady = false;
-  pendingZoomToFit = false;
+export class DispatchComponent implements OnInit, AfterViewInit, OnDestroy {
+  @ViewChild('mapContainer') mapContainer?: ElementRef<HTMLDivElement>;
+  mapsReady = false;
+  mapsError = '';
+  hasMapboxToken = !!environment.mapboxAccessToken;
+  private map: mapboxgl.Map | null = null;
+  private mapLoaded = false;
+  private mapPopup: mapboxgl.Popup | null = null;
+  private stopMarkers: mapboxgl.Marker[] = [];
+  private dispatchMarkers: mapboxgl.Marker[] = [];
+  private routeRequestId = 0;
 
   dispatchForm!: FormGroup;
   selectedOrder: TransportOrder | null = null;
@@ -66,31 +92,17 @@ export class DispatchComponent implements OnInit {
   showVehicleModal = false;
   showTripForm = false;
 
-  mapCenter: google.maps.LatLngLiteral = { lat: 11.5564, lng: 104.9282 };
+  mapCenter: LatLng = { lat: 11.5564, lng: 104.9282 };
   stops: any[] = [];
-  directions: google.maps.DirectionsResult | null = null;
-  fallbackPath: google.maps.LatLngLiteral[] = [];
+  fallbackPath: LatLng[] = [];
   routeDistanceText = '-';
   routeDurationText = '-';
-  routeLegSummaries: Array<{
-    from: string;
-    to: string;
-    distance: string;
-    duration: string;
-  }> = [];
-  infoWindowContent = '';
-  infoWindowPosition?: google.maps.LatLngLiteral;
-  showInfoWindow = false;
+  routeLegSummaries: RouteSummaryLeg[] = [];
 
   panelWidth = 800;
   isResizing = false;
 
-  allDispatchMarkers: {
-    coordinates: string;
-    type: string;
-    label: string;
-    info: string;
-  }[] = [];
+  allDispatchMarkers: DispatchMarker[] = [];
 
   constructor(
     private fb: FormBuilder,
@@ -106,6 +118,52 @@ export class DispatchComponent implements OnInit {
       const orderId = +params['orderId'];
       if (orderId) this.loadOrder(orderId);
     });
+  }
+
+  ngAfterViewInit(): void {
+    this.initializeMap();
+  }
+
+  ngOnDestroy(): void {
+    this.clearMarkers(this.stopMarkers);
+    this.clearMarkers(this.dispatchMarkers);
+    this.mapPopup?.remove();
+    this.map?.remove();
+  }
+
+  private initializeMap(): void {
+    if (!this.hasMapboxToken) {
+      this.mapsError = 'Mapbox access token is missing.';
+      return;
+    }
+    const container = this.mapContainer?.nativeElement;
+    if (!container || this.map) {
+      return;
+    }
+
+    try {
+      mapboxgl.accessToken = environment.mapboxAccessToken;
+      this.map = new mapboxgl.Map({
+        container,
+        style: 'mapbox://styles/mapbox/streets-v12',
+        center: [this.mapCenter.lng, this.mapCenter.lat],
+        zoom: 11,
+      });
+      this.map.addControl(new mapboxgl.NavigationControl(), 'top-right');
+      this.map.on('load', () => {
+        this.mapLoaded = true;
+        this.mapsReady = true;
+        this.mapsError = '';
+        this.ensureRouteSource();
+        this.syncMapData();
+      });
+      this.map.on('click', (event) => {
+        this.onMapClick(event.lngLat.lat, event.lngLat.lng);
+      });
+    } catch (err) {
+      console.error('[DispatchComponent] Failed to initialize Mapbox', err);
+      this.mapsError = 'Mapbox failed to load. Check access token.';
+    }
   }
 
   initForm(): void {
@@ -241,9 +299,9 @@ export class DispatchComponent implements OnInit {
     this.selectedVehicle = null;
     this.existingDispatch = null;
     this.stops = [];
-    this.directions = null;
     this.fallbackPath = [];
     this.resetRouteSummary();
+    this.syncMapData();
   }
 
   addStop(stop: any): void {
@@ -281,14 +339,11 @@ export class DispatchComponent implements OnInit {
     this.stops.forEach((s, i) => (s.stopSequence = `S${i + 1}`));
   }
 
-  onMapClick(event: google.maps.MapMouseEvent): void {
-    const latLng = event.latLng?.toJSON();
-    if (!latLng) return;
-
+  onMapClick(lat: number, lng: number): void {
     const stop = {
-      coordinates: `${latLng.lat},${latLng.lng}`,
-      latitude: latLng.lat,
-      longitude: latLng.lng,
+      coordinates: `${lat},${lng}`,
+      latitude: lat,
+      longitude: lng,
       stopSequence: `S${this.stops.length + 1}`,
       label: `Stop ${this.stops.length + 1}`,
       type: 'dropoff',
@@ -298,11 +353,11 @@ export class DispatchComponent implements OnInit {
     this.addStop(stop);
   }
 
-  parseCoordinates(coords: string): google.maps.LatLngLiteral {
+  parseCoordinates(coords: string): LatLng {
     return this.parseCoordinatesSafe(coords) || this.mapCenter;
   }
 
-  getStopPosition(stop: any): google.maps.LatLngLiteral | null {
+  getStopPosition(stop: any): LatLng | null {
     if (!stop) return null;
     return (
       this.parseCoordinatesSafe(stop.coordinates) ||
@@ -310,124 +365,116 @@ export class DispatchComponent implements OnInit {
     );
   }
 
-  getDispatchMarkerPosition(marker: any): google.maps.LatLngLiteral | null {
+  getDispatchMarkerPosition(marker: any): LatLng | null {
     if (!marker) return null;
     return this.parseCoordinatesSafe(marker.coordinates);
   }
 
   loadRoutePath(): void {
-    if (!(window as any).google?.maps?.DirectionsService) {
-      this.directions = null;
-      this.fallbackPath = [];
-      this.resetRouteSummary();
-      return;
-    }
-
     if (this.stops.length < 2) {
-      this.directions = null;
       this.fallbackPath = [];
       this.resetRouteSummary();
+      this.syncMapData();
       return;
     }
 
     const validStops = this.stops
       .map((stop) => ({ stop, pos: this.getStopPosition(stop) }))
-      .filter((x) => !!x.pos) as Array<{ stop: any; pos: google.maps.LatLngLiteral }>;
+      .filter((x) => !!x.pos) as Array<{ stop: any; pos: LatLng }>;
 
     if (validStops.length < 2) {
       console.warn('Cannot calculate route: Some stops have invalid or missing coordinates');
-      this.directions = null;
       this.fallbackPath = [];
       this.resetRouteSummary();
+      this.syncMapData();
       return;
     }
 
-    // Always keep a fallback polyline across all stops (in order).
     this.fallbackPath = validStops.map((x) => x.pos);
+    this.syncMapData();
 
-    const origin = validStops[0].pos;
-    const destination = validStops[validStops.length - 1].pos;
-    const waypoints = validStops.slice(1, -1).map((x) => ({
-      location: x.pos,
-      stopover: true,
-    }));
+    if (!this.hasMapboxToken) {
+      this.updateFallbackSummary(validStops.map((x) => x.pos));
+      return;
+    }
 
-    const service = new google.maps.DirectionsService();
-    service.route(
-      {
-        origin: origin!,
-        destination: destination!,
-        waypoints,
-        travelMode: google.maps.TravelMode.DRIVING,
-      },
-      (res, status) => {
-        if (status === 'OK') {
-          this.directions = res;
-          if (res) {
-            this.updateRouteSummary(res);
-          } else {
-            this.resetRouteSummary();
-          }
-        } else {
-          console.warn(
-            `Directions API returned ${status} - this is normal if coordinates are not routable by car`,
-          );
-          this.directions = null;
-          // Keep fallbackPath visible when street routing is unavailable.
-          this.resetRouteSummary();
+    const requestId = ++this.routeRequestId;
+    const coordinates = validStops.map(({ pos }) => `${pos.lng},${pos.lat}`).join(';');
+    const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${coordinates}?alternatives=false&continue_straight=true&geometries=geojson&language=en&overview=full&steps=true&access_token=${encodeURIComponent(environment.mapboxAccessToken)}`;
+
+    fetch(url)
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Directions request failed: ${response.status}`);
         }
-      },
-    );
+        return response.json();
+      })
+      .then((payload) => {
+        if (requestId !== this.routeRequestId) {
+          return;
+        }
+        const route = payload?.routes?.[0];
+        if (!route?.geometry?.coordinates?.length) {
+          this.updateFallbackSummary(validStops.map((x) => x.pos));
+          return;
+        }
+
+        this.fallbackPath = route.geometry.coordinates.map(
+          ([lng, lat]: [number, number]) => ({ lat, lng }),
+        );
+        this.routeDistanceText = this.formatDistance(route.distance);
+        this.routeDurationText = this.formatDuration(route.duration);
+        this.routeLegSummaries = (route.legs || []).map((leg: any, index: number) => ({
+          from: validStops[index]?.stop?.location || validStops[index]?.stop?.label || `Stop ${index + 1}`,
+          to:
+            validStops[index + 1]?.stop?.location ||
+            validStops[index + 1]?.stop?.label ||
+            `Stop ${index + 2}`,
+          distance: this.formatDistance(leg.distance),
+          duration: this.formatDuration(leg.duration),
+        }));
+        this.syncMapData();
+      })
+      .catch((err) => {
+        if (requestId !== this.routeRequestId) {
+          return;
+        }
+        console.warn('[DispatchComponent] Mapbox directions unavailable, using fallback path', err);
+        this.updateFallbackSummary(validStops.map((x) => x.pos));
+      });
   }
 
   selectStop(stop: any): void {
     const coords = this.getStopPosition(stop);
     if (coords) {
-      this.infoWindowContent = `${stop.label}: ${stop.location}`;
-      this.infoWindowPosition = coords;
-      this.showInfoWindow = true;
+      this.showPopup(coords, `${stop.label}: ${stop.location}`);
     }
-  }
-
-  getMarkerOptions(type: string): google.maps.MarkerOptions {
-    return {
-      icon: {
-        url:
-          type === 'pickup'
-            ? 'https://maps.google.com/mapfiles/ms/icons/green-dot.png'
-            : 'https://maps.google.com/mapfiles/ms/icons/red-dot.png',
-        scaledSize: new google.maps.Size(32, 32),
-      },
-    };
   }
 
   zoomToFit(): void {
-    if (!this.stops.length && !this.allDispatchMarkers.length) return;
-
-    if (!this.mapReady || !this.map?.googleMap) {
-      this.pendingZoomToFit = true;
+    if (!this.map || !this.mapLoaded) {
       return;
     }
 
-    const bounds = new google.maps.LatLngBounds();
+    const points: LatLng[] = [];
     this.stops.forEach((s) => {
       const c = this.getStopPosition(s);
-      if (c) bounds.extend(c);
+      if (c) points.push(c);
     });
     this.allDispatchMarkers.forEach((m) => {
       const c = this.getDispatchMarkerPosition(m);
-      if (c) bounds.extend(c);
+      if (c) points.push(c);
     });
-    if (bounds.isEmpty()) return;
-    this.map.fitBounds(bounds);
-  }
-
-  onMapInitialized(): void {
-    this.mapReady = true;
-    if (this.pendingZoomToFit) {
-      this.pendingZoomToFit = false;
-      setTimeout(() => this.zoomToFit(), 0);
+    if (this.fallbackPath.length > 1) {
+      points.push(...this.fallbackPath);
     }
+    if (!points.length) {
+      return;
+    }
+
+    const bounds = new mapboxgl.LngLatBounds();
+    points.forEach((point) => bounds.extend([point.lng, point.lat]));
+    this.map.fitBounds(bounds, { padding: 48, maxZoom: 14 });
   }
 
   startResizing(event: MouseEvent): void {
@@ -650,9 +697,7 @@ export class DispatchComponent implements OnInit {
   selectDispatchMarker(marker: any): void {
     const coords = this.getDispatchMarkerPosition(marker);
     if (coords) {
-      this.infoWindowContent = marker.info;
-      this.infoWindowPosition = coords;
-      this.showInfoWindow = true;
+      this.showPopup(coords, marker.info);
     }
   }
 
@@ -763,35 +808,39 @@ export class DispatchComponent implements OnInit {
     return String(address.address || address.name || '').trim();
   }
 
-  private geocodeAddress(query: string): Promise<google.maps.LatLngLiteral | null> {
+  private geocodeAddress(query: string): Promise<LatLng | null> {
     if (!query) return Promise.resolve(null);
-    const googleMaps = (window as any).google?.maps;
-    if (!googleMaps?.Geocoder) return Promise.resolve(null);
+    if (!this.hasMapboxToken) return Promise.resolve(null);
 
-    const geocoder = new googleMaps.Geocoder();
-    return new Promise((resolve) => {
-      geocoder.geocode({ address: query }, (results: any, status: google.maps.GeocoderStatus) => {
-        if (status === 'OK' && results?.length) {
-          const location = results[0].geometry?.location;
-          if (location) {
-            const pos = this.toValidLatLng(location.lat(), location.lng());
-            resolve(pos);
-            return;
-          }
+    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${encodeURIComponent(environment.mapboxAccessToken)}&limit=1`;
+    return fetch(url)
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Geocoding request failed: ${response.status}`);
         }
-        resolve(null);
+        return response.json();
+      })
+      .then((payload) => {
+        const center = payload?.features?.[0]?.center;
+        if (!Array.isArray(center) || center.length < 2) {
+          return null;
+        }
+        return this.toValidLatLng(center[1], center[0]);
+      })
+      .catch((err) => {
+        console.warn('[DispatchComponent] Mapbox geocoding failed', err);
+        return null;
       });
-    });
   }
 
-  private parseCoordinatesSafe(coords: unknown): google.maps.LatLngLiteral | null {
+  private parseCoordinatesSafe(coords: unknown): LatLng | null {
     const [lat, lng] = String(coords || '')
       .split(',')
       .map((v) => Number(v?.trim()));
     return this.toValidLatLng(lat, lng);
   }
 
-  private toValidLatLng(latInput: unknown, lngInput: unknown): google.maps.LatLngLiteral | null {
+  private toValidLatLng(latInput: unknown, lngInput: unknown): LatLng | null {
     const lat = Number(latInput);
     const lng = Number(lngInput);
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
@@ -803,7 +852,7 @@ export class DispatchComponent implements OnInit {
   openRouteInGoogleMaps(): void {
     const validStops = this.stops
       .map((stop) => this.getStopPosition(stop))
-      .filter((pos): pos is google.maps.LatLngLiteral => !!pos);
+      .filter((pos): pos is LatLng => !!pos);
 
     if (validStops.length < 2) {
       this.toastr.info(
@@ -830,36 +879,197 @@ export class DispatchComponent implements OnInit {
     window.open(`https://www.google.com/maps/dir/?${params.toString()}`, '_blank', 'noopener');
   }
 
-  private updateRouteSummary(result: google.maps.DirectionsResult): void {
-    const route = result?.routes?.[0];
-    if (!route?.legs?.length) {
+  private updateFallbackSummary(path: LatLng[]): void {
+    this.fallbackPath = path;
+    if (path.length < 2) {
       this.resetRouteSummary();
+      this.syncMapData();
       return;
     }
 
-    const totalMeters = route.legs.reduce((sum, leg) => sum + (leg.distance?.value || 0), 0);
-    const totalSeconds = route.legs.reduce((sum, leg) => sum + (leg.duration?.value || 0), 0);
+    let totalMeters = 0;
+    const routeLegSummaries: RouteSummaryLeg[] = [];
+    for (let index = 0; index < path.length - 1; index += 1) {
+      const from = path[index];
+      const to = path[index + 1];
+      const distanceMeters = this.calculateDistanceMeters(from, to);
+      totalMeters += distanceMeters;
+      routeLegSummaries.push({
+        from: this.stops[index]?.location || this.stops[index]?.label || `Stop ${index + 1}`,
+        to: this.stops[index + 1]?.location || this.stops[index + 1]?.label || `Stop ${index + 2}`,
+        distance: this.formatDistance(distanceMeters),
+        duration: 'Preview only',
+      });
+    }
 
-    this.routeDistanceText =
-      totalMeters >= 1000
-        ? `${(totalMeters / 1000).toFixed(1)} km`
-        : `${Math.round(totalMeters)} m`;
-
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.round((totalSeconds % 3600) / 60);
-    this.routeDurationText = hours > 0 ? `${hours}h ${minutes}m` : `${minutes} min`;
-
-    this.routeLegSummaries = route.legs.map((leg) => ({
-      from: leg.start_address || 'Start',
-      to: leg.end_address || 'End',
-      distance: leg.distance?.text || '-',
-      duration: leg.duration?.text || '-',
-    }));
+    this.routeDistanceText = this.formatDistance(totalMeters);
+    this.routeDurationText = 'Preview only';
+    this.routeLegSummaries = routeLegSummaries;
+    this.syncMapData();
   }
 
   private resetRouteSummary(): void {
     this.routeDistanceText = '-';
     this.routeDurationText = '-';
     this.routeLegSummaries = [];
+  }
+
+  private formatDistance(distanceMeters: number): string {
+    return distanceMeters >= 1000
+      ? `${(distanceMeters / 1000).toFixed(1)} km`
+      : `${Math.round(distanceMeters)} m`;
+  }
+
+  private formatDuration(durationSeconds: number): string {
+    const hours = Math.floor(durationSeconds / 3600);
+    const minutes = Math.round((durationSeconds % 3600) / 60);
+    return hours > 0 ? `${hours}h ${minutes}m` : `${minutes} min`;
+  }
+
+  private calculateDistanceMeters(from: LatLng, to: LatLng): number {
+    const earthRadiusMeters = 6371000;
+    const latDelta = this.degreesToRadians(to.lat - from.lat);
+    const lngDelta = this.degreesToRadians(to.lng - from.lng);
+    const a =
+      Math.sin(latDelta / 2) ** 2 +
+      Math.cos(this.degreesToRadians(from.lat)) *
+        Math.cos(this.degreesToRadians(to.lat)) *
+        Math.sin(lngDelta / 2) ** 2;
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return earthRadiusMeters * c;
+  }
+
+  private degreesToRadians(value: number): number {
+    return (value * Math.PI) / 180;
+  }
+
+  private ensureRouteSource(): void {
+    if (!this.map || !this.mapLoaded) {
+      return;
+    }
+    if (!this.map.getSource('dispatch-route')) {
+      this.map.addSource('dispatch-route', {
+        type: 'geojson',
+        data: {
+          type: 'Feature',
+          properties: {},
+          geometry: {
+            type: 'LineString',
+            coordinates: [],
+          },
+        },
+      });
+    }
+    if (!this.map.getLayer('dispatch-route-line')) {
+      this.map.addLayer({
+        id: 'dispatch-route-line',
+        type: 'line',
+        source: 'dispatch-route',
+        paint: {
+          'line-color': '#2563eb',
+          'line-width': 4,
+          'line-opacity': 0.85,
+        },
+      });
+    }
+  }
+
+  private syncMapData(): void {
+    if (!this.map || !this.mapLoaded) {
+      return;
+    }
+
+    this.syncRouteLine();
+    this.syncStopMarkers();
+    this.syncDispatchMarkers();
+
+    if (this.stops.length || this.allDispatchMarkers.length) {
+      this.zoomToFit();
+    } else {
+      this.map.easeTo({ center: [this.mapCenter.lng, this.mapCenter.lat], zoom: 11 });
+    }
+  }
+
+  private syncRouteLine(): void {
+    this.ensureRouteSource();
+    const source = this.map?.getSource('dispatch-route') as mapboxgl.GeoJSONSource | undefined;
+    if (!source) {
+      return;
+    }
+    source.setData({
+      type: 'Feature',
+      properties: {},
+      geometry: {
+        type: 'LineString',
+        coordinates: this.fallbackPath.map((point) => [point.lng, point.lat]),
+      },
+    });
+  }
+
+  private syncStopMarkers(): void {
+    this.clearMarkers(this.stopMarkers);
+    this.stopMarkers = this.stops
+      .map((stop) => {
+        const position = this.getStopPosition(stop);
+        if (!position || !this.map) {
+          return null;
+        }
+        const marker = new mapboxgl.Marker({
+          element: this.createMarkerElement(stop.type, stop.stopSequence || stop.label || 'S'),
+          anchor: 'bottom',
+        })
+          .setLngLat([position.lng, position.lat])
+          .addTo(this.map);
+        marker.getElement().addEventListener('click', () => this.selectStop(stop));
+        return marker;
+      })
+      .filter((marker): marker is mapboxgl.Marker => !!marker);
+  }
+
+  private syncDispatchMarkers(): void {
+    this.clearMarkers(this.dispatchMarkers);
+    this.dispatchMarkers = this.allDispatchMarkers
+      .map((markerData) => {
+        const position = this.getDispatchMarkerPosition(markerData);
+        if (!position || !this.map) {
+          return null;
+        }
+        const marker = new mapboxgl.Marker({
+          element: this.createMarkerElement(markerData.type, markerData.label, true),
+          anchor: 'bottom',
+        })
+          .setLngLat([position.lng, position.lat])
+          .addTo(this.map);
+        marker.getElement().addEventListener('click', () => this.selectDispatchMarker(markerData));
+        return marker;
+      })
+      .filter((marker): marker is mapboxgl.Marker => !!marker);
+  }
+
+  private clearMarkers(markers: mapboxgl.Marker[]): void {
+    markers.forEach((marker) => marker.remove());
+    markers.length = 0;
+  }
+
+  private createMarkerElement(type: string, label: string, muted: boolean = false): HTMLDivElement {
+    const element = document.createElement('div');
+    const markerColor = type === 'pickup' ? '#16a34a' : '#dc2626';
+    element.className = 'dispatch-map-marker';
+    if (muted) {
+      element.classList.add('dispatch-map-marker-muted');
+    }
+    element.style.background = markerColor;
+    element.textContent = label;
+    return element;
+  }
+
+  private showPopup(position: LatLng, text: string): void {
+    if (!this.map) {
+      return;
+    }
+    if (!this.mapPopup) {
+      this.mapPopup = new mapboxgl.Popup({ closeButton: true, closeOnClick: true });
+    }
+    this.mapPopup.setLngLat([position.lng, position.lat]).setText(text).addTo(this.map);
   }
 }

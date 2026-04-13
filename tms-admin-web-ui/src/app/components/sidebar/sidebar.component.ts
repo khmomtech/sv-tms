@@ -49,6 +49,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
 
   // Dropdown menu state
   dropdowns: Record<string, boolean> = {};
+  subDropdowns: Record<string, boolean> = {};
 
   // Observable for notification count
   unreadCount$!: Observable<number>;
@@ -91,6 +92,11 @@ export class SidebarComponent implements OnInit, OnDestroy {
         if (item.id) {
           this.dropdowns[item.id] = false;
         }
+        item.children
+          ?.filter((child) => child.children?.length)
+          .forEach((child) => {
+            this.subDropdowns[this.getMenuItemKey(child)] = false;
+          });
       });
 
     // Auto-expand dropdowns if current route is inside their subtree
@@ -118,6 +124,14 @@ export class SidebarComponent implements OnInit, OnDestroy {
             this.showAdvanced = true;
           }
         }
+
+        item.children
+          .filter((child) => child.children?.length)
+          .forEach((child) => {
+            if (child.children && containsRoute(child.children, currentUrl)) {
+              this.subDropdowns[this.getMenuItemKey(child)] = true;
+            }
+          });
       }
     };
 
@@ -149,6 +163,22 @@ export class SidebarComponent implements OnInit, OnDestroy {
     this.dropdowns[section] = !this.dropdowns[section];
   }
 
+  toggleSubDropdown(section: string): void {
+    this.subDropdowns[section] = !this.subDropdowns[section];
+  }
+
+  isSubDropdownOpen(item: SidebarMenuItem): boolean {
+    return this.subDropdowns[this.getMenuItemKey(item)] ?? false;
+  }
+
+  getSubDropdownId(item: SidebarMenuItem): string {
+    return `${this.getMenuItemKey(item)}-submenu`;
+  }
+
+  getSubDropdownKey(item: SidebarMenuItem): string {
+    return this.getMenuItemKey(item);
+  }
+
   /**
    * Check if a navigation item should be visible based on user permissions.
    * This now delegates to the hasPermission pipe in the template.
@@ -170,6 +200,10 @@ export class SidebarComponent implements OnInit, OnDestroy {
    */
   trackByChildNavItem(index: number, item: SidebarMenuItem): string {
     return item.id || item.route || `menu-child-${index}`;
+  }
+
+  private getMenuItemKey(item: SidebarMenuItem): string {
+    return item.id || item.route || this.getLabel(item.label);
   }
 
   /**
@@ -206,6 +240,11 @@ export class SidebarComponent implements OnInit, OnDestroy {
       .filter((item) => item.children?.length && item.id)
       .forEach((item) => {
         this.dropdowns[item.id as string] = true;
+        item.children
+          ?.filter((child) => child.children?.length)
+          .forEach((child) => {
+            this.subDropdowns[this.getMenuItemKey(child)] = true;
+          });
       });
   }
 
@@ -362,6 +401,9 @@ export class SidebarComponent implements OnInit, OnDestroy {
 
   @HostListener('window:keydown', ['$event'])
   onGlobalKeyDown(event: KeyboardEvent): void {
+    if (!event.key) {
+      return;
+    }
     const key = event.key.toLowerCase();
     if ((event.ctrlKey || event.metaKey) && key === 'k') {
       event.preventDefault();

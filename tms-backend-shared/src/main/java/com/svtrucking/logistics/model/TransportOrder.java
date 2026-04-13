@@ -53,7 +53,7 @@ public class TransportOrder {
   @ToString.Include
   private Long id;
 
-  @Version private Integer version;
+  @Version private int version;
 
   @Column(name = "order_reference", unique = true, nullable = false, length = 100)
   @ToString.Include
@@ -152,11 +152,22 @@ public class TransportOrder {
 
   @PostLoad
   @PrePersist
-  @PreUpdate
-  private void ensureVersionLoaded() {
-    if (this.version == null) {
-      this.version = 0;
+  private void ensureDefaults() {
+    // version is a primitive int — always initialized, no null check needed
+    if (this.requiresDriver == null) {
+      this.requiresDriver = Boolean.TRUE;
     }
+    if (this.origin == null) {
+      this.origin = OrderOrigin.BOOKING;
+    }
+    if (this.financialLockedFlag == null) {
+      this.financialLockedFlag = Boolean.FALSE;
+    }
+  }
+
+  @PreUpdate
+  private void ensureDefaultsOnUpdate() {
+    // version is a primitive int — always initialized, no null check needed
     if (this.requiresDriver == null) {
       this.requiresDriver = Boolean.TRUE;
     }

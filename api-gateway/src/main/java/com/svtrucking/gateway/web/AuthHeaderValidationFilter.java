@@ -22,6 +22,7 @@ public class AuthHeaderValidationFilter extends OncePerRequestFilter {
                 || path.startsWith("/api/public/")
                 || path.startsWith("/api/auth/")
                 || path.startsWith("/api/driver/device/")
+                || path.startsWith("/uploads/")
                 || "OPTIONS".equalsIgnoreCase(request.getMethod());
     }
 

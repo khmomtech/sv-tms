@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:tms_driver_app/providers/app_bootstrap_provider.dart';
 import 'package:tms_driver_app/routes/app_routes.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -7,6 +9,12 @@ class HelpCenterScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bootstrap = context.watch<AppBootstrapProvider>();
+    final chatEnabled = bootstrap.isAnyFeatureEnabled(
+      const ['driver.chat.enabled'],
+      fallback: true,
+    );
+
     return Scaffold(
       appBar: AppBar(
         title:
@@ -59,24 +67,25 @@ class HelpCenterScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          ElevatedButton.icon(
-            onPressed: () {
-              Navigator.of(context).pushNamed(
-                AppRoutes.messagesChat,
-                arguments: const ChatRouteArgs(
-                  entryPoint: 'support_center',
-                  initialDraft: 'Hi support, I need help with ',
-                ),
-              );
-            },
-            icon: const Icon(Icons.chat),
-            label: const Text('Contact Support'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.deepPurple,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 14),
+          if (chatEnabled)
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.of(context).pushNamed(
+                  AppRoutes.messagesChat,
+                  arguments: const ChatRouteArgs(
+                    entryPoint: 'support_center',
+                    initialDraft: 'Hi support, I need help with ',
+                  ),
+                );
+              },
+              icon: const Icon(Icons.chat),
+              label: const Text('Contact Support'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.deepPurple,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
             ),
-          ),
         ],
       ),
     );

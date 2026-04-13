@@ -50,46 +50,75 @@ export const SIDEBAR_MENU_CONFIG: SidebarMenuItem[] = [
     group: 'dispatch',
     children: [
       {
-        label: 'Dispatch List',
-        icon: 'list',
-        route: '/dispatches',
-        permission: PERMISSIONS.DISPATCH_LIST,
-      },
-      {
-        label: 'Dispatch Planning',
+        id: 'shipment-planning',
+        label: 'Shipment Planning',
         icon: 'alt_route',
-        route: '/dispatch/planning',
-        permission: PERMISSIONS.DISPATCH_CREATE,
+        permission: [
+          PERMISSIONS.DISPATCH_LIST,
+          PERMISSIONS.DISPATCH_CREATE,
+          PERMISSIONS.SHIPMENT_UPLOAD,
+        ],
+        children: [
+          {
+            label: 'Create New Shipment',
+            icon: 'add_box',
+            route: '/orders',
+            permission: [PERMISSIONS.ORDER_READ, PERMISSIONS.ORDER_CREATE],
+          },
+          {
+            label: 'Import Shipment',
+            icon: 'cloud_upload',
+            route: '/orders/upload',
+            permission: PERMISSIONS.SHIPMENT_UPLOAD,
+          },
+          {
+            label: 'Shipment List',
+            icon: 'list',
+            route: '/dispatches',
+            permission: PERMISSIONS.DISPATCH_LIST,
+          },
+          {
+            label: 'Shipment Planning',
+            icon: 'alt_route',
+            route: '/dispatch/planning',
+            permission: PERMISSIONS.DISPATCH_CREATE,
+          },
+        ],
       },
       {
-        label: 'Dispatch Monitoring',
+        id: 'shipment-monitoring',
+        label: 'Shipment Monitoring',
         icon: 'monitor',
-        route: '/dispatch/monitor',
-        permission: PERMISSIONS.DISPATCH_MONITOR,
+        permission: [
+          PERMISSIONS.DISPATCH_MONITOR,
+          PERMISSIONS.POD_READ,
+        ],
+        children: [
+          {
+            label: 'Shipment Monitoring',
+            icon: 'monitor',
+            route: '/dispatch/monitor',
+            permission: PERMISSIONS.DISPATCH_MONITOR,
+          },
+          {
+            label: 'Loading Monitor (POD)',
+            icon: 'photo_camera',
+            route: '/dispatch/loading-monitor',
+            permission: PERMISSIONS.POD_READ,
+          },
+          {
+            label: 'Pre-Entry Safety',
+            icon: 'health_and_safety',
+            route: '/dispatch/pre-entry-safety',
+            permission: PERMISSIONS.DISPATCH_MONITOR,
+          },
+        ],
       },
       {
         label: 'Loading Management (KHB)',
         icon: 'inventory_2',
         route: '/dispatch/loading-khb',
         permission: PERMISSIONS.DISPATCH_READ,
-      },
-      {
-        label: 'Loading Monitor (POD)',
-        icon: 'photo_camera',
-        route: '/dispatch/loading-monitor',
-        permission: PERMISSIONS.POD_READ,
-      },
-      {
-        label: 'Bulk Order Upload',
-        icon: 'cloud_upload',
-        route: '/orders/upload',
-        permission: PERMISSIONS.SHIPMENT_UPLOAD,
-      },
-      {
-        label: 'Pre-Entry Safety',
-        icon: 'health_and_safety',
-        route: '/dispatch/pre-entry-safety',
-        permission: PERMISSIONS.DISPATCH_MONITOR,
       },
     ],
   },
@@ -393,6 +422,12 @@ export const SIDEBAR_MENU_CONFIG: SidebarMenuItem[] = [
         permission: PERMISSIONS.ITEM_READ,
       },
       {
+        label: 'Import Items',
+        icon: 'upload_file',
+        route: '/admin/items/import',
+        permission: PERMISSIONS.ITEM_CREATE,
+      },
+      {
         label: 'ប្រភេទសុវត្ថិភាព',
         icon: 'category',
         route: '/safety/master/categories',
@@ -499,7 +534,7 @@ export const SIDEBAR_MENU_CONFIG: SidebarMenuItem[] = [
     group: 'admin',
     children: [
       {
-        label: 'Dispatch Day Report',
+        label: 'Shipment Day Report',
         icon: 'calendar_view_day',
         route: '/reports/dispatch/day',
         permission: PERMISSIONS.REPORT_DISPATCH_DAY,
@@ -638,7 +673,7 @@ export const SIDEBAR_MENU_CONFIG: SidebarMenuItem[] = [
         permission: PERMISSIONS.SETTING_CREATE,
       },
       {
-        label: 'Dispatch Flow Policy',
+        label: 'Shipment Flow Policy',
         icon: 'account_tree',
         route: '/settings/dispatch-flow',
         permission: PERMISSIONS.DISPATCH_FLOW_MANAGE,

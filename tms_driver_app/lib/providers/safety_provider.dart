@@ -116,7 +116,7 @@ class SafetyProvider with ChangeNotifier {
       }
       pollStatusIfWaiting(vehicleId);
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = _normalizeErrorMessage(e);
       await _loadLocalDraft(vehicleId);
     } finally {
       _isLoading = false;
@@ -156,7 +156,7 @@ class SafetyProvider with ChangeNotifier {
       await _bindPendingAttachmentsToCheck(_today?.id);
       await uploadPendingAttachments();
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = _normalizeErrorMessage(e);
       await _saveLocalDraft(_today!);
     } finally {
       _isSubmitting = false;
@@ -301,7 +301,7 @@ class SafetyProvider with ChangeNotifier {
       _today = SafetyCheck.fromJson(data);
       await _clearLocalDraft();
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = _normalizeErrorMessage(e);
     } finally {
       _isSubmitting = false;
       _notifySafely();
@@ -339,7 +339,7 @@ class SafetyProvider with ChangeNotifier {
         _history = [];
       }
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = _normalizeErrorMessage(e);
     } finally {
       _isLoading = false;
       _notifySafely();
@@ -392,13 +392,93 @@ class SafetyProvider with ChangeNotifier {
   }
 
   String _extractMessage(dynamic body, int statusCode, {String? fallback}) {
+    if (statusCode == 401) {
+      return 'HTTP 401 unauthorized';
+    }
+    if (statusCode == 403) {
+      return 'HTTP 403 forbidden';
+    }
+    if (statusCode == 502) {
+      return 'HTTP 502 bad gateway';
+    }
+    if (statusCode == 503) {
+      return 'HTTP 503 service unavailable';
+    }
+    if (statusCode == 504) {
+      return 'HTTP 504 gateway timeout';
+    }
     if (body is Map && body['message'] is String) {
       return body['message'] as String;
     }
     if (body is String && body.isNotEmpty) {
-      return body;
+      final trimmed = body.trim();
+      final lower = trimmed.toLowerCase();
+      if (trimmed.startsWith('<') ||
+          lower.startsWith('<!doctype') ||
+          lower.startsWith('<html') ||
+          lower.contains('<body')) {
+        return fallback ?? 'Invalid server response';
+      }
+      return trimmed;
     }
     return fallback ?? 'Request failed (HTTP $statusCode)';
+  }
+
+  String _normalizeErrorMessage(Object error) {
+    if (error is DioException) {
+      final statusCode = error.response?.statusCode;
+      if (statusCode == 401) {
+        return 'HTTP 401 unauthorized';
+      }
+      if (statusCode == 403) {
+        return 'HTTP 403 forbidden';
+      }
+      if (statusCode != null) {
+        return _extractMessage(
+          error.response?.data,
+          statusCode,
+          fallback: 'Request failed (HTTP $statusCode)',
+        );
+      }
+
+      switch (error.type) {
+        case DioExceptionType.connectionTimeout:
+        case DioExceptionType.sendTimeout:
+        case DioExceptionType.receiveTimeout:
+          return 'Request timed out';
+        case DioExceptionType.connectionError:
+          return 'Connection error';
+        default:
+          break;
+      }
+    }
+
+    final raw = error.toString();
+    final lower = raw.toLowerCase();
+    if (lower.contains('formatexception') ||
+        lower.contains('unexpected character') ||
+        lower.contains('<!doctype') ||
+        lower.contains('<html')) {
+      return 'Invalid server response';
+    }
+    if (lower.contains('502') || lower.contains('bad gateway')) {
+      return 'HTTP 502 bad gateway';
+    }
+    if (lower.contains('503') || lower.contains('service unavailable')) {
+      return 'HTTP 503 service unavailable';
+    }
+    if (lower.contains('504') || lower.contains('gateway timeout')) {
+      return 'HTTP 504 gateway timeout';
+    }
+    if (raw.contains('TimeoutException')) {
+      return 'Request timed out';
+    }
+    if (raw.contains('SocketException') ||
+        raw.contains('Connection refused') ||
+        raw.contains('Failed host lookup')) {
+      return 'Connection error';
+    }
+    return raw;
   }
 
   String _formatDate(DateTime date) {

@@ -196,34 +196,34 @@ Security notes
 - Do not pass DB passwords on shared shells; prefer `~/.my.cnf` or environment files.
 - Keep SSH keys secure and restrict access.
 
-3) Full backend + frontend VPS update with backup and rollback:
+3) Split backend + admin UI VPS update with backup and rollback:
 
 ```bash
-chmod +x deploy/deploy_update_to_vps.sh
+chmod +x deploy/deploy_split_and_admin_ui_to_vps.sh
 
-./deploy/deploy_update_to_vps.sh \
+./deploy/deploy_split_and_admin_ui_to_vps.sh \
   --vps root@207.180.245.156 \
   --ssh-key ~/.ssh/id_ed25519 \
   --remote-base-dir /opt/sv-tms \
-  --backend-service svtms-backend \
   --frontend-reload-service nginx
 ```
 
 This flow does the following:
-- Builds `tms-backend` locally and uploads the jar.
-- Builds `tms-frontend` locally and uploads a tarball of the production build.
-- Uploads `prod_release_vps.sh` and `prod_rollback_vps.sh` to the VPS.
-- On the VPS, creates a timestamped backup under `/opt/sv-tms/backups/release_YYYYmmdd_HHMMSS/`.
-- Dumps the MySQL database before changing anything.
-- Archives the current live backend and frontend directories before replacing them.
-- Restarts the backend service and reloads nginx.
+- Builds `tms-auth-api` and `tms-driver-app-api` locally and uploads both jars.
+- Builds `tms-admin-web-ui` locally and uploads a tarball of the production build.
+- Uploads `prod_release_split_vps.sh`, rollback/backup helpers, and split systemd templates to the VPS.
+- Runs the split backend release on the VPS with DB backup unless `--skip-remote-db-backup` is used.
+- Archives the current live frontend directory before replacing it.
+- Reloads nginx after the admin UI update.
 
 Server layout expected by the new scripts:
-- Backend live dir: `/opt/sv-tms/backend`
+- Auth app dir: `/opt/tms-auth-api`
+- Driver app dir: `/opt/tms-driver-app-api`
 - Frontend live dir: `/opt/sv-tms/frontend`
 - Release metadata: `/opt/sv-tms/releases`
 - Incoming artifacts: `/opt/sv-tms/incoming`
-- DB config source: `/opt/sv-tms/infra/.env` or `/opt/sv-tms/backend/application.properties`
+- Shared backend config source: `/opt/sv-tms/backend/application.properties`
+- Split service env files: `/etc/default/tms-auth-api` and `/etc/default/tms-driver-app-api`
 
 Rollback:
 
@@ -233,9 +233,10 @@ sudo /opt/sv-tms/deploy/prod_rollback_vps.sh
 ```
 
 Notes:
-- The VPS release script assumes a non-containerized deployment for the live backend/frontend paths. If your production host runs them only via Docker Compose, keep using image tags and compose-based rollback instead.
+- The combined local helper matches the current split-service VPS topology. Do not use the older `deploy_update_to_vps.sh` monolith helper on a split-production host.
+- The split backend release still relies on `/opt/sv-tms/backend/application.properties` for shared Spring config.
 - `mysqldump` and `mysql` must be installed on the VPS.
-- The rollback script restores the database from the backup manifest created during the release, then restores the backed up backend/frontend directories.
+- The rollback script restores the database from the backup manifest created during the release, then restores the backed up backend/frontend directories used by the VPS release scripts.
 
 4) Microservice routing with one public host:
 

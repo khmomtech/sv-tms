@@ -26,9 +26,12 @@ RUN mkdir -p /layers/api-gateway \
 FROM eclipse-temurin:21-jre-jammy
 RUN apt-get update \
  && apt-get install -y --no-install-recommends curl \
- && rm -rf /var/lib/apt/lists/*
+ && rm -rf /var/lib/apt/lists/* \
+ && groupadd -r appgroup && useradd -r -g appgroup -s /bin/false appuser
 WORKDIR /app
 COPY --from=builder /layers/api-gateway/ /app/
+RUN chown -R appuser:appgroup /app
+USER appuser
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=10 \
  CMD curl -f http://localhost:8086/actuator/health || exit 1
 EXPOSE 8086

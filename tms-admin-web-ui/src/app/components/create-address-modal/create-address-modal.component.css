@@ -1,9 +1,168 @@
-.input {
-  @apply border rounded px-3 py-2;
+.address-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.58);
+  backdrop-filter: blur(2px);
 }
+
+.address-modal-shell {
+  width: min(920px, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
+  border: 1px solid #dbe4f0;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.24);
+}
+
+.address-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 24px 28px 18px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.address-modal-title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 800;
+  color: #1f2937;
+}
+
+.address-modal-subtitle {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: #64748b;
+}
+
+.address-modal-close {
+  min-width: 40px;
+  min-height: 40px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #fff;
+  color: #64748b;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.address-modal-form {
+  padding: 22px 28px 28px;
+}
+
+.address-modal-section + .address-modal-section {
+  margin-top: 24px;
+}
+
+.address-modal-section-title {
+  margin: 0 0 14px;
+  font-size: 15px;
+  font-weight: 800;
+  color: #334155;
+}
+
+.address-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 20px;
+}
+
+.address-field {
+  margin-bottom: 16px;
+}
+
+.address-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.address-label-required::after {
+  content: ' *';
+  color: #ef4444;
+}
+
+.input {
+  @apply border px-3 py-2;
+  border-color: #cbd5e1;
+  border-radius: 8px;
+  min-height: 46px;
+  color: #0f172a;
+  background: #fff;
+}
+
+.address-textarea {
+  min-height: 104px;
+  resize: vertical;
+}
+
+.address-checkbox-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.address-field-toggle {
+  display: flex;
+  align-items: flex-end;
+}
+
+.address-error {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 14px;
+}
+
+.address-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 8px;
+}
+
 .btn-primary {
-  @apply px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700;
+  @apply px-4 py-2 bg-blue-600 text-white hover:bg-blue-700;
+  border-radius: 8px;
 }
 .btn-secondary {
-  @apply px-4 py-2 bg-gray-200 rounded hover:bg-gray-300;
+  @apply px-4 py-2 bg-gray-200 hover:bg-gray-300;
+  border-radius: 8px;
+}
+
+@media (max-width: 768px) {
+  .address-modal-backdrop {
+    padding: 12px;
+  }
+
+  .address-modal-header,
+  .address-modal-form {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .address-form-grid {
+    grid-template-columns: 1fr;
+    gap: 0 0;
+  }
+
+  .address-modal-footer {
+    flex-direction: column-reverse;
+  }
 }

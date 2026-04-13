@@ -1,0 +1,58 @@
+.drop-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 160px;
+  border: 2px dashed #d1d5db;
+  border-radius: 0.75rem;
+  background: #f9fafb;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  user-select: none;
+}
+
+.drop-zone:hover {
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
+
+.drop-zone.dragging {
+  border-color: #2563eb;
+  background: #dbeafe;
+  transform: scale(1.01);
+}
+
+.drop-zone.has-file {
+  border-color: #22c55e;
+  background: #f0fdf4;
+  border-style: solid;
+}
+
+/* Step badges */
+.step-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: #f3f4f6;
+  color: #9ca3af;
+  white-space: nowrap;
+}
+
+.step-badge.active {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.step-badge.done {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.step-divider {
+  flex: 1;
+  height: 1px;
+  background: #e5e7eb;
+  max-width: 3rem;
+}

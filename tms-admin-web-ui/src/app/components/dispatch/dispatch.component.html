@@ -120,58 +120,25 @@
 
       <!--  Map Section -->
       <div class="col-span-2 p-4 bg-white border shadow rounded-xl">
-        <google-map
-          [center]="mapCenter"
-          [zoom]="12"
-          [height]="'420px'"
-          [width]="'100%'"
-          (mapInitialized)="onMapInitialized()"
-          (mapClick)="onMapClick($event)"
-          class="w-full shadow-inner rounded-xl"
-        >
-          <ng-container *ngFor="let stop of stops">
-            <map-marker
-              *ngIf="getStopPosition(stop) as position"
-              [position]="position"
-              [label]="stop.stopSequence"
-              [options]="getMarkerOptions(stop.type)"
-              (mapClick)="selectStop(stop)"
+        <ng-container *ngIf="!mapsError; else mapFallbackBlock">
+          <div class="relative">
+            <div #mapContainer class="dispatch-map-container"></div>
+            <div
+              *ngIf="!mapsReady"
+              class="absolute inset-0 rounded-xl bg-slate-50/80 text-slate-600 flex items-center justify-center"
             >
-            </map-marker>
-          </ng-container>
-
-          <ng-container *ngFor="let marker of allDispatchMarkers">
-            <map-marker
-              *ngIf="getDispatchMarkerPosition(marker) as markerPosition"
-              [position]="markerPosition"
-              [options]="getMarkerOptions(marker.type)"
-              (mapClick)="selectDispatchMarker(marker)"
-            ></map-marker>
-          </ng-container>
-
-          <map-directions-renderer
-            *ngIf="directions"
-            [directions]="directions"
-            [options]="{ draggable: false }"
-          >
-          </map-directions-renderer>
-
-          <map-polyline
-            *ngIf="!directions && fallbackPath.length >= 2"
-            [path]="fallbackPath"
-            [options]="{ strokeColor: '#2563eb', strokeOpacity: 0.85, strokeWeight: 4 }"
-          ></map-polyline>
-
-          <map-info-window
-            *ngIf="showInfoWindow && infoWindowPosition"
-            [position]="infoWindowPosition"
-            (closeclick)="showInfoWindow = false"
-          >
-            <div class="text-sm font-semibold text-gray-700">
-              {{ infoWindowContent }}
+              Loading Mapbox...
             </div>
-          </map-info-window>
-        </google-map>
+          </div>
+        </ng-container>
+
+        <ng-template #mapFallbackBlock>
+          <div
+            class="w-full h-[420px] rounded-xl border border-dashed border-slate-300 bg-slate-50 text-slate-600 flex items-center justify-center p-6 text-center"
+          >
+            <span>{{ mapsError }}</span>
+          </div>
+        </ng-template>
 
         <div
           class="mt-4 text-sm text-gray-700 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
@@ -185,7 +152,7 @@
             (click)="openRouteInGoogleMaps()"
             class="px-3 py-2 text-white bg-emerald-600 rounded hover:bg-emerald-700 sm:self-auto self-start whitespace-nowrap"
           >
-            Open in Google Maps
+            Open in External Maps
           </button>
         </div>
 

@@ -1,0 +1,44 @@
+# Local development infra — starts MySQL + Redis only.
+# Use with: docker compose -f infra/docker-compose.local-dev.yml up -d
+# Then run services with: ./mvnw spring-boot:run -Dspring-boot.run.profiles=local
+#
+# Port 3307 (not 3306) avoids conflicting with any system MySQL.
+# Credentials match all application-local.properties files.
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: svtms-local-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: svlogistics_tms_db
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    ports:
+      - "3307:3306"
+    volumes:
+      - svtms-local-mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-prootpass"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    container_name: svtms-local-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  svtms-local-mysql:

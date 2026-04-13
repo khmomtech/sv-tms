@@ -5,6 +5,7 @@ import type { FormGroup } from '@angular/forms';
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { FormBuilder } from '@angular/forms';
 import { Validators, ReactiveFormsModule } from '@angular/forms';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { DispatchService } from '../../services/dispatch.service';
@@ -14,7 +15,7 @@ import { ToastrService } from 'ngx-toastr';
   selector: 'app-assign-truck-modal',
   standalone: true,
   templateUrl: './assign-truck-modal.component.html',
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, TranslateModule],
 })
 export class AssignTruckModalComponent implements OnInit {
   @Input() dispatchId!: number;
@@ -27,6 +28,7 @@ export class AssignTruckModalComponent implements OnInit {
     private readonly fb: FormBuilder,
     private readonly dispatchService: DispatchService,
     private readonly toastr: ToastrService,
+    private readonly translate: TranslateService,
   ) {}
 
   ngOnInit(): void {
@@ -49,12 +51,14 @@ export class AssignTruckModalComponent implements OnInit {
       const vehicleId = this.form.value.vehicleId;
       this.dispatchService.assignTruckOnly(this.dispatchId, vehicleId).subscribe({
         next: () => {
-          this.toastr.success('Truck assigned successfully.');
+          this.toastr.success(this.translate.instant('dispatchList.truck_assigned_success'));
           this.closed.emit();
         },
         error: (err) => {
           console.error(' Failed to assign truck:', err);
-          this.toastr.error(err?.error?.message || 'Failed to assign truck.');
+          this.toastr.error(
+            err?.error?.message || this.translate.instant('dispatchList.truck_assigned_failed'),
+          );
         },
       });
     }

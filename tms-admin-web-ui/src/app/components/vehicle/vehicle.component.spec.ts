@@ -239,24 +239,30 @@ describe('VehicleComponent', () => {
     });
 
     it('should create new vehicle', () => {
-      mockVehicleService.addVehicle.and.returnValue(of(mockVehicle));
+      mockVehicleService.addVehicle.and.returnValue(of({ success: true, data: mockVehicle } as any));
 
       component.selectedVehicle = { ...mockVehicle, id: undefined } as any;
       component.isEditing = false;
       component.saveVehicle();
 
       expect(mockVehicleService.addVehicle).toHaveBeenCalled();
+      expect(mockNotificationService.success).toHaveBeenCalledWith('Vehicle created successfully!');
       expect(component.isModalOpen).toBe(false);
     });
 
     it('should update existing vehicle', () => {
       mockVehicleService.updateVehicle.and.returnValue(of({ success: true, data: mockVehicle }));
 
-      component.selectedVehicle = mockVehicle;
-      component.isEditing = true;
+      component.openVehicleModal(mockVehicle);
       component.saveVehicle();
 
-      expect(mockVehicleService.updateVehicle).toHaveBeenCalledWith(mockVehicle);
+      expect(mockVehicleService.updateVehicle).toHaveBeenCalledWith(
+        jasmine.objectContaining({
+          id: mockVehicle.id,
+          licensePlate: mockVehicle.licensePlate,
+          assignedZone: mockVehicle.assignedZoneName,
+        }),
+      );
       expect(component.isModalOpen).toBe(false);
     });
 
@@ -391,7 +397,12 @@ describe('VehicleComponent', () => {
     it('should detect changes after CRUD operations', () => {
       const cdr = (component as any).cdr as ChangeDetectorRef;
       const markSpy = spyOn(cdr, 'markForCheck');
-      mockVehicleService.addVehicle.and.returnValue(of(mockVehicle));
+      mockVehicleService.addVehicle.and.returnValue(
+        of({
+          success: true,
+          data: mockVehicle,
+        }),
+      );
 
       component.selectedVehicle = mockVehicle;
       component.saveVehicle();
@@ -443,6 +454,13 @@ describe('VehicleComponent', () => {
       await component.deleteVehicle(1);
 
       expect(component.dropdownOpen).toBe(null);
+    });
+
+    it('should default a new truck to a valid truck size', () => {
+      component.openVehicleModal();
+
+      expect(component.selectedVehicle.type).toBe(VehicleType.TRUCK);
+      expect(component.selectedVehicle.truckSize).toBeDefined();
     });
   });
 

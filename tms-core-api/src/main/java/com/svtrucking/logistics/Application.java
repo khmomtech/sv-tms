@@ -17,11 +17,14 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableScheduling
 // @EnableJpaAuditing
 @PropertySource(value = "classpath:application-uploads.properties", ignoreResourceNotFound = true)
-@EnableJpaRepositories(basePackages = {
-    "com.svtrucking.logistics.repository",
-    "com.svtrucking.logistics.modules.notification.repository",
-    "com.svtrucking.logistics.settings.repository"
-})
+@EnableJpaRepositories(
+    basePackages = {
+        "com.svtrucking.logistics.repository",
+        "com.svtrucking.logistics.modules.notification.repository",
+        "com.svtrucking.logistics.settings.repository"
+    },
+    transactionManagerRef = "jpaTransactionManager"
+)
 public class Application {
   public static void main(String[] args) {
     SpringApplication.run(Application.class, args);

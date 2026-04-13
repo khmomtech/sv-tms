@@ -114,11 +114,22 @@ class _DispatchDetailScreenState extends State<DispatchDetailScreen> {
   bool _isLoading = true;
   bool _actionInProgress = false;
   String? _pendingTargetStatus;
+  Future<DispatchActionsResponse?>? _availableActionsFuture;
 
   @override
   void initState() {
     super.initState();
+    _availableActionsFuture = _fetchAvailableActions();
     _loadDispatch();
+  }
+
+  Future<DispatchActionsResponse?> _fetchAvailableActions() {
+    return Provider.of<DispatchProvider>(context, listen: false)
+        .getAvailableActions(widget.dispatchId);
+  }
+
+  void _refreshAvailableActions() {
+    _availableActionsFuture = _fetchAvailableActions();
   }
 
   Future<void> _loadDispatch() async {
@@ -132,6 +143,7 @@ class _DispatchDetailScreenState extends State<DispatchDetailScreen> {
       if (!mounted) return;
       setState(() {
         _dispatch = data;
+        _refreshAvailableActions();
         _isLoading = false;
       });
       if (kDebugMode) {
@@ -169,7 +181,10 @@ class _DispatchDetailScreenState extends State<DispatchDetailScreen> {
       final data = await provider.getDispatchById(widget.dispatchId);
       if (!mounted) return;
       if (data != null) {
-        setState(() => _dispatch = data);
+        setState(() {
+          _dispatch = data;
+          _refreshAvailableActions();
+        });
         final current = _normalizeStatus(data['status']);
         if (current == expectedStatus) {
           return;
@@ -969,8 +984,7 @@ class _DispatchDetailScreenState extends State<DispatchDetailScreen> {
 
     // Fetch available actions dynamically from API with full metadata
     return FutureBuilder<DispatchActionsResponse?>(
-      future: Provider.of<DispatchProvider>(context, listen: false)
-          .getAvailableActions(widget.dispatchId),
+      future: _availableActionsFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(
@@ -1057,21 +1071,49 @@ class _DispatchDetailScreenState extends State<DispatchDetailScreen> {
 
     final sortedActions = actions.toList()
       ..sort((a, b) => a.priority.compareTo(b.priority));
+    final primaryAction = _selectPrimaryAction(sortedActions);
+    if (primaryAction == null) {
+      return Center(
+        child: Text(
+          emptyMessage,
+          style: const TextStyle(color: Colors.grey, fontSize: 14),
+          textAlign: TextAlign.center,
+        ),
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: sortedActions
-          .map(
-            (action) => _buildActionButton(
-              status,
-              action,
-              canPerformActions: canPerformActions,
-              disableOverrideReason: canPerformActions
-                  ? null
-                  : (restrictionMessage ?? emptyMessage),
-            ),
-          )
-          .toList(),
+      children: [
+        _buildActionButton(
+          status,
+          primaryAction,
+          canPerformActions: canPerformActions,
+          disableOverrideReason:
+              canPerformActions ? null : (restrictionMessage ?? emptyMessage),
+        ),
+      ],
     );
+  }
+
+  DispatchActionMetadata? _selectPrimaryAction(
+      List<DispatchActionMetadata> actions) {
+    final safeActions = actions.where((action) => !_isHiddenDriverAction(action));
+    for (final action in safeActions) {
+      if (_isActionEnabled(action) || _isBlockedInputGuidanceAction(action)) {
+        return action;
+      }
+    }
+    return safeActions.isNotEmpty ? safeActions.first : null;
+  }
+
+  bool _isHiddenDriverAction(DispatchActionMetadata action) {
+    final normalizedLabel = action.actionLabel.trim().toLowerCase();
+    return action.isDestructive ||
+        action.actionType == ActionType.destructive ||
+        normalizedLabel.contains('cancel') ||
+        normalizedLabel.contains('reject') ||
+        action.targetStatus == DispatchStatus.cancelled;
   }
 
   /// Build an action button from backend action metadata
@@ -1385,7 +1427,8 @@ class _DispatchDetailScreenState extends State<DispatchDetailScreen> {
               ? 'dispatch.confirm.destructive'.tr()
               : 'dispatch.confirm.action'.tr()),
           content: Text(
-            'dispatch.confirm.message'.tr(args: [action.actionLabel.tr()]),
+            'dispatch.confirm.message'
+                .tr(args: [_resolveActionLabel(action.actionLabel)]),
           ),
           actions: [
             TextButton(
@@ -1410,7 +1453,7 @@ class _DispatchDetailScreenState extends State<DispatchDetailScreen> {
     await _optimisticStatusUpdate(
       currentStatus,
       action.targetStatus,
-      action.actionLabel.tr(),
+      _resolveActionLabel(action.actionLabel),
       action,
     );
   }
@@ -1486,6 +1529,7 @@ class _DispatchDetailScreenState extends State<DispatchDetailScreen> {
       // Success - reload dispatch to sync with backend
       if (mounted) {
         await _reloadDispatchUntilExpected(expectedStatus: nextStatus);
+        setState(() => _refreshAvailableActions());
         if (_normalizeStatus(_dispatch?['status']) ==
             DispatchStatus.completed) {
           Navigator.pushReplacementNamed(context, AppRoutes.tripReport);

@@ -15,13 +15,13 @@
       type="button"
       class="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
       (click)="isBillToModalOpen = false"
-      aria-label="Close"
+      [attr.aria-label]="'common.close' | translate"
     >
       <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
       </svg>
     </button>
-    <h3 class="text-lg font-semibold mb-4">Select Bill To Customer</h3>
+    <h3 class="text-lg font-semibold mb-4">{{ 'orders.form.bill_to.select_customer' | translate }}</h3>
     <!-- Removed obsolete customer search UI -->
     <div class="flex justify-end mt-6">
       <button
@@ -29,163 +29,459 @@
         class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 mr-2"
         (click)="isBillToModalOpen = false"
       >
-        Cancel
+        {{ 'common.cancel' | translate }}
       </button>
     </div>
   </div>
 </div>
-<div class="flex-wrap p-6 mx-auto">
-  <div class="container p-6 mx-auto bg-white rounded-lg">
-    <h2 class="mb-4 text-2xl font-bold">
-      {{ mode === 'edit' ? 'Edit Transport Order' : 'Add Shipment Order' }}
-    </h2>
+<div class="order-page">
+  <div class="order-shell">
+    <div class="order-hero">
+      <div>
+        <p class="order-eyebrow">{{ 'orders.form.hero.eyebrow' | translate }}</p>
+        <h2 class="order-title">
+          {{
+            mode === 'edit'
+              ? ('orders.form.hero.edit_title' | translate)
+              : ('orders.form.hero.create_title' | translate)
+          }}
+        </h2>
+        <p class="order-subtitle" *ngIf="mode === 'create'">
+          {{ 'orders.form.hero.subtitle' | translate }}
+        </p>
+      </div>
+      <div class="order-status-chip">
+        {{
+          shouldCreateDispatch
+            ? ('orders.form.hero.order_and_dispatch' | translate)
+            : ('orders.form.hero.order_only' | translate)
+        }}
+      </div>
+    </div>
 
-    <form [formGroup]="transportOrderForm" (ngSubmit)="submitForm()">
+    <section class="order-overview-grid">
+      <article class="order-overview-card">
+        <span class="order-overview-label">{{ 'orders.form.fields.customer' | translate }}</span>
+        <strong class="order-overview-value">
+          {{
+            transportOrderForm.get('customer.customerName')?.value ||
+              ('orders.form.placeholders.customer' | translate)
+          }}
+        </strong>
+        <span class="order-overview-meta" *ngIf="transportOrderForm.get('customer.customerId')?.value">
+          ID {{ transportOrderForm.get('customer.customerId')?.value }}
+        </span>
+      </article>
+
+      <article class="order-overview-card">
+        <span class="order-overview-label">{{ 'orders.form.fields.order_ref' | translate }}</span>
+        <strong class="order-overview-value">
+          {{ transportOrderForm.get('orderReference')?.value || 'ORD-0000' }}
+        </strong>
+      </article>
+
+      <article class="order-overview-card">
+        <span class="order-overview-label">{{ 'orders.form.fields.shipment_type' | translate }}</span>
+        <strong class="order-overview-value">
+          {{ transportOrderForm.get('shipmentType')?.value || '-' }}
+        </strong>
+      </article>
+
+      <article class="order-overview-card">
+        <span class="order-overview-label">{{ 'orders.form.fields.delivery_date' | translate }}</span>
+        <strong class="order-overview-value">
+          {{ transportOrderForm.get('deliveryDate')?.value || '-' }}
+        </strong>
+      </article>
+    </section>
+
+    <form [formGroup]="transportOrderForm" (ngSubmit)="submitForm()" data-testid="order-create-form">
       <!-- Section: Customer & Order -->
-      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div formGroupName="customer">
-          <label class="font-semibold after:content-['*'] after:text-red-500">Customer:</label>
-          <div class="flex items-center">
-            <input type="text" formControlName="customerId" class="w-24 input" readonly />
-            <button type="button" class="ml-2 btn btn-primary" (click)="openCustomerModal()">
-              <i class="fas fa-search"></i>
-            </button>
-            <span class="ml-2 text-blue-600 cursor-pointer">
-              {{ transportOrderForm.get('customer.customerName')?.value || 'Select Customer' }}
-            </span>
+      <section class="order-section">
+        <div class="section-head">
+          <div>
+            <h3 class="section-title">{{ 'orders.form.sections.order_setup_title' | translate }}</h3>
+            <p class="section-subtitle">{{ 'orders.form.sections.order_setup_subtitle' | translate }}</p>
           </div>
         </div>
-        <div>
-          <label for="orderReference" class="after:content-['*'] after:text-red-500"
-            >Order Ref:</label
-          >
-          <input
-            id="orderReference"
-            type="text"
-            formControlName="orderReference"
-            class="input"
-            readonly
-          />
-        </div>
-      </div>
 
-      <!-- Section: Shipment Info -->
-      <div class="grid grid-cols-1 gap-4 mt-4 md:grid-cols-3">
-        <div>
-          <label>Bill To Address:</label>
-          <div class="flex gap-2 items-center">
-            <ng-select
-              [items]="billToAddresses"
-              bindLabel="name"
-              bindValue="id"
-              [searchable]="true"
-              [clearable]="true"
-              placeholder="Select or search address..."
-              [loading]="isBillToLoading"
-              [notFoundText]="'No items found'"
-              formControlName="billTo"
-              (search)="onBillToAddressSearch($event.term)"
-              (change)="onBillToAddressChange($event)"
-              class="w-full"
+        <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+          <div formGroupName="customer">
+            <label class="field-label after:content-['*'] after:text-red-500">{{
+              'orders.form.fields.customer' | translate
+            }}</label>
+            <div class="customer-picker">
+              <ng-select
+                [items]="customerOptions"
+                bindLabel="name"
+                bindValue="id"
+                [searchable]="true"
+                [clearable]="true"
+                [loading]="isCustomerLoading"
+                [compareWith]="compareCustomerById"
+                [placeholder]="'orders.form.placeholders.customer' | translate"
+                [notFoundText]="'orders.form.messages.no_customers_found' | translate"
+                formControlName="customerId"
+                (search)="onCustomerSearch($event.term)"
+                (change)="onCustomerChange($event)"
+                (clear)="clearCustomerSelection()"
+                class="w-full order-ng-select customer-ng-select"
+              >
+                <ng-template ng-label-tmp let-item="item">
+                  <div class="customer-option">
+                    <span class="customer-option-name">{{ getCustomerDisplayName(item) }}</span>
+                    <span
+                      class="customer-option-meta"
+                      *ngIf="getCustomerDisplayMeta(item) as customerMeta"
+                    >
+                      {{ customerMeta }}
+                    </span>
+                  </div>
+                </ng-template>
+                <ng-template ng-option-tmp let-item="item">
+                  <div class="customer-option">
+                    <span class="customer-option-name">{{ getCustomerDisplayName(item) }}</span>
+                    <span
+                      class="customer-option-meta"
+                      *ngIf="getCustomerDisplayMeta(item) as customerMeta"
+                    >
+                      {{ customerMeta }}
+                    </span>
+                  </div>
+                </ng-template>
+              </ng-select>
+              <div class="customer-selection-note" *ngIf="selectedCustomerSummary as selectedCustomer">
+                <span class="customer-selection-name">{{ selectedCustomer.name }}</span>
+                <span class="customer-selection-meta" *ngIf="selectedCustomer.meta">
+                  {{ selectedCustomer.meta }}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div>
+            <label for="orderReference" class="field-label after:content-['*'] after:text-red-500"
+              >{{ 'orders.form.fields.order_ref' | translate }}</label
             >
-              <ng-template ng-label-tmp let-item="item"
-                >{{ item.name }}
-                <span class="text-xs text-gray-400">{{ item.address }}</span></ng-template
-              >
-              <ng-template ng-option-tmp let-item="item"
-                >{{ item.name }}
-                <span class="text-xs text-gray-400">{{ item.address }}</span></ng-template
-              >
-            </ng-select>
-            <button
-              type="button"
-              class="inline-flex items-center justify-center px-2 py-2 text-white bg-green-600 rounded hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
-              aria-label="Add Bill To Address"
-              (click)="openQuickCreateBillToAddressModal()"
-            >
-              <svg
-                class="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                viewBox="0 0 24 24"
-              >
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
-            </button>
+            <input
+              id="orderReference"
+              type="text"
+              formControlName="orderReference"
+              class="input input-readonly"
+              readonly
+            />
           </div>
         </div>
-        <div>
-          <label class="after:content-['*'] after:text-red-500">Shipment Type:</label>
-          <select formControlName="shipmentType" class="w-full input">
-            <option *ngFor="let type of safeShipmentTypes" [value]="type">{{ type }}</option>
-          </select>
+
+        <div class="grid grid-cols-1 gap-5 mt-5 md:grid-cols-3">
+          <div>
+            <label class="field-label">{{ 'orders.form.fields.bill_to_address' | translate }}</label>
+            <div class="flex gap-2 items-center">
+              <ng-select
+                [items]="billToAddresses"
+                bindLabel="name"
+                bindValue="id"
+                [searchable]="true"
+                [clearable]="true"
+                [placeholder]="
+                  hasSelectedCustomer
+                    ? ('orders.form.placeholders.bill_to_address' | translate)
+                    : ('orders.form.placeholders.select_customer_first' | translate)
+                "
+                [loading]="isBillToLoading"
+                [notFoundText]="'orders.form.messages.no_items_found' | translate"
+                [disabled]="!hasSelectedCustomer"
+                formControlName="billTo"
+                (search)="onBillToAddressSearch($event.term)"
+                (change)="onBillToAddressChange($event)"
+                class="w-full order-ng-select"
+              >
+                <ng-template ng-label-tmp let-item="item"
+                  >{{ item.name }}
+                  <span class="text-xs text-gray-400">{{ item.address }}</span></ng-template
+                >
+                <ng-template ng-option-tmp let-item="item"
+                  >{{ item.name }}
+                  <span class="text-xs text-gray-400">{{ item.address }}</span></ng-template
+                >
+              </ng-select>
+              <button
+                type="button"
+                class="btn btn-primary btn-icon"
+                [attr.aria-label]="'orders.form.actions.add_bill_to_address' | translate"
+                (click)="openQuickCreateBillToAddressModal()"
+              >
+                <svg
+                  class="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  viewBox="0 0 24 24"
+                >
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div>
+            <label class="field-label after:content-['*'] after:text-red-500">{{
+              'orders.form.fields.shipment_type' | translate
+            }}</label>
+            <select formControlName="shipmentType" class="w-full input">
+              <option *ngFor="let type of safeShipmentTypes" [value]="type">{{ type }}</option>
+            </select>
+          </div>
+          <div>
+            <label class="field-label">{{ 'common.status' | translate }}</label>
+            <select formControlName="status" class="w-full input">
+              <option *ngFor="let status of safeOrderStatuses" [value]="status">{{ status }}</option>
+            </select>
+          </div>
         </div>
-        <div>
-          <label>Status:</label>
-          <select formControlName="status" class="w-full input">
-            <option *ngFor="let status of safeOrderStatuses" [value]="status">{{ status }}</option>
-          </select>
+
+        <div class="grid grid-cols-1 gap-5 mt-5 md:grid-cols-4">
+          <div>
+            <label class="field-label after:content-['*'] after:text-red-500">{{
+              'orders.form.fields.order_date' | translate
+            }}</label>
+            <input type="date" formControlName="orderDate" class="w-full input" />
+          </div>
+          <div>
+            <label class="field-label after:content-['*'] after:text-red-500">{{
+              'orders.form.fields.delivery_date' | translate
+            }}</label>
+            <input type="date" formControlName="deliveryDate" class="w-full input" />
+          </div>
+          <div>
+            <label class="field-label">{{ 'orders.form.fields.courier' | translate }}</label>
+            <select formControlName="courierAssigned" class="w-full input">
+              <option value="">{{ 'orders.form.placeholders.select_courier' | translate }}</option>
+              <option *ngFor="let courier of safeCouriers" [value]="courier">{{ courier }}</option>
+            </select>
+          </div>
+          <div>
+            <label class="field-label">{{ 'orders.form.fields.seller' | translate }}</label>
+            <select formControlName="sellerId" class="w-full input">
+              <option value="">{{ 'orders.form.placeholders.select_seller' | translate }}</option>
+              <option *ngFor="let seller of safeSellers" [value]="seller.id">
+                {{ seller.fullName }}
+              </option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <div
+        class="order-section order-section-accent"
+        formGroupName="dispatchAssignment"
+        *ngIf="mode === 'create'"
+      >
+        <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div>
+            <h3 class="text-lg font-semibold text-slate-900">{{ 'orders.form.dispatch.title' | translate }}</h3>
+            <p class="text-sm text-slate-600">
+              {{ 'orders.form.dispatch.subtitle' | translate }}
+            </p>
+          </div>
+          <label class="inline-flex items-center gap-3 rounded-full bg-white px-4 py-2 shadow-sm">
+            <input
+              type="checkbox"
+              formControlName="createDispatchNow"
+              class="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+              data-testid="order-create-dispatch-toggle"
+            />
+            <span class="text-sm font-medium text-slate-800">{{ 'orders.form.dispatch.create_now' | translate }}</span>
+          </label>
+        </div>
+
+        <div *ngIf="shouldCreateDispatch" class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div>
+            <label class="mb-2 block text-sm font-semibold text-slate-700">
+              {{ 'orders.form.dispatch.driver' | translate }} <span class="text-red-500">*</span>
+            </label>
+            <div
+              class="dispatch-selector"
+              data-testid="order-create-driver-select"
+              [class.is-open]="driverSelectorOpen"
+            >
+              <div class="dispatch-selector-box" (click)="openDriverSelector()">
+                <input
+                  type="text"
+                  class="dispatch-selector-input"
+                  [value]="driverSearchTerm"
+                  (focus)="openDriverSelector()"
+                  (input)="onDispatchDriverSearch($any($event.target).value)"
+                  (blur)="closeDriverSelector()"
+                  [placeholder]="'orders.form.dispatch.driver_placeholder' | translate"
+                />
+                <button
+                  *ngIf="selectedDispatchDriverOption"
+                  type="button"
+                  class="dispatch-selector-clear"
+                  (mousedown)="clearDispatchDriverSelection($event)"
+                  [attr.aria-label]="'orders.form.dispatch.clear_driver' | translate"
+                >
+                  ×
+                </button>
+                <span class="dispatch-selector-caret">▾</span>
+              </div>
+
+              <div class="dispatch-selector-menu" *ngIf="driverSelectorOpen">
+                <div class="dispatch-selector-loading" *ngIf="loadingDrivers">{{ 'orders.form.dispatch.loading_drivers' | translate }}</div>
+                <button
+                  *ngFor="let option of filteredDispatchDriverOptions"
+                  type="button"
+                  class="dispatch-selector-option"
+                  [class.is-selected]="selectedDispatchDriverOption?.id === option.id"
+                  (mousedown)="selectDispatchDriverOption(option.id)"
+                >
+                  <div class="dispatch-selector-option-label">{{ option.label }}</div>
+                  <div class="dispatch-selector-option-secondary" *ngIf="option.secondary">
+                    {{ option.secondary }}
+                  </div>
+                </button>
+                <div
+                  class="dispatch-selector-empty"
+                  *ngIf="!loadingDrivers && filteredDispatchDriverOptions.length === 0"
+                >
+                  {{ 'orders.form.dispatch.no_drivers' | translate }}
+                </div>
+              </div>
+            </div>
+            <p class="mt-1 text-xs text-slate-500" *ngIf="selectedDispatchDriver && selectedDispatchVehicle">
+              {{ 'orders.form.dispatch.auto_vehicle' | translate }}: {{ selectedDispatchVehicle?.licensePlate || selectedDispatchVehicle?.plateNumber }}
+            </p>
+            <p
+              class="mt-1 text-xs text-red-600"
+              *ngIf="shouldShowDispatchFieldError('driverId')"
+            >
+              {{ 'orders.form.dispatch.driver_required' | translate }}
+            </p>
+          </div>
+
+          <div>
+            <label class="mb-2 block text-sm font-semibold text-slate-700">
+              {{ 'orders.form.dispatch.vehicle' | translate }} <span class="text-red-500">*</span>
+            </label>
+            <div
+              class="dispatch-selector"
+              data-testid="order-create-vehicle-select"
+              [class.is-open]="vehicleSelectorOpen"
+            >
+              <div class="dispatch-selector-box" (click)="openVehicleSelector()">
+                <input
+                  type="text"
+                  class="dispatch-selector-input"
+                  [value]="vehicleSearchTerm"
+                  (focus)="openVehicleSelector()"
+                  (input)="onDispatchVehicleSearch($any($event.target).value)"
+                  (blur)="closeVehicleSelector()"
+                  [placeholder]="'orders.form.dispatch.vehicle_placeholder' | translate"
+                />
+                <button
+                  *ngIf="selectedDispatchVehicleOption"
+                  type="button"
+                  class="dispatch-selector-clear"
+                  (mousedown)="clearDispatchVehicleSelection($event)"
+                  [attr.aria-label]="'orders.form.dispatch.clear_vehicle' | translate"
+                >
+                  ×
+                </button>
+                <span class="dispatch-selector-caret">▾</span>
+              </div>
+
+              <div class="dispatch-selector-menu" *ngIf="vehicleSelectorOpen">
+                <div class="dispatch-selector-loading" *ngIf="loadingVehicles">{{ 'orders.form.dispatch.loading_vehicles' | translate }}</div>
+                <button
+                  *ngFor="let option of filteredDispatchVehicleOptions"
+                  type="button"
+                  class="dispatch-selector-option"
+                  [class.is-selected]="selectedDispatchVehicleOption?.id === option.id"
+                  (mousedown)="selectDispatchVehicleOption(option.id)"
+                >
+                  <div class="dispatch-selector-option-label">{{ option.label }}</div>
+                  <div class="dispatch-selector-option-secondary" *ngIf="option.secondary">
+                    {{ option.secondary }}
+                  </div>
+                </button>
+                <div
+                  class="dispatch-selector-empty"
+                  *ngIf="!loadingVehicles && filteredDispatchVehicleOptions.length === 0"
+                >
+                  {{ 'orders.form.dispatch.no_vehicles' | translate }}
+                </div>
+              </div>
+            </div>
+            <p class="mt-1 text-xs text-slate-500" *ngIf="selectedDispatchVehicle && selectedDispatchDriver">
+              {{ 'orders.form.dispatch.auto_driver' | translate }}: {{ selectedDispatchDriver?.fullName || selectedDispatchDriver?.name }}
+            </p>
+            <p
+              class="mt-1 text-xs text-red-600"
+              *ngIf="shouldShowDispatchFieldError('vehicleId')"
+            >
+              {{ 'orders.form.dispatch.vehicle_required' | translate }}
+            </p>
+          </div>
+
+          <div>
+            <label class="mb-2 block text-sm font-semibold text-slate-700">{{ 'orders.form.dispatch.manual_route_code' | translate }}</label>
+            <input
+              type="text"
+              formControlName="manualRouteCode"
+              class="w-full input"
+              [placeholder]="'orders.form.dispatch.manual_route_placeholder' | translate"
+            />
+          </div>
+
+          <div>
+            <label class="mb-2 block text-sm font-semibold text-slate-700">{{ 'orders.form.dispatch.notes' | translate }}</label>
+            <input
+              type="text"
+              formControlName="notes"
+              class="w-full input"
+              [placeholder]="'orders.form.dispatch.notes_placeholder' | translate"
+            />
+          </div>
+        </div>
+
+        <div *ngIf="shouldCreateDispatch" class="mt-4 rounded-xl bg-white/80 px-4 py-3 text-sm text-slate-600">
+          <strong class="text-slate-900">{{ 'orders.form.dispatch.how_it_works' | translate }}</strong>
+          {{ 'orders.form.dispatch.how_it_works_body' | translate }}
         </div>
       </div>
 
-      <div class="grid grid-cols-1 gap-4 mt-4 md:grid-cols-3">
-        <div>
-          <label class="after:content-['*'] after:text-red-500">Order Date:</label>
-          <!-- <div class="text-xs text-gray-500">dd/mm/yyyy</div> -->
-          <input type="date" formControlName="orderDate" class="w-full input" />
-        </div>
-        <div>
-          <label class="after:content-['*'] after:text-red-500">Delivery Date:</label>
-          <!-- <div class="text-xs text-gray-500">dd/mm/yyyy</div> -->
-          <input type="date" formControlName="deliveryDate" class="w-full input" />
-        </div>
-        <div>
-          <label>Courier:</label>
-          <select formControlName="courierAssigned" class="w-full input">
-            <option value="">-- Select Courier --</option>
-            <option *ngFor="let courier of safeCouriers" [value]="courier">{{ courier }}</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="grid grid-cols-1 gap-4 mt-4 md:grid-cols-3">
-        <div>
-          <label>Seller:</label>
-          <select formControlName="sellerId" class="w-full input">
-            <option value="">-- Select Seller --</option>
-            <option *ngFor="let seller of safeSellers" [value]="seller.id">
-              {{ seller.fullName }}
-            </option>
-          </select>
-        </div>
-      </div>
-
-      <br />
-      <hr />
-      <br />
       <!-- Section: Loading & Unloading Locations -->
-      <!-- <h3 class="mt-6 text-lg font-semibold">Locations</h3> -->
-      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <section class="order-section">
+        <div class="section-head">
+          <div>
+            <h3 class="section-title">{{ 'orders.form.stops.title' | translate }}</h3>
+            <p class="section-subtitle">{{ 'orders.form.stops.subtitle' | translate }}</p>
+          </div>
+        </div>
+      <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
         <!-- Loading Locations -->
         <div>
-          <h4 class="flex items-center justify-between font-medium">
-            Loading Locations
+          <h4 class="flex items-center justify-between section-minor-title">
+            {{ 'orders.form.stops.loading_locations' | translate }}
             <button type="button" class="btn btn-sm btn-primary" (click)="addPickup()">
-              + Add
+              + {{ 'orders.form.actions.add' | translate }}
             </button>
           </h4>
 
           <div
             *ngFor="let Loading of pickupLocations.controls; let i = index"
             [formGroup]="getPickupFormGroup(i)"
-            class="p-4 mt-2 bg-white border rounded"
+            class="location-card"
           >
             <div class="flex items-center justify-between mb-2">
-              <span class="font-semibold">Loading {{ i + 1 }}</span>
+              <span class="font-semibold">{{ 'orders.form.stops.loading' | translate }} {{ i + 1 }}</span>
               <div class="flex gap-2">
-                <button type="button" class="btn btn-sm" (click)="openAddressModal('PICKUP', i)">
+                <button
+                  type="button"
+                  class="btn btn-sm"
+                  (click)="openAddressModal('PICKUP', i)"
+                  [attr.data-testid]="'order-pickup-search-' + i"
+                >
                   <i class="fas fa-search"></i>
                 </button>
                 <button
@@ -194,7 +490,7 @@
                   (click)="removePickup(i)"
                   *ngIf="pickupLocations.length > 1"
                 >
-                  Remove
+                  {{ 'orders.form.actions.remove' | translate }}
                 </button>
               </div>
             </div>
@@ -202,27 +498,27 @@
               formControlName="name"
               type="text"
               class="w-full mt-2 input"
-              placeholder="e.g., Supplier Warehouse"
+              [placeholder]="'orders.form.placeholders.pickup_name' | translate"
               readonly
             />
             <input
               formControlName="address"
               type="text"
               class="w-full mt-2 input"
-              placeholder="e.g., Street 123, District, Province"
+              [placeholder]="'orders.form.placeholders.address' | translate"
               readonly
             />
             <input
               formControlName="contactName"
               type="text"
               class="w-full mt-2 input"
-              placeholder="Contact Person"
+              [placeholder]="'orders.form.placeholders.contact_person' | translate"
             />
             <input
               formControlName="contactPhone"
               type="text"
               class="w-full mt-2 input"
-              placeholder="Phone Number"
+              [placeholder]="'orders.form.placeholders.phone_number' | translate"
             />
             <input formControlName="scheduledTime" type="time" class="w-full mt-2 input" />
           </div>
@@ -230,20 +526,25 @@
 
         <!-- UnLoading Locations -->
         <div>
-          <h4 class="flex items-center justify-between font-medium">
-            Unload Locations
-            <button type="button" class="btn btn-sm btn-primary" (click)="addDrop()">+ Add</button>
+          <h4 class="flex items-center justify-between section-minor-title">
+            {{ 'orders.form.stops.unload_locations' | translate }}
+            <button type="button" class="btn btn-sm btn-primary" (click)="addDrop()">+ {{ 'orders.form.actions.add' | translate }}</button>
           </h4>
 
           <div
             *ngFor="let drop of dropLocations.controls; let i = index"
             [formGroup]="getDropFormGroup(i)"
-            class="p-4 mt-2 bg-white border rounded"
+            class="location-card"
           >
             <div class="flex items-center justify-between mb-2">
-              <span class="font-semibold">UnLoading {{ i + 1 }}</span>
+              <span class="font-semibold">{{ 'orders.form.stops.unloading' | translate }} {{ i + 1 }}</span>
               <div class="flex gap-2">
-                <button type="button" class="btn btn-sm" (click)="openAddressModal('DROP', i)">
+                <button
+                  type="button"
+                  class="btn btn-sm"
+                  (click)="openAddressModal('DROP', i)"
+                  [attr.data-testid]="'order-drop-search-' + i"
+                >
                   <i class="fas fa-search"></i>
                 </button>
                 <button
@@ -252,7 +553,7 @@
                   (click)="removeDrop(i)"
                   *ngIf="dropLocations.length > 1"
                 >
-                  Remove
+                  {{ 'orders.form.actions.remove' | translate }}
                 </button>
               </div>
             </div>
@@ -260,92 +561,112 @@
               formControlName="name"
               type="text"
               class="w-full mt-2 input"
-              placeholder="e.g., Customer Warehouse"
+              [placeholder]="'orders.form.placeholders.drop_name' | translate"
               readonly
             />
             <input
               formControlName="address"
               type="text"
               class="w-full mt-2 input"
-              placeholder="e.g., Street 123, District, Province"
+              [placeholder]="'orders.form.placeholders.address' | translate"
               readonly
             />
             <input
               formControlName="contactName"
               type="text"
               class="w-full mt-2 input"
-              placeholder="Contact Person"
+              [placeholder]="'orders.form.placeholders.contact_person' | translate"
             />
             <input
               formControlName="contactPhone"
               type="text"
               class="w-full mt-2 input"
-              placeholder="Phone Number"
+              [placeholder]="'orders.form.placeholders.phone_number' | translate"
             />
             <input formControlName="scheduledTime" type="time" class="w-full mt-2 input" />
           </div>
         </div>
       </div>
-
-      <br />
-      <hr />
-      <br />
+      </section>
       <!-- Section: Items -->
-      <!-- <h3 class="mt-6 text-lg font-semibold">Shipment Items</h3> -->
-      <button class="mt-2 btn btn-primary" type="button" (click)="openItemModal()">+ Add</button>
+      <section class="order-section">
+        <div class="section-head">
+          <div>
+            <h3 class="section-title">{{ 'orders.form.items.title' | translate }}</h3>
+            <p class="section-subtitle">{{ 'orders.form.items.subtitle' | translate }}</p>
+          </div>
+          <button class="btn btn-primary" type="button" (click)="openItemModal()">+ {{ 'orders.form.items.add_item' | translate }}</button>
+        </div>
 
-      <!-- Header Row -->
-      <div class="grid grid-cols-11 gap-2 p-2 mt-4 font-semibold bg-gray-200 rounded">
-        <div>Qty</div>
-        <div>Unit</div>
-        <div>Item Name</div>
-        <div>Pallet</div>
-        <div>Size</div>
-        <div>Weight</div>
-        <div>From</div>
-        <div>To</div>
-        <div>Warehouse</div>
-        <div>Department</div>
-        <div>Actions</div>
+      <div class="items-table">
+      <div class="grid grid-cols-11 gap-2 p-3 text-sm font-semibold text-white items-table-head">
+        <div>{{ 'orders.form.items.columns.item_name' | translate }}</div>
+        <div>{{ 'orders.form.items.columns.qty' | translate }}</div>
+        <div>{{ 'orders.form.items.columns.unit' | translate }}</div>
+        <div>{{ 'orders.form.items.columns.weight' | translate }}</div>
+        <div>{{ 'orders.form.items.columns.size' | translate }}</div>
+        <div>{{ 'orders.form.items.columns.pallet' | translate }}</div>
+        <div>{{ 'common.from' | translate }}</div>
+        <div>{{ 'common.to' | translate }}</div>
+        <div>{{ 'orders.form.items.columns.warehouse' | translate }}</div>
+        <div>{{ 'orders.form.items.columns.department' | translate }}</div>
+        <div>{{ 'common.actions' | translate }}</div>
       </div>
 
       <!-- Data Rows -->
       <div
         *ngFor="let item of items.controls; let i = index"
         [formGroup]="getItemFormGroup(i)"
-        class="grid grid-cols-11 gap-2 p-2 mt-2 border rounded"
+        class="grid grid-cols-11 gap-2 p-3 text-sm border-t border-slate-200 items-table-row"
       >
+        <div>{{ item.get('itemName')?.value }}</div>
         <div>{{ item.get('quantity')?.value }}</div>
         <div>{{ item.get('unitOfMeasurement')?.value }}</div>
-        <div>{{ item.get('itemName')?.value }}</div>
-        <div>{{ item.get('palletType')?.value }}</div>
-        <div>{{ item.get('size')?.value }}</div>
         <div>{{ item.get('weight')?.value }}</div>
+        <div>{{ item.get('size')?.value }}</div>
+        <div>{{ item.get('palletType')?.value }}</div>
         <div>{{ item.get('fromDestination')?.value }}</div>
         <div>{{ item.get('toDestination')?.value }}</div>
         <div>{{ item.get('warehouse')?.value }}</div>
         <div>{{ item.get('department')?.value }}</div>
         <div>
           <button type="button" (click)="removeItem(i)" class="btn btn-danger btn-sm">
-            Delete
+            {{ 'common.delete' | translate }}
           </button>
         </div>
       </div>
-
-      <!-- Total Weight -->
-      <div class="mt-4 font-medium text-right">
-        Total Weight: <span class="text-blue-700">{{ calculateTotalWeight() }} kg</span>
       </div>
 
+      <div class="items-summary-grid">
+        <div class="total-weight-card">
+          <span>{{ 'orders.form.items.columns.qty' | translate }}</span>
+          <strong>{{ calculateTotalQuantity() }}</strong>
+        </div>
+        <div class="total-weight-card">
+          <span>{{ 'orders.form.items.total_weight' | translate }}</span>
+          <strong>{{ calculateTotalWeight() }} kg</strong>
+        </div>
+      </div>
+      </section>
+
       <!-- Submit -->
-      <div class="flex justify-end gap-4 mt-6">
-        <button type="button" class="btn btn-outline" (click)="clearForm()">Clear</button>
+      <div class="action-bar">
+        <button type="button" class="btn btn-outline" (click)="clearForm()">{{ 'common.clear' | translate }}</button>
         <button
           type="submit"
           class="btn btn-primary"
           [disabled]="transportOrderForm.invalid || isSubmitting"
+          data-testid="order-create-submit"
         >
-          {{ isSubmitting ? 'Saving...' : mode === 'edit' ? 'Save Changes' : 'Submit' }}
+          {{
+            isSubmitting
+              ? ('orders.form.actions.saving' | translate)
+              : mode === 'edit'
+                ? ('orders.form.actions.save_changes' | translate)
+                : shouldCreateDispatch
+                  ? ('orders.form.actions.create_shipment_dispatch' | translate)
+                  : ('orders.form.actions.create_shipment' | translate)
+          }}
         </button>
       </div>
     </form>

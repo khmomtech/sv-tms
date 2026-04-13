@@ -78,7 +78,7 @@ void main() {
     final futureReq = server.first.then((HttpRequest req) async {
       try {
         expect(req.method, 'POST');
-        expect(req.uri.path, '/api/driver/location/update');
+        expect(req.uri.path, '/api/driver/location');
         final auth = req.headers.value(HttpHeaders.authorizationHeader);
         expect(auth, isNotNull);
         expect(auth, contains(token));

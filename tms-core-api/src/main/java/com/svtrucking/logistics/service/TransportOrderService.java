@@ -51,7 +51,9 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import org.springframework.dao.DataAccessException;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 import org.springframework.data.domain.PageImpl;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Cell;
@@ -63,7 +65,9 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.Authentication;
@@ -78,6 +82,19 @@ import com.svtrucking.logistics.validator.TransportOrderValidator;
 @Slf4j
 @Service
 public class TransportOrderService {
+
+    private static final class ImportValidationDriftException extends RuntimeException {
+        private final List<ImportError> errors;
+
+        private ImportValidationDriftException(List<ImportError> errors) {
+            super("Import validation drift detected");
+            this.errors = List.copyOf(errors);
+        }
+
+        private List<ImportError> getErrors() {
+            return errors;
+        }
+    }
 
     private static final String ORDER_NOT_FOUND = "Order Not Found";
     private final TransportOrderRepository repository;
@@ -262,8 +279,10 @@ public class TransportOrderService {
     }
 
     @Transactional(readOnly = true)
-    public ApiResponse<List<TransportOrderDto>> getAllOrderLists() {
-        List<TransportOrder> orders = repository.findAll();
+    public ApiResponse<List<TransportOrderDto>> getAllOrderLists(int limit) {
+        int safeLimit = Math.min(Math.max(1, limit), 1000);
+        Page<TransportOrder> page = repository.findAll(PageRequest.of(0, safeLimit, Sort.by(Sort.Direction.DESC, "id")));
+        List<TransportOrder> orders = page.getContent();
         initializeStops(orders);
         List<TransportOrderDto> dtoOrders = orders.stream().map(TransportOrderDto::fromEntity)
                 .collect(Collectors.toList());
@@ -363,6 +382,22 @@ public class TransportOrderService {
         if (orderDto.getDropAddress() != null) {
             existingOrder.setDropAddress(
                     findOrCreateOrderAddress(orderDto.getDropAddress(), existingOrder));
+        }
+
+        if (orderDto.getPickupAddresses() != null) {
+            List<CustomerAddress> pickupAddresses = orderDto.getPickupAddresses().stream()
+                    .map(dto -> findOrCreateOrderAddress(dto, existingOrder))
+                    .collect(Collectors.toList());
+            existingOrder.getPickupAddresses().clear();
+            existingOrder.getPickupAddresses().addAll(pickupAddresses);
+        }
+
+        if (orderDto.getDropAddresses() != null) {
+            List<CustomerAddress> dropAddresses = orderDto.getDropAddresses().stream()
+                    .map(dto -> findOrCreateOrderAddress(dto, existingOrder))
+                    .collect(Collectors.toList());
+            existingOrder.getDropAddresses().clear();
+            existingOrder.getDropAddresses().addAll(dropAddresses);
         }
 
         // ---------- FIX STARTS HERE: clear first, then add ----------
@@ -661,8 +696,8 @@ public class TransportOrderService {
     }
 
     private OrderStatus mapStatus(String raw) {
-        if (raw == null)
-            throw new IllegalArgumentException("Status is required");
+        if (raw == null || raw.trim().isEmpty())
+            return OrderStatus.PENDING;
         String s = raw.trim().toUpperCase();
         if ("PENDDING".equals(s))
             return OrderStatus.PENDING;
@@ -699,35 +734,66 @@ public class TransportOrderService {
             return List.of("Missing header row");
         }
 
-        // Keep compatibility with existing uploads/tests:
-        // require the template to expose at least the first 15 columns, but do not enforce names.
         List<String> errors = new ArrayList<>();
-        int nonBlankHeaders = 0;
-        for (int i = 0; i < REQUIRED_IMPORT_HEADERS.size(); i++) {
+        Map<String, Integer> headerIndexMap = buildImportHeaderIndexMap(headerRow);
+        List<String> missingHeaders = REQUIRED_IMPORT_HEADERS.stream()
+                .filter(header -> !headerIndexMap.containsKey(header))
+                .toList();
+        if (!missingHeaders.isEmpty()) {
+            errors.add("Missing required headers: " + String.join(", ", missingHeaders));
+        }
+        return errors;
+    }
+
+    private Map<String, Integer> buildImportHeaderIndexMap(Row headerRow) {
+        Map<String, Integer> indexMap = new LinkedHashMap<>();
+        if (headerRow == null) {
+            return indexMap;
+        }
+        short lastCellNum = headerRow.getLastCellNum();
+        for (int i = 0; i < lastCellNum; i++) {
             String actual = getCellAsString(headerRow.getCell(i));
-            if (!isBlank(actual)) {
-                nonBlankHeaders++;
+            if (!isBlank(actual) && !indexMap.containsKey(actual.trim())) {
+                indexMap.put(actual.trim(), i);
             }
         }
-        if (nonBlankHeaders < REQUIRED_IMPORT_HEADERS.size()) {
-            errors.add(
-                    "Template must include at least "
-                            + REQUIRED_IMPORT_HEADERS.size()
-                            + " populated header columns (A to O)");
-        }
+        return indexMap;
+    }
 
-        return errors;
+    private String getImportCellAsString(Row row, Map<String, Integer> headerIndexMap, String header) {
+        Integer columnIndex = headerIndexMap.get(header);
+        if (row == null || columnIndex == null) {
+            return "";
+        }
+        return getCellAsString(row.getCell(columnIndex));
+    }
+
+    private Integer getImportCellAsInteger(Row row, Map<String, Integer> headerIndexMap, String header) {
+        Integer columnIndex = headerIndexMap.get(header);
+        if (row == null || columnIndex == null) {
+            return null;
+        }
+        return parseCellAsInteger(row.getCell(columnIndex));
+    }
+
+    private Double getImportCellAsDouble(Row row, Map<String, Integer> headerIndexMap, String header) {
+        Integer columnIndex = headerIndexMap.get(header);
+        if (row == null || columnIndex == null) {
+            return null;
+        }
+        return safeNumeric(row.getCell(columnIndex));
     }
 
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
     }
 
-    private String buildGroupKey(String deliveryDate, String customerCode, String toDestination, String tripNo) {
+    private String buildGroupKey(
+            String deliveryDate, String customerCode, String toDestination, String truckTripCount) {
         return (isBlank(deliveryDate) ? "?" : deliveryDate.trim()) + "_"
                 + (isBlank(customerCode) ? "?" : customerCode.trim()) + "_"
                 + (isBlank(toDestination) ? "?" : toDestination.trim()) + "_"
-                + (isBlank(tripNo) ? "?" : tripNo.trim());
+                + (isBlank(truckTripCount) ? "?" : truckTripCount.trim());
     }
 
     private boolean isImportDataRowEmpty(Row row) {
@@ -743,7 +809,66 @@ public class TransportOrderService {
         return true;
     }
 
-    @Transactional(rollbackFor = Exception.class)
+    private String suggestVehicle(String normalizedTruck, Set<String> vehicleKeys) {
+        if (isBlank(normalizedTruck) || vehicleKeys == null || vehicleKeys.isEmpty()) {
+            return "";
+        }
+        return vehicleKeys.stream()
+                .filter(v -> v.contains(normalizedTruck) || normalizedTruck.contains(v))
+                .limit(5)
+                .collect(Collectors.joining(", "));
+    }
+
+    private String suggestAddress(String normalizedAddress, Set<String> addressKeys) {
+        if (isBlank(normalizedAddress) || addressKeys == null || addressKeys.isEmpty()) {
+            return "";
+        }
+        return addressKeys.stream()
+                .filter(a -> a.contains(normalizedAddress) || normalizedAddress.contains(a))
+                .limit(5)
+                .collect(Collectors.joining(", "));
+    }
+
+    private boolean fuzzyMatch(String value, Collection<String> candidates) {
+        if (value == null || value.isBlank()) {
+            return false;
+        }
+        String normalizedValue = normalizeKey(value);
+        if (normalizedValue == null) {
+            return false;
+        }
+        for (String candidate : candidates) {
+            if (candidate == null) {
+                continue;
+            }
+            if (candidate.contains(normalizedValue) || normalizedValue.contains(candidate)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String resolveResolvedValue(String raw, Map<String, ?> map, Set<String> knownSet) {
+        if (raw == null) {
+            return null;
+        }
+        String normalized = normalizeKey(raw);
+        if (normalized == null) {
+            return null;
+        }
+        if (knownSet.contains(normalized) || map.containsKey(normalized)) {
+            return normalized;
+        }
+        // Fallback: any partial containing match
+        for (String key : map.keySet()) {
+            if (key != null && (key.contains(normalized) || normalized.contains(key))) {
+                return key;
+            }
+        }
+        return null;
+    }
+
+    @Transactional(transactionManager = "jpaTransactionManager", rollbackFor = Exception.class)
     public ResponseEntity<ApiResponse<?>> importBulkOrders(MultipartFile file) {
         if (file == null || file.isEmpty()) {
             return ResponseEntity.badRequest()
@@ -784,7 +909,8 @@ public class TransportOrderService {
                         .body(new ApiResponse<>(false, "Too many rows. Limit 5000 rows per upload", null));
             }
 
-            List<String> headerErrors = validateImportHeaders(sheet.getRow(0));
+            Row headerRow = sheet.getRow(0);
+            List<String> headerErrors = validateImportHeaders(headerRow);
             if (!headerErrors.isEmpty()) {
                 return ResponseEntity.unprocessableEntity()
                         .body(new ApiResponse<>(
@@ -792,6 +918,7 @@ public class TransportOrderService {
                                 "Invalid template headers. Please use the official template.",
                                 headerErrors));
             }
+            Map<String, Integer> headerIndexMap = buildImportHeaderIndexMap(headerRow);
 
             DateTimeFormatter df = IMPORT_DATE_FORMAT;
 
@@ -804,32 +931,41 @@ public class TransportOrderService {
                     continue; // skip header
                 if (isImportDataRowEmpty(r))
                     continue; // skip style-only/trailing empty rows
-                String d = getCellAsString(r.getCell(0)); // Col 0: DeliveryDate
-                String cus = getCellAsString(r.getCell(1)); // Col 1: CustomerCode
-                String trip = getCellAsString(r.getCell(5)); // Col 5: TripNo (NOT Col 3 which is TruckTripCount)
-                String toDest = getCellAsString(r.getCell(7)); // Col 7: ToDestination
+                String d = getImportCellAsString(r, headerIndexMap, "DeliveryDate");
+                String cus = getImportCellAsString(r, headerIndexMap, "CustomerCode");
+                String trip = getImportCellAsString(r, headerIndexMap, "TripNo");
+                String truckTripCount = getImportCellAsString(r, headerIndexMap, "TruckTripCount");
+                String toDest = getImportCellAsString(r, headerIndexMap, "ToDestination");
                 int excelRow = r.getRowNum() + 1;
                 if (isBlank(d)) {
-                    errors.add(new ImportError(excelRow, buildGroupKey(d, cus, toDest, trip), "deliveryDate", String.valueOf(d),
+                    errors.add(new ImportError(excelRow, buildGroupKey(d, cus, toDest, truckTripCount), "deliveryDate", String.valueOf(d),
                             "Delivery date is required"));
                 }
                 if (isBlank(cus)) {
-                    errors.add(new ImportError(excelRow, buildGroupKey(d, cus, toDest, trip), "customerCode", String.valueOf(cus),
+                    errors.add(new ImportError(excelRow, buildGroupKey(d, cus, toDest, truckTripCount), "customerCode", String.valueOf(cus),
                             "Customer code is required"));
                 }
                 if (isBlank(toDest)) {
-                    errors.add(new ImportError(excelRow, buildGroupKey(d, cus, toDest, trip), "toDestination", String.valueOf(toDest),
+                    errors.add(new ImportError(excelRow, buildGroupKey(d, cus, toDest, truckTripCount), "toDestination", String.valueOf(toDest),
                             "Destination is required"));
                 }
                 if (isBlank(trip)) {
-                    errors.add(new ImportError(excelRow, buildGroupKey(d, cus, toDest, trip), "tripNo", String.valueOf(trip),
+                    errors.add(new ImportError(excelRow, buildGroupKey(d, cus, toDest, truckTripCount), "tripNo", String.valueOf(trip),
                             "Trip number is required"));
                 }
+                if (isBlank(truckTripCount)) {
+                    errors.add(new ImportError(
+                            excelRow,
+                            buildGroupKey(d, cus, toDest, truckTripCount),
+                            "truckTripCount",
+                            String.valueOf(truckTripCount),
+                            "Truck trip count is required"));
+                }
 
-                if (isBlank(d) || isBlank(cus) || isBlank(toDest) || isBlank(trip)) {
+                if (isBlank(d) || isBlank(cus) || isBlank(toDest) || isBlank(trip) || isBlank(truckTripCount)) {
                     continue;
                 }
-                String key = d + "_" + cus + "_" + toDest + "_" + trip;
+                String key = d + "_" + cus + "_" + toDest + "_" + truckTripCount;
                 groups.computeIfAbsent(key, k -> new ArrayList<>()).add(r);
             }
 
@@ -857,6 +993,7 @@ public class TransportOrderService {
             Map<String, Long> vehicleIdMap = Map.of();
             Map<String, Long> addressIdMap = Map.of();
             Map<String, Long> customerIdMap = Map.of();
+            Map<String, VehicleDriver> activeVehicleDriverByPlate = Map.of();
 
             try {
                 allItemCodes = itemRepository.findAllItemCodes();
@@ -886,6 +1023,8 @@ public class TransportOrderService {
                         "select id, license_plate from vehicles where license_plate is not null");
                 normalizedVehicles = new LinkedHashSet<>(normalizedVehicles);
                 normalizedVehicles.addAll(vehicleIdMap.keySet());
+                activeVehicleDriverByPlate = buildActiveVehicleDriverByPlateMap();
+                logDuplicateActiveAssignmentWarnings(activeVehicleDriverByPlate);
             } catch (Exception ex) {
                 log.warn("Failed to load vehicle plates, continuing with empty set", ex);
             }
@@ -930,6 +1069,10 @@ public class TransportOrderService {
                 log.warn("Failed to load customer codes, continuing with empty set", ex);
             }
 
+            // helpers for suggestions
+            final Set<String> normalizedVehicleKeys = vehicleMap.keySet();
+            final Set<String> normalizedAddressKeys = addressMap.keySet();
+
             for (Map.Entry<String, List<Row>> e : groups.entrySet()) {
                 int errorsBeforeGroup = errors.size();
                 String key = e.getKey();
@@ -937,28 +1080,45 @@ public class TransportOrderService {
                 int firstExcelRow = first.getRowNum() + 1;
 
                 // header-level checks
-                String deliveryDateStr = getCellAsString(first.getCell(0));
-                String customerCode = getCellAsString(first.getCell(1));
-                // TrackingNo is cell(2)
-                // TruckTripCount is cell(3)
-                String truckNumber = getCellAsString(first.getCell(4));
-                String tripNo = getCellAsString(first.getCell(5)); // TripNo
-                Integer truckTripCount = parseCellAsInteger(first.getCell(3)); // TruckTripCount - robust parsing
-                String statusStr = getCellAsString(first.getCell(14));
-                String fromDest = getCellAsString(first.getCell(6));
-                String toDest = getCellAsString(first.getCell(7));
+                String deliveryDateStr = getImportCellAsString(first, headerIndexMap, "DeliveryDate");
+                String customerCode = getImportCellAsString(first, headerIndexMap, "CustomerCode");
+                String truckNumber = getImportCellAsString(first, headerIndexMap, "TruckNumber");
+                String tripNo = getImportCellAsString(first, headerIndexMap, "TripNo");
+                Integer truckTripCount = getImportCellAsInteger(first, headerIndexMap, "TruckTripCount");
+                String statusStr = getImportCellAsString(first, headerIndexMap, "Status");
+                String fromDest = getImportCellAsString(first, headerIndexMap, "FromDestination");
+                String toDest = getImportCellAsString(first, headerIndexMap, "ToDestination");
                 String normalizedTruck = normalizeVehiclePlate(truckNumber);
                 String normalizedFromDest = normalizeKey(fromDest);
                 String normalizedToDest = normalizeKey(toDest);
-                boolean vehicleKnown = normalizedVehicles.contains(normalizedTruck)
-                        || vehicleMap.containsKey(normalizedTruck)
-                        || vehicleIdMap.containsKey(normalizedTruck);
-                boolean fromKnown = normalizedAddresses.contains(normalizedFromDest)
-                        || addressMap.containsKey(normalizedFromDest)
-                        || addressIdMap.containsKey(normalizedFromDest);
-                boolean toKnown = normalizedAddresses.contains(normalizedToDest)
-                        || addressMap.containsKey(normalizedToDest)
-                        || addressIdMap.containsKey(normalizedToDest);
+                boolean vehicleKnown = normalizedTruck != null
+                        && (normalizedVehicles.contains(normalizedTruck)
+                                || vehicleMap.containsKey(normalizedTruck)
+                                || vehicleIdMap.containsKey(normalizedTruck));
+
+                // Fallback: sometimes the import uses numeric IDs or short codes; try weak-match
+                if (!vehicleKnown && normalizedTruck != null && normalizedTruck.matches("\\d+")) {
+                    vehicleKnown = vehicleMap.keySet().stream().anyMatch(k -> k.endsWith(normalizedTruck));
+                }
+
+                boolean fromKnown = normalizedFromDest != null
+                        && (normalizedAddresses.contains(normalizedFromDest)
+                                || addressMap.containsKey(normalizedFromDest)
+                                || addressIdMap.containsKey(normalizedFromDest));
+                boolean toKnown = normalizedToDest != null
+                        && (normalizedAddresses.contains(normalizedToDest)
+                                || addressMap.containsKey(normalizedToDest)
+                                || addressIdMap.containsKey(normalizedToDest));
+
+                // Fallback for shortened address codes, e.g. KB/CA2
+                if (!fromKnown && !isBlank(fromDest)) {
+                    String smallFrom = fromDest.trim().toLowerCase();
+                    fromKnown = normalizedAddresses.stream().anyMatch(s -> s.contains(smallFrom));
+                }
+                if (!toKnown && !isBlank(toDest)) {
+                    String smallTo = toDest.trim().toLowerCase();
+                    toKnown = normalizedAddresses.stream().anyMatch(s -> s.contains(smallTo));
+                }
 
                 log.debug(
                         "Import validation lookup: truck={} normalizedTruck={} vehicleKnown={} from={} normalizedFrom={} fromKnown={} to={} normalizedTo={} toKnown={}",
@@ -1003,16 +1163,21 @@ public class TransportOrderService {
                 }
 
                 // vehicle
-                if (isBlank(truckNumber) || !vehicleKnown)
+                if (isBlank(truckNumber) || !vehicleKnown) {
+                    String suggestion = "";
+                    if (!isBlank(truckNumber)) {
+                        suggestion = suggestVehicle(normalizedTruck, normalizedVehicleKeys);
+                    }
                     errors.add(
                             new ImportError(
                                     firstExcelRow,
                                     key,
                                     "truckNumber",
                                     String.valueOf(truckNumber),
-                                    "Vehicle not found"));
+                                    "Truck not found" + (suggestion.isEmpty() ? "" : ", did you mean: " + suggestion)));
+                }
 
-                if (truckTripCount == null || truckTripCount < 0)
+                if (truckTripCount == null || truckTripCount < 0) {
                     errors.add(
                             new ImportError(
                                     firstExcelRow,
@@ -1020,6 +1185,7 @@ public class TransportOrderService {
                                     "truckTripCount",
                                     String.valueOf(truckTripCount),
                                     "Truck trip count must be a whole number"));
+                }
 
                 if (tripNo == null || tripNo.trim().isEmpty()) {
                     errors.add(
@@ -1032,22 +1198,32 @@ public class TransportOrderService {
                 }
 
                 // addresses
-                if (isBlank(fromDest) || !fromKnown)
+                if (isBlank(fromDest) || !fromKnown) {
+                    String suggestion = "";
+                    if (!isBlank(fromDest)) {
+                        suggestion = suggestAddress(normalizedFromDest, normalizedAddressKeys);
+                    }
                     errors.add(
                             new ImportError(
                                     firstExcelRow,
                                     key,
                                     "fromLocation",
                                     String.valueOf(fromDest),
-                                    "Stop address not found"));
-                if (isBlank(toDest) || !toKnown)
+                                    "Stop address not found" + (suggestion.isEmpty() ? "" : ", did you mean: " + suggestion)));
+                }
+                if (isBlank(toDest) || !toKnown) {
+                    String suggestion = "";
+                    if (!isBlank(toDest)) {
+                        suggestion = suggestAddress(normalizedToDest, normalizedAddressKeys);
+                    }
                     errors.add(
                             new ImportError(
                                     firstExcelRow,
                                     key,
                                     "toLocation",
                                     String.valueOf(toDest),
-                                    "Stop address not found"));
+                                    "Stop address not found" + (suggestion.isEmpty() ? "" : ", did you mean: " + suggestion)));
+                }
 
                 if (errors.size() == errorsBeforeGroup) {
                     try {
@@ -1070,9 +1246,9 @@ public class TransportOrderService {
                 // line-level checks
                 for (Row r : e.getValue()) {
                     int excelRow = r.getRowNum() + 1;
-                    String itemCode = getCellAsString(r.getCell(8));
-                    String uom = getCellAsString(r.getCell(11));
-                    Double qty = safeNumeric(r.getCell(10));
+                    String itemCode = getImportCellAsString(r, headerIndexMap, "ItemCode");
+                    String uom = getImportCellAsString(r, headerIndexMap, "UoM");
+                    Double qty = getImportCellAsDouble(r, headerIndexMap, "Qty");
                     if (isBlank(itemCode) || !normalizedItemCodes.contains(normalizeKey(itemCode))) {
                         errors.add(
                                 new ImportError(
@@ -1093,13 +1269,10 @@ public class TransportOrderService {
 
             // If any errors: return 422 with a clean message (NO DB writes)
             if (!errors.isEmpty()) {
-                String summary = " Import blocked. " + errors.size() + " issue(s) found. Nothing was saved.";
+                String summary = "Import blocked. " + errors.size() + " issue(s) found. Nothing was saved.";
                 return ResponseEntity.unprocessableEntity().body(new ApiResponse<>(false, summary, errors));
             }
 
-            Map<String, VehicleDriver> activeVehicleDriverByPlate = buildActiveVehicleDriverByPlateMap();
-            int autoAssignedCount = 0;
-            int unassignedCount = 0;
             // -------- PERSIST PASS ----------
             int created = 0;
             log.info("Starting persist pass for {} group(s)", groups.size());
@@ -1108,21 +1281,21 @@ public class TransportOrderService {
                 Row first = rows.get(0);
                 log.debug("Processing group: {} with {} rows", e.getKey(), rows.size());
 
-                String deliveryDateStr = getCellAsString(first.getCell(0));
-                String customerCode = getCellAsString(first.getCell(1));
+                String deliveryDateStr = getImportCellAsString(first, headerIndexMap, "DeliveryDate");
+                String customerCode = getImportCellAsString(first, headerIndexMap, "CustomerCode");
 
-                String trackingNo = getCellAsString(first.getCell(2));
-                Integer truckTripCount = parseCellAsInteger(first.getCell(3));
+                String trackingNo = getImportCellAsString(first, headerIndexMap, "TrackingNo");
+                Integer truckTripCount = getImportCellAsInteger(first, headerIndexMap, "TruckTripCount");
                 if (truckTripCount == null) {
                     throw new IllegalStateException("Missing truckTripCount after validation for key: " + e.getKey());
                 }
-                String truckNumber = getCellAsString(first.getCell(4));
+                String truckNumber = getImportCellAsString(first, headerIndexMap, "TruckNumber");
 
-                String tripNo = getCellAsString(first.getCell(5));
+                String tripNo = getImportCellAsString(first, headerIndexMap, "TripNo");
 
-                String fromDest = getCellAsString(first.getCell(6));
-                String toDest = getCellAsString(first.getCell(7));
-                String statusStr = getCellAsString(first.getCell(14));
+                String fromDest = getImportCellAsString(first, headerIndexMap, "FromDestination");
+                String toDest = getImportCellAsString(first, headerIndexMap, "ToDestination");
+                String statusStr = getImportCellAsString(first, headerIndexMap, "Status");
                 LocalDate deliveryDate = LocalDate.parse(deliveryDateStr, df);
 
                 Customer customer = customerMap.get(normalizeKey(customerCode));
@@ -1132,8 +1305,15 @@ public class TransportOrderService {
                         customer = entityManager.getReference(Customer.class, customerId);
                     }
                 }
+                List<ImportError> persistValidationErrors = new ArrayList<>();
                 if (customer == null) {
-                    throw new IllegalStateException("Customer not found after validation: " + customerCode);
+                    persistValidationErrors.add(
+                            new ImportError(
+                                    first.getRowNum() + 1,
+                                    e.getKey(),
+                                    "customerCode",
+                                    String.valueOf(customerCode),
+                                    "Customer not found"));
                 }
                 OrderStatus status = mapStatus(statusStr);
                 Vehicle vehicle = vehicleMap.get(normalizeVehiclePlate(truckNumber));
@@ -1144,8 +1324,77 @@ public class TransportOrderService {
                     }
                 }
                 if (vehicle == null) {
-                    throw new IllegalStateException("Vehicle not found after validation: " + truckNumber);
+                    persistValidationErrors.add(
+                            new ImportError(
+                                    first.getRowNum() + 1,
+                                    e.getKey(),
+                                    "truckNumber",
+                                    String.valueOf(truckNumber),
+                                    "Truck not found"));
                 }
+
+                CustomerAddress fromAddress = null;
+                Long fromAddressId = addressIdMap.get(normalizeKey(fromDest));
+                if (fromAddressId != null) {
+                    fromAddress = entityManager.getReference(CustomerAddress.class, fromAddressId);
+                } else {
+                    fromAddress = addressMap.get(normalizeKey(fromDest));
+                }
+                if (fromAddress == null) {
+                    persistValidationErrors.add(
+                            new ImportError(
+                                    first.getRowNum() + 1,
+                                    e.getKey(),
+                                    "fromLocation",
+                                    String.valueOf(fromDest),
+                                    "Stop address not found"));
+                }
+
+                CustomerAddress toAddress = null;
+                Long toAddressId = addressIdMap.get(normalizeKey(toDest));
+                if (toAddressId != null) {
+                    toAddress = entityManager.getReference(CustomerAddress.class, toAddressId);
+                } else {
+                    toAddress = addressMap.get(normalizeKey(toDest));
+                }
+                if (toAddress == null) {
+                    persistValidationErrors.add(
+                            new ImportError(
+                                    first.getRowNum() + 1,
+                                    e.getKey(),
+                                    "toLocation",
+                                    String.valueOf(toDest),
+                                    "Stop address not found"));
+                }
+
+                Map<Integer, Item> itemsByRowNumber = new LinkedHashMap<>();
+                for (Row r : rows) {
+                    int excelRow = r.getRowNum() + 1;
+                    String itemCode = getImportCellAsString(r, headerIndexMap, "ItemCode");
+                    Item item = itemMap.get(normalizeKey(itemCode));
+                    if (item == null) {
+                        Long itemId = itemIdMap.get(normalizeKey(itemCode));
+                        if (itemId != null) {
+                            item = entityManager.getReference(Item.class, itemId);
+                        }
+                    }
+                    if (item == null) {
+                        persistValidationErrors.add(
+                                new ImportError(
+                                        excelRow,
+                                        e.getKey(),
+                                        "itemCode",
+                                        String.valueOf(itemCode),
+                                        "Item not found"));
+                        continue;
+                    }
+                    itemsByRowNumber.put(r.getRowNum(), item);
+                }
+
+                if (!persistValidationErrors.isEmpty()) {
+                    throw new ImportValidationDriftException(persistValidationErrors);
+                }
+
                 String canonicalTruckNumber = vehicle.getLicensePlate();
                 String orderRef = generateOrderReference(deliveryDate, canonicalTruckNumber, toDest, customerCode);
                 if (!ORDER_REF_PATTERN.matcher(orderRef).matches()) {
@@ -1165,14 +1414,13 @@ public class TransportOrderService {
                 order.setStatus(status);
                 order.setOrigin(OrderOrigin.IMPORT);
                 // Allow spreadsheet to indicate whether a driver is required (col index 15)
-                String requiresDriverCell = getCellAsString(first.getCell(15));
+                String requiresDriverCell = getImportCellAsString(first, headerIndexMap, "RequiresDriver");
                 if (requiresDriverCell != null && "FALSE".equalsIgnoreCase(requiresDriverCell.trim())) {
                     order.setRequiresDriver(Boolean.FALSE);
                 } else {
                     order.setRequiresDriver(Boolean.TRUE);
                 }
-                repository.save(order);
-                repository.flush(); // Ensure ID is generated before using in dispatch
+                repository.saveAndFlush(order); // save + flush atomically — ensures ID is set (IDENTITY strategy)
 
                 Dispatch dispatch = Dispatch.builder()
                         .routeCode(orderRef)
@@ -1183,7 +1431,7 @@ public class TransportOrderService {
                         .deliveryDate(deliveryDate)
                         .customer(customer)
                         .status(DispatchStatus.PENDING)
-                        .createdBy(null) // TEMP: Set to null for debugging
+                        .createdBy(getAuthenticatedUser())
                         .startTime(deliveryDate.atStartOfDay())
                         .createdDate(java.time.LocalDateTime.now())
                         .updatedDate(java.time.LocalDateTime.now())
@@ -1194,13 +1442,11 @@ public class TransportOrderService {
                         dispatchWorkflowPolicyService.resolveWorkflowVersionIdForDispatch(dispatch));
 
                 dispatch.setVehicle(vehicle);
-                VehicleDriver activeAssignment = activeVehicleDriverByPlate.get(normalizeVehiclePlate(canonicalTruckNumber));
-                if (activeAssignment != null && activeAssignment.getDriver() != null) {
-                    dispatch.setDriver(activeAssignment.getDriver());
+                VehicleDriver activeVehicleAssignment = activeVehicleDriverByPlate
+                        .get(normalizeVehiclePlate(canonicalTruckNumber));
+                if (activeVehicleAssignment != null && activeVehicleAssignment.getDriver() != null) {
+                    dispatch.setDriver(activeVehicleAssignment.getDriver());
                     dispatch.setStatus(DispatchStatus.ASSIGNED);
-                    autoAssignedCount++;
-                } else {
-                    unassignedCount++;
                 }
 
                 dispatch.setTransportOrder(order);
@@ -1208,26 +1454,15 @@ public class TransportOrderService {
 
                 // items
                 for (Row r : rows) {
-                    String itemCode = getCellAsString(r.getCell(8));
-                    Double qtyVal = safeNumeric(r.getCell(10));
+                    Double qtyVal = getImportCellAsDouble(r, headerIndexMap, "Qty");
                     double qty = qtyVal != null ? qtyVal : 0;
-                    String uom = getCellAsString(r.getCell(11));
-                    Double palletVal = safeNumeric(r.getCell(12));
+                    String uom = getImportCellAsString(r, headerIndexMap, "UoM");
+                    Double palletVal = getImportCellAsDouble(r, headerIndexMap, "UoMPallet");
                     double pallet = palletVal != null ? palletVal : 0;
-                    String fromRow = getCellAsString(r.getCell(6));
-                    String toRow = getCellAsString(r.getCell(7));
-                    String wh = getCellAsString(r.getCell(13));
-
-                    Item item = itemMap.get(normalizeKey(itemCode));
-                    if (item == null) {
-                        Long itemId = itemIdMap.get(normalizeKey(itemCode));
-                        if (itemId != null) {
-                            item = entityManager.getReference(Item.class, itemId);
-                        }
-                    }
-                    if (item == null) {
-                        throw new IllegalStateException("Item not found after validation: " + itemCode);
-                    }
+                    String fromRow = getImportCellAsString(r, headerIndexMap, "FromDestination");
+                    String toRow = getImportCellAsString(r, headerIndexMap, "ToDestination");
+                    String wh = getImportCellAsString(r, headerIndexMap, "LoadingPlace");
+                    Item item = itemsByRowNumber.get(r.getRowNum());
                     OrderItem oi = new OrderItem();
                     oi.setItem(item);
                     oi.setQuantity(qty);
@@ -1247,16 +1482,7 @@ public class TransportOrderService {
                 for (String stopName : List.of(fromDest, toDest)) {
                     String key = order.getId() + "-" + stopName;
                     if (dedup.add(key)) {
-                        CustomerAddress addr = addressMap.get(normalizeKey(stopName));
-                        if (addr == null) {
-                            Long addressId = addressIdMap.get(normalizeKey(stopName));
-                            if (addressId != null) {
-                                addr = entityManager.getReference(CustomerAddress.class, addressId);
-                            }
-                        }
-                        if (addr == null) {
-                            throw new IllegalStateException("Address not found after validation: " + stopName);
-                        }
+                        CustomerAddress addr = stopName.equals(fromDest) ? fromAddress : toAddress;
                         stops.add(
                                 OrderStop.builder()
                                         .type(stops.isEmpty() ? StopType.PICKUP : StopType.DROP)
@@ -1269,22 +1495,46 @@ public class TransportOrderService {
                 if (!stops.isEmpty())
                     orderStopRepository.saveAll(stops);
 
+                // Flush all pending writes for this group now so any DB constraint
+                // violations are caught here (with context) rather than silently
+                // during the implicit Hibernate flush triggered by the next group's
+                // generateOrderReference() query, which would leave the transaction
+                // in rollback-only state and produce a misleading
+                // "Could not commit JPA transaction" error.
+                entityManager.flush();
+
                 created++;
             }
 
-            int duplicateAssignmentWarnings = logDuplicateActiveAssignmentWarnings(activeVehicleDriverByPlate);
             log.info("Successfully persisted {} order(s)", created);
             log.info(
-                    "Bulk order import summary: groups={}, created={}, autoAssigned={}, unassigned={}, duplicateActivePlateWarnings={}",
+                    "Bulk order import summary: groups={}, created={}, dispatchStatus={}",
                     groups.size(),
                     created,
-                    autoAssignedCount,
-                    unassignedCount,
-                    duplicateAssignmentWarnings);
+                    DispatchStatus.PENDING);
             String msg = " Imported " + created + " order(s).";
             return ResponseEntity.ok(new ApiResponse<>(true, msg, null));
 
         } catch (Exception ex) {
+            // If this exception came from a JPA/DB flush, Hibernate has already
+            // marked the underlying EntityTransaction as rollback-only. We must
+            // mark the Spring transaction rollback-only too, otherwise Spring's
+            // proxy will attempt a commit that always fails with the confusing
+            // "Could not commit JPA transaction" error swallowing the real cause.
+            if (ex instanceof DataAccessException
+                    || ex instanceof jakarta.persistence.PersistenceException
+                    || ex instanceof ImportValidationDriftException) {
+                TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+            }
+
+            if (ex instanceof ImportValidationDriftException drift) {
+                String summary =
+                        "Import blocked. " + drift.getErrors().size() + " issue(s) found. Nothing was saved.";
+                log.warn("Bulk import failed during persist-phase validation: {}", drift.getErrors());
+                return ResponseEntity.unprocessableEntity()
+                        .body(new ApiResponse<>(false, summary, drift.getErrors()));
+            }
+
             String errorMsg = "Bulk import failed";
             String details = ex.getMessage();
 
@@ -1319,10 +1569,23 @@ public class TransportOrderService {
                         "Details: " + details;
             }
 
-            log.error("Bulk import failed: {}", errorMsg, ex);
-            // Any exception here triggers TX rollback automatically due to @Transactional
+            if (ex instanceof org.springframework.transaction.TransactionSystemException
+                && ex.getCause() instanceof jakarta.persistence.RollbackException
+                && ex.getCause().getCause() instanceof java.lang.NullPointerException
+                && ex.getCause().getCause().getMessage() != null
+                && ex.getCause().getCause().getMessage().contains("current")) {
+            errorMsg = "System error: Entity version value is null during commit. "
+                    + "This usually happens when @Version is uninitialized on a persisted entity.";
+            details = "Hibernate versioning failure: " + ex.getCause().getCause().getMessage();
+            log.error("Bulk import failed due to versioning NPE: {}", details, ex);
             return ResponseEntity.status(500)
                     .body(new ApiResponse<>(false, errorMsg, details));
+        }
+
+        log.error("Bulk import failed: {}", errorMsg, ex);
+        // Any exception here triggers TX rollback automatically due to @Transactional
+        return ResponseEntity.status(500)
+                .body(new ApiResponse<>(false, errorMsg, details));
         }
     }
 

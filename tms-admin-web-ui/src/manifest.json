@@ -1,7 +1,7 @@
 {
   "name": "SV-TMS Admin",
   "short_name": "SV-TMS",
-  "description": "Dispatcher and Admin Web UI for SV-TMS",
+  "description": "Shipment and Admin Web UI for SV-TMS",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

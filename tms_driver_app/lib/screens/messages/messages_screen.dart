@@ -850,13 +850,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
           Widget content;
           if (provider.isLoading && provider.messages.isEmpty) {
             content = const Center(child: CircularProgressIndicator());
-          } else if (provider.errorMessage != null && provider.messages.isEmpty) {
-            content = Center(
-              child: Text(
-                'Error: ${provider.errorMessage}',
-                style: const TextStyle(color: Colors.red),
-              ),
-            );
           } else if (provider.messages.isEmpty) {
             content = _buildEmptyState(provider);
           } else {

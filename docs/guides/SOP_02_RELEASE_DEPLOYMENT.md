@@ -15,15 +15,31 @@ Deploy safely with clear go/no-go gates.
 
 Use your standard deploy scripts from `deploy/`.
 
-Recommended single-run gate command:
+Recommended deploy flow for split production:
 
 ```bash
-./deploy/prod_morning_release_split_vps.sh \
-  --vps root@YOUR_VPS --ssh-key ~/.ssh/id_ed25519 \
-  --public-url https://svtmsapi.svtrucking.biz \
-  --admin-username superadmin --admin-password 'REPLACE' \
-  --manual-smoke-status pass \
-  --deploy-cmd "sudo /opt/sv-tms/deploy/prod_release_split_vps.sh"
+./deploy/deploy_split_and_admin_ui_to_vps.sh \
+  --vps root@YOUR_VPS \
+  --ssh-key ~/.ssh/id_ed25519
+```
+
+Then run the mandatory smoke gates:
+
+```bash
+./deploy/post_deploy_microservices_routing_smoke_vps.sh \
+  --vps root@YOUR_VPS \
+  --ssh-key ~/.ssh/id_ed25519 \
+  --public-url https://svtms.svtrucking.biz
+
+./deploy/post_deploy_openapi_split_smoke_vps.sh \
+  --vps root@YOUR_VPS \
+  --ssh-key ~/.ssh/id_ed25519
+
+./deploy/post_deploy_dynamic_driver_policy_smoke_vps.sh \
+  --vps root@YOUR_VPS \
+  --ssh-key ~/.ssh/id_ed25519 \
+  --public-url https://svtms.svtrucking.biz \
+  --admin-username superadmin --admin-password 'REPLACE'
 ```
 
 Important:
@@ -35,12 +51,6 @@ Important:
 2. Routing smoke script.
 3. OpenAPI split smoke script.
 4. Dynamic driver-policy smoke script.
-
-```bash
-./deploy/post_deploy_microservices_routing_smoke_vps.sh ...
-./deploy/post_deploy_openapi_split_smoke_vps.sh ...
-./deploy/post_deploy_dynamic_driver_policy_smoke_vps.sh ...
-```
 
 Additional production checks (required for web admin + realtime):
 

@@ -22,7 +22,7 @@ public class GatewayConfig {
     @Bean
     RestClient gatewayRestClient(HttpClient gatewayHttpClient) {
         JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(gatewayHttpClient);
-        requestFactory.setReadTimeout(Duration.ofSeconds(30));
+        requestFactory.setReadTimeout(Duration.ofSeconds(120));
         return RestClient.builder()
                 .requestFactory(requestFactory)
                 .build();

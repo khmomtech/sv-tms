@@ -39,6 +39,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
     excludeFilters = {
         @ComponentScan.Filter(type = FilterType.REGEX, pattern = "com\\.svtrucking\\.logistics\\.controller\\..*"),
         @ComponentScan.Filter(type = FilterType.REGEX, pattern = "com\\.svtrucking\\.logistics\\.modules\\.notification\\.controller\\..*"),
+        @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = DriverSelfAssignmentController.class),
         @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = com.svtrucking.logistics.config.WebSocketConfig.class),
         @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = com.svtrucking.logistics.security.SecurityConfig.class),
         @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = com.svtrucking.logistics.Application.class)
@@ -54,7 +55,6 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
     DriverLocationMobileController.class,
     DriverPortalController.class,
     DriverSafetyCheckController.class,
-    DriverSelfAssignmentController.class,
     DriverTrackingSessionController.class,
     DriverMobileController.class,
     PublicAppVersionController.class,

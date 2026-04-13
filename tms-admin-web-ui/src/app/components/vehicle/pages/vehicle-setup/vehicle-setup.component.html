@@ -182,10 +182,14 @@
           <select
             formControlName="truckSize"
             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            [class.border-red-500]="hasError('truckSize')"
           >
             <option value="">Select Size</option>
             <option *ngFor="let size of truckSizes" [value]="size">{{ size }}</option>
           </select>
+          <p *ngIf="hasError('truckSize')" class="mt-1 text-sm text-red-600">
+            {{ getErrorMessage('truckSize') }}
+          </p>
         </div>
       </div>
     </div>
@@ -267,12 +271,12 @@
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">Assigned Zone ID</label>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Assigned Zone</label>
           <input
-            type="number"
-            formControlName="assignedZoneId"
+            type="text"
+            formControlName="assignedZone"
             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="12"
+            placeholder="Phnom Penh North"
           />
         </div>
 
@@ -427,6 +431,7 @@
                 <label class="block text-sm font-medium text-gray-700 mb-2">Trigger Type *</label>
                 <select
                   formControlName="triggerType"
+                  (change)="onScheduleTriggerTypeChange(i)"
                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="MILEAGE">Mileage</option>
@@ -435,15 +440,25 @@
                 </select>
               </div>
 
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2"
-                  >Trigger Interval *</label
-                >
+              <div *ngIf="usesMileageTrigger(i)">
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                  Mileage Interval (km) *
+                </label>
                 <input
                   type="number"
                   formControlName="triggerInterval"
                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="10000"
+                />
+              </div>
+
+              <div *ngIf="usesTimeTrigger(i)">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Time Interval (days) *</label>
+                <input
+                  type="number"
+                  formControlName="triggerIntervalDays"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="30"
                 />
               </div>
 

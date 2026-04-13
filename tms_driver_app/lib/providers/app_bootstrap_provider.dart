@@ -29,6 +29,17 @@ class AppBootstrapProvider with ChangeNotifier {
     return _config?.features[key] ?? fallback;
   }
 
+  bool isAnyFeatureEnabled(List<String> keys, {bool fallback = true}) {
+    final features = _config?.features;
+    if (features == null || keys.isEmpty) return fallback;
+    for (final key in keys) {
+      if (features.containsKey(key)) {
+        return features[key] ?? fallback;
+      }
+    }
+    return fallback;
+  }
+
   T policy<T>(String key, T fallback) {
     final raw = _config?.policies[key];
     if (raw == null) return fallback;

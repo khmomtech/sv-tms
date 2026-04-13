@@ -19,6 +19,7 @@ export interface SuggestDto {
 })
 export class ItemService {
   private apiUrl = `${environment.apiBaseUrl}/items`;
+  private adminApiUrl = `${environment.apiBaseUrl}/admin/items`;
 
   constructor(
     private http: HttpClient,
@@ -41,12 +42,24 @@ export class ItemService {
     };
   }
 
+  private unwrapData<T>(response: ApiResponse<T> | T): T {
+    if (response && typeof response === 'object' && 'data' in (response as ApiResponse<T>)) {
+      return ((response as ApiResponse<T>).data ?? null) as T;
+    }
+    return response as T;
+  }
+
+  private unwrapArray<T>(response: ApiResponse<T[]> | T[] | null | undefined): T[] {
+    const data = this.unwrapData<T[] | null | undefined>((response ?? []) as ApiResponse<T[]> | T[]);
+    return Array.isArray(data) ? data : [];
+  }
+
   autocomplete(q: string, limit = 10): Observable<SuggestDto[]> {
     const params = new HttpParams().set('q', q).set('limit', `${limit}`);
     return this.http
-      .get<ApiResponse<SuggestDto[]>>(`${this.apiUrl}/search`, this.getHttpOptions(params))
+      .get<SuggestDto[] | ApiResponse<SuggestDto[]>>(`${this.adminApiUrl}/search`, this.getHttpOptions(params))
       .pipe(
-        map((res) => res.data ?? []),
+        map((res) => this.unwrapArray<SuggestDto>(res)),
         catchError(this.handleError),
       );
   }
@@ -55,15 +68,21 @@ export class ItemService {
   searchItems(keyword: string): Observable<Item[]> {
     const params = new HttpParams().set('keyword', keyword);
     return this.http
-      .get<Item[]>(`${this.apiUrl}/search`, this.getHttpOptions(params))
-      .pipe(catchError(this.handleError));
+      .get<Item[] | ApiResponse<Item[]>>(`${this.apiUrl}/search`, this.getHttpOptions(params))
+      .pipe(
+        map((res) => this.unwrapArray<Item>(res)),
+        catchError(this.handleError),
+      );
   }
 
   /** 📥 Get all items */
   getAllItems(): Observable<Item[]> {
     return this.http
-      .get<Item[]>(this.apiUrl, this.getHttpOptions())
-      .pipe(catchError(this.handleError));
+      .get<Item[] | ApiResponse<Item[]>>(this.apiUrl, this.getHttpOptions())
+      .pipe(
+        map((res) => this.unwrapArray<Item>(res)),
+        catchError(this.handleError),
+      );
   }
 
   /** 🔎 Get item by ID */

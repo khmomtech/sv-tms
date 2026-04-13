@@ -40,7 +40,10 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -223,6 +226,25 @@ public class DispatchConcurrentUpdateTest {
         if (transportOrderId != null) {
             transportOrderRepository.deleteById(transportOrderId);
         }
+    }
+
+    @Test
+    @DisplayName("Driver accept persists dispatch status and read-after-write returns DRIVER_CONFIRMED")
+    @WithMockUser(authorities = {"ROLE_DRIVER"})
+    void driverAccept_persistsStatusAndImmediateReadSeesUpdatedState() throws Exception {
+        mockMvc.perform(post("/api/driver/dispatches/" + dispatchId + "/accept"))
+                .andExpect(status().isOk());
+
+        Dispatch persisted = dispatchRepository.findById(dispatchId).orElseThrow();
+        assertThat(persisted.getStatus()).isEqualTo(DispatchStatus.DRIVER_CONFIRMED);
+
+        mockMvc.perform(get("/api/driver/dispatches/" + dispatchId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("DRIVER_CONFIRMED"));
+
+        mockMvc.perform(get("/api/driver/dispatches/" + dispatchId + "/available-actions"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.currentStatus").value("DRIVER_CONFIRMED"));
     }
 
     // ── Scenario 1: Optimistic Lock Race ─────────────────────────────────────────

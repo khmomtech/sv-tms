@@ -1,69 +1,106 @@
-<div class="fixed inset-0 flex items-center justify-center overflow-auto bg-black/70 z-50">
-  <div class="p-6 bg-white rounded-lg shadow-lg w-[32rem] max-h-[90vh] overflow-y-auto relative">
-    <h3 class="text-lg font-semibold mb-4">Add Bill To Address</h3>
-    <form [formGroup]="addressForm" (ngSubmit)="save()">
-      <div class="grid grid-cols-2 gap-3 mb-2">
-        <div>
-          <label>Name</label>
-          <input class="input w-full" formControlName="name" />
-        </div>
-        <div>
-          <label>Email</label>
-          <input class="input w-full" formControlName="email" />
-        </div>
+<div class="address-modal-backdrop">
+  <div class="address-modal-shell">
+    <div class="address-modal-header">
+      <div>
+        <h3 class="address-modal-title">Add Bill To Address</h3>
+        <p class="address-modal-subtitle">
+          Create a billing destination for the selected customer.
+        </p>
       </div>
-      <div class="mb-2">
-        <label>Address</label>
-        <textarea class="input w-full" formControlName="address"></textarea>
-      </div>
-      <div class="grid grid-cols-2 gap-3 mb-2">
-        <div>
-          <label>City</label>
-          <input class="input w-full" formControlName="city" />
+      <button
+        type="button"
+        class="address-modal-close"
+        (click)="close.emit()"
+        [disabled]="loading"
+        aria-label="Close"
+      >
+        ×
+      </button>
+    </div>
+
+    <form [formGroup]="addressForm" (ngSubmit)="save()" class="address-modal-form">
+      <section class="address-modal-section">
+        <h4 class="address-modal-section-title">Billing Profile</h4>
+        <div class="address-form-grid">
+          <div class="address-field">
+            <label class="address-label address-label-required">Name</label>
+            <input class="input w-full" formControlName="name" />
+          </div>
+          <div class="address-field">
+            <label class="address-label">Email</label>
+            <input class="input w-full" formControlName="email" />
+          </div>
         </div>
-        <div>
-          <label>State</label>
-          <input class="input w-full" formControlName="state" />
+
+        <div class="address-field">
+          <label class="address-label address-label-required">Address</label>
+          <textarea class="input w-full address-textarea" formControlName="address"></textarea>
         </div>
-      </div>
-      <div class="grid grid-cols-2 gap-3 mb-2">
-        <div>
-          <label>Zip</label>
-          <input class="input w-full" formControlName="zip" />
+
+        <div class="address-form-grid">
+          <div class="address-field">
+            <label class="address-label">City</label>
+            <input class="input w-full" formControlName="city" />
+          </div>
+          <div class="address-field">
+            <label class="address-label">State</label>
+            <input class="input w-full" formControlName="state" />
+          </div>
         </div>
-        <div>
-          <label>Country</label>
-          <input class="input w-full" formControlName="country" />
+
+        <div class="address-form-grid">
+          <div class="address-field">
+            <label class="address-label">Zip</label>
+            <input class="input w-full" formControlName="zip" />
+          </div>
+          <div class="address-field">
+            <label class="address-label">Country</label>
+            <input class="input w-full" formControlName="country" />
+          </div>
         </div>
-      </div>
-      <div class="grid grid-cols-2 gap-3 mb-2">
-        <div>
-          <label>Contact Name</label>
-          <input class="input w-full" formControlName="contactName" />
+      </section>
+
+      <section class="address-modal-section">
+        <h4 class="address-modal-section-title">Contact Details</h4>
+        <div class="address-form-grid">
+          <div class="address-field">
+            <label class="address-label">Contact Name</label>
+            <input class="input w-full" formControlName="contactName" />
+          </div>
+          <div class="address-field">
+            <label class="address-label">Contact Phone</label>
+            <input class="input w-full" formControlName="contactPhone" />
+          </div>
         </div>
-        <div>
-          <label>Contact Phone</label>
-          <input class="input w-full" formControlName="contactPhone" />
+
+        <div class="address-form-grid">
+          <div class="address-field">
+            <label class="address-label">Tax ID</label>
+            <input class="input w-full" formControlName="taxId" />
+          </div>
+          <div class="address-field address-field-toggle">
+            <label class="address-checkbox-row">
+              <input type="checkbox" id="isPrimary" formControlName="isPrimary" />
+              <span>Primary bill-to</span>
+            </label>
+          </div>
         </div>
-      </div>
-      <div class="mb-2">
-        <label>Tax ID</label>
-        <input class="input w-full" formControlName="taxId" />
-      </div>
-      <div class="mb-2">
-        <label>Notes</label>
-        <textarea class="input w-full" formControlName="notes"></textarea>
-      </div>
-      <div class="mb-2 flex items-center">
-        <input type="checkbox" id="isPrimary" formControlName="isPrimary" class="mr-2" />
-        <label for="isPrimary">Primary bill-to</label>
-      </div>
-      <div *ngIf="error" class="text-red-500 text-sm mb-2">{{ error }}</div>
-      <div class="flex justify-end gap-2 mt-4">
+
+        <div class="address-field">
+          <label class="address-label">Notes</label>
+          <textarea class="input w-full address-textarea" formControlName="notes"></textarea>
+        </div>
+      </section>
+
+      <div *ngIf="error" class="address-error">{{ error }}</div>
+
+      <div class="address-modal-footer">
         <button type="button" class="btn btn-secondary" (click)="close.emit()" [disabled]="loading">
           Cancel
         </button>
-        <button type="submit" class="btn btn-primary" [disabled]="loading">Save</button>
+        <button type="submit" class="btn btn-primary" [disabled]="loading">
+          {{ loading ? 'Saving...' : 'Save' }}
+        </button>
       </div>
     </form>
   </div>

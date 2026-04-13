@@ -49,7 +49,7 @@ public class VehicleDriver {
 
     @Version
     @Column(name = "version")
-    private Long version; // Optimistic locking
+    private long version; // Optimistic locking — primitive prevents null NPE on flush
 
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -64,23 +64,17 @@ public class VehicleDriver {
         if (assignedAt == null) {
             assignedAt = LocalDateTime.now();
         }
-        if (this.version == null) {
-            this.version = 0L;
-        }
+        // version is a primitive long — always 0L by default, no null check needed
     }
 
     @PostLoad
     private void initializeVersion() {
-        if (this.version == null) {
-            this.version = 0L;
-        }
+        // version is a primitive long — always initialized, no null check needed
     }
 
     @PreUpdate
     private void ensureVersionNotNull() {
-        if (this.version == null) {
-            this.version = 0L;
-        }
+        // version is a primitive long — always initialized, no null check needed
     }
 
     public boolean isActive() {

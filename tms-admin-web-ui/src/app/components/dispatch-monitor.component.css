@@ -1,0 +1,10 @@
+.dispatch-monitor-table th,
+.dispatch-monitor-table td {
+  white-space: nowrap;
+}
+
+.dispatch-monitor-table td a,
+.dispatch-monitor-table td span,
+.dispatch-monitor-table td div {
+  white-space: nowrap;
+}

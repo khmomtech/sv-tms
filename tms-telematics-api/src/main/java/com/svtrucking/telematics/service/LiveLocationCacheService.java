@@ -5,8 +5,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -44,7 +42,6 @@ public class LiveLocationCacheService implements LiveLocationCacheServiceInterfa
     }
 
     @Override
-    @Cacheable(value = "liveLocations", key = "#driverId")
     public LiveDriverDto getCachedDriverLocation(Long driverId) {
         if (driverId == null)
             return null;
@@ -82,7 +79,6 @@ public class LiveLocationCacheService implements LiveLocationCacheServiceInterfa
     }
 
     @Override
-    @CacheEvict(value = "liveLocations", key = "#driverId")
     public void removeDriverLocation(Long driverId) {
         if (driverId == null)
             return;
@@ -94,7 +90,6 @@ public class LiveLocationCacheService implements LiveLocationCacheServiceInterfa
     }
 
     @Override
-    @CacheEvict(value = "liveLocations", allEntries = true)
     public void clearAllDriverLocations() {
         try {
             var keys = redisTemplate.keys(cachePrefix + "*");

@@ -13,7 +13,7 @@
     "sourceMap": true,
     "declaration": false,
     "experimentalDecorators": true,
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "importHelpers": true,
     "target": "ES2022",
     "module": "ES2022",
@@ -23,18 +23,17 @@
       "ES2022",
       "dom"
     ],
-    "baseUrl": "./",
     "paths": {
-      "@app/*": ["src/app/*"],
-      "@core/*": ["src/app/core/*"],
-      "@shared/*": ["src/app/shared/*"],
-      "@features/*": ["src/app/features/*"],
-      "@services/*": ["src/app/services/*"],
-      "@models/*": ["src/app/models/*"],
-      "@env/*": ["src/app/environments/*"],
-      "@guards": ["src/app/guards"],
-      "@resolvers": ["src/app/resolvers"],
-      "@assets/*": ["src/assets/*"]
+      "@app/*": ["./src/app/*"],
+      "@core/*": ["./src/app/core/*"],
+      "@shared/*": ["./src/app/shared/*"],
+      "@features/*": ["./src/app/features/*"],
+      "@services/*": ["./src/app/services/*"],
+      "@models/*": ["./src/app/models/*"],
+      "@env/*": ["./src/app/environments/*"],
+      "@guards": ["./src/app/guards"],
+      "@resolvers": ["./src/app/resolvers"],
+      "@assets/*": ["./src/assets/*"]
     }
   },
   "include": [

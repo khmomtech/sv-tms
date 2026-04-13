@@ -376,10 +376,18 @@ public class VehicleController {
             VehicleDto result = vehicleSetupService.setupVehicle(request);
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(new ApiResponse<>(true, "Vehicle setup completed successfully", result, null, Instant.now()));
+        } catch (DuplicateLicensePlateException e) {
+            log.warn("Duplicate license plate during setup: {}", request.getLicensePlate());
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(new ApiResponse<>(false, "Vehicle with license plate '" + request.getLicensePlate() + "' already exists!", "DUPLICATE_LICENSE_PLATE", null, null, Instant.now()));
+        } catch (InvalidVehicleDataException e) {
+            log.warn("Invalid vehicle setup data for {}: {}", request.getLicensePlate(), e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ApiResponse<>(false, "Invalid vehicle data", "INVALID_VEHICLE_DATA", null, e.getMessage(), Instant.now()));
         } catch (Exception e) {
             log.error("Error during vehicle setup: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new ApiResponse<>(false, "❌ Vehicle setup failed", null, e.getMessage(), Instant.now()));
+                    .body(new ApiResponse<>(false, "Vehicle setup failed", "UNKNOWN_ERROR", null, e.getMessage(), Instant.now()));
         }
     }
 

@@ -7,6 +7,12 @@ import { environment } from '../environments/environment';
 import type { Geofence, GeofenceCreateRequest, GeofenceAlert } from '../models/geofence.model';
 import { GeofenceType, AlertTypeEnum } from '../models/geofence.model';
 
+export interface GeofenceLoadState {
+  loaded: boolean;
+  restricted: boolean;
+  unavailable: boolean;
+}
+
 /**
  * Service for geofence management and tracking.
  * Handles fetching geofences from the backend API and managing local state.
@@ -17,6 +23,12 @@ import { GeofenceType, AlertTypeEnum } from '../models/geofence.model';
 export class GeofenceService {
   private geofencesSubject = new BehaviorSubject<Geofence[]>([]);
   public geofences$ = this.geofencesSubject.asObservable();
+  private geofenceLoadStateSubject = new BehaviorSubject<GeofenceLoadState>({
+    loaded: false,
+    restricted: false,
+    unavailable: false,
+  });
+  public geofenceLoadState$ = this.geofenceLoadStateSubject.asObservable();
 
   private geofenceAlertsSubject = new BehaviorSubject<GeofenceAlert[]>([]);
   public geofenceAlerts$ = this.geofenceAlertsSubject.asObservable();
@@ -26,20 +38,47 @@ export class GeofenceService {
   constructor(private readonly http: HttpClient) {}
 
   /**
-   * Load all active geofences for a company
+   * Load geofences for a company. Admin screens include inactive rows so
+   * soft-deleted zones can still be filtered, counted, and reactivated.
    */
-  loadGeofences(companyId: number): Observable<Geofence[]> {
-    return this.http.get<Geofence[]>(`${this.API_BASE}?companyId=${companyId}`).pipe(
+  loadGeofences(companyId: number, includeInactive = true): Observable<Geofence[]> {
+    this.geofenceLoadStateSubject.next({
+      loaded: false,
+      restricted: false,
+      unavailable: false,
+    });
+    return this.http
+      .get<Geofence[]>(`${this.API_BASE}?companyId=${companyId}&includeInactive=${includeInactive}`)
+      .pipe(
       map((geofences) => {
         this.geofencesSubject.next(geofences);
+        this.geofenceLoadStateSubject.next({
+          loaded: true,
+          restricted: false,
+          unavailable: false,
+        });
         return geofences;
       }),
       catchError((err) => {
         // Geofence endpoint may not be implemented yet or user may lack permission.
         // In all cases, degrade gracefully so the live tracking UI keeps working.
         const status = err?.status as number;
-        if (status === 404 || status === 401 || status === 403) {
+        if (status === 401 || status === 403) {
           this.geofencesSubject.next([]);
+          this.geofenceLoadStateSubject.next({
+            loaded: true,
+            restricted: true,
+            unavailable: false,
+          });
+          return of([]);
+        }
+        if (status === 404) {
+          this.geofencesSubject.next([]);
+          this.geofenceLoadStateSubject.next({
+            loaded: true,
+            restricted: false,
+            unavailable: true,
+          });
           return of([]);
         }
         throw err;

@@ -1,11 +1,11 @@
 default_platform(:ios)
 
 platform :ios do
-  desc "Build and upload IPA with REVIEWER_MODE=true (TestFlight reviewer build)"
+  desc "Build and upload IPA with the production API and App Review helpers enabled"
   lane :upload_reviewer do
     sh "flutter clean"
     sh "flutter pub get"
-    sh "flutter build ipa --export-options-plist ios/exportOptions.plist --dart-define=REVIEWER_MODE=true"
+    sh "flutter build ipa --flavor prod --export-options-plist ios/exportOptions.plist --dart-define=REVIEWER_MODE=true --dart-define=API_BASE_URL=https://svtms.svtrucking.biz/api --dart-define=REVIEWER_USERNAME=drivertest --dart-define=REVIEWER_PASSWORD=123456"
 
     ipa_path = Dir["build/ios/ipa/*.ipa"].first
     if ipa_path.nil?

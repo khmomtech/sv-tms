@@ -35,10 +35,10 @@ public class TelemetryStreamService {
         log.info("TelemetryStreamService initialized (stream={})", streamName);
     }
 
-    public void publish(TelemetryEvent event) {
+    public PublishResult publish(TelemetryEvent event) {
         if (event == null) {
             log.warn("Telemetry event is null, skipping publish");
-            return;
+            return PublishResult.failure("event_null");
         }
 
         if (event.getReceivedAt() == null) {
@@ -54,8 +54,10 @@ public class TelemetryStreamService {
                 }
             });
             streamOps.add(streamName, map);
+            return PublishResult.success();
         } catch (Exception e) {
             log.warn("Failed to publish telemetry event to stream {}: {}", streamName, e.getMessage());
+            return PublishResult.failure(e.getClass().getSimpleName() + ": " + e.getMessage());
         }
     }
 
@@ -76,5 +78,19 @@ public class TelemetryStreamService {
         private Instant eventTime;
         private Instant receivedAt;
         private String rawPayload;
+    }
+
+    @lombok.Value
+    public static class PublishResult {
+        boolean success;
+        String error;
+
+        public static PublishResult success() {
+            return new PublishResult(true, null);
+        }
+
+        public static PublishResult failure(String error) {
+            return new PublishResult(false, error);
+        }
     }
 }

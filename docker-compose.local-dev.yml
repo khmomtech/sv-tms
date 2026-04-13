@@ -100,13 +100,8 @@ services:
       SPRING_DATASOURCE_PASSWORD: driverpass
       SPRING_JPA_HIBERNATE_DDL_AUTO: none
       SPRING_PROFILES_ACTIVE: local
-      # Enable optional seeder that ensures 'all_functions' permission exists
-      # Set to 'true' to run PermissionEnsurer (idempotent). Can be toggled per environment.
-      # Note: Spring relaxed binding maps this to property `app.seedAllFunctions`.
       APP_SEEDALLFUNCTIONS: "true"
       SPRING_DATA_REDIS_HOST: redis
-      # Enable Mongo connection for local dev: use the compose service name 'mongo'
-      # Include a database name so Spring's MongoDatabaseFactory can be created
       LOCATION_MONGO_URI: "mongodb://mongo:27017/svlogistics_tms_db"
       SPRING_DATA_MONGODB_URI: "mongodb://mongo:27017/svlogistics_tms_db"
       SPRING_DATA_MONGODB_DATABASE: svlogistics_tms_db
@@ -116,18 +111,28 @@ services:
       DEV_SECURITY_BYPASS: "false"
       APP_DRIVER_SKIP_DEVICE_CHECK: "true"
       APP_DRIVER_LOGIN_BYPASS: "true"
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-local-access-secret-min-32-chars-change-in-prod}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-local-refresh-secret-min-32-chars-change-in-prod}
+      APP_API_KEY: ${APP_API_KEY:-dev-local-api-key-change-in-prod}
     ports:
       - '8080:8080'
     volumes:
       - ./uploads:/app/uploads:rw
       - uploads-init:/app/uploads-init:ro
     restart: on-failure
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          memory: 512M
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:8080/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 10
-      start_period: 360s
+      start_period: 180s
     networks:
       default:
         aliases:
@@ -157,14 +162,24 @@ services:
       SERVER_PORT: '8083'
       APP_DRIVER_SKIP_DEVICE_CHECK: "true"
       APP_DRIVER_LOGIN_BYPASS: "true"
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-local-access-secret-min-32-chars-change-in-prod}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-local-refresh-secret-min-32-chars-change-in-prod}
+      APP_API_KEY: ${APP_API_KEY:-dev-local-api-key-change-in-prod}
     ports:
       - '8083:8083'
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 768M
+        reservations:
+          memory: 384M
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:8083/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 10
-      start_period: 360s
+      start_period: 180s
 
   driver-app-api:
     build:
@@ -191,16 +206,30 @@ services:
       SPRING_PROFILES_ACTIVE: local
       SERVER_PORT: '8084'
       APP_CORS_ALLOWED_ORIGINS: http://localhost:4200,http://localhost:8081
+      TELEMATICS_SERVICE_URL: http://telematics-api:8082
+      TELEMATICS_COMPATIBILITY_PROXY_ENABLED: 'true'
       TELEMATICS_PROXY_BASE_URL: http://telematics-api:8082
       TELEMATICS_PROXY_ENABLED: 'true'
+      SPRING_DATA_MONGODB_URI: "mongodb://mongo:27017/svlogistics_tms_db"
+      SPRING_DATA_MONGODB_DATABASE: svlogistics_tms_db
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-local-access-secret-min-32-chars-change-in-prod}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-local-refresh-secret-min-32-chars-change-in-prod}
+      APP_API_KEY: ${APP_API_KEY:-dev-local-api-key-change-in-prod}
     ports:
       - '8084:8084'
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 768M
+        reservations:
+          memory: 384M
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:8084/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 10
-      start_period: 360s
+      start_period: 180s
 
   telematics-api:
     build:
@@ -228,12 +257,19 @@ services:
       WEBSOCKET_ALLOWED_ORIGINS: http://localhost:4200,http://localhost:8081
     ports:
       - '8082:8082'
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 768M
+        reservations:
+          memory: 384M
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:8082/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 10
-      start_period: 360s
+      start_period: 180s
 
   safety-api:
     build:
@@ -248,14 +284,26 @@ services:
       SPRING_PROFILES_ACTIVE: dev
       SERVER_PORT: '8087'
       APP_CORS_ALLOWED_ORIGINS: http://localhost:4200,http://localhost:8081
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/svlogistics_tms_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: driver
+      SPRING_DATASOURCE_PASSWORD: driverpass
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-local-access-secret-min-32-chars-change-in-prod}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-local-refresh-secret-min-32-chars-change-in-prod}
     ports:
       - '8087:8087'
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          memory: 256M
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:8087/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 10
-      start_period: 360s
+      start_period: 180s
 
   message-api:
     build:
@@ -270,16 +318,26 @@ services:
       SERVER_PORT: '8088'
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       SPRING_DATASOURCE_URL: jdbc:h2:file:/data/tms-message-api;MODE=PostgreSQL;AUTO_SERVER=TRUE
+      SPRING_DATA_MONGODB_URI: "mongodb://mongo:27017/svlogistics_tms_db"
+      SPRING_DATA_MONGODB_DATABASE: svlogistics_tms_db
+      SPRING_DATA_REDIS_HOST: redis
     ports:
       - '8088:8088'
     volumes:
       - message-data:/data
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          memory: 256M
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:8088/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 10
-      start_period: 360s
+      start_period: 180s
 
   api-gateway:
     build:
@@ -311,15 +369,23 @@ services:
       SPRING_DATA_MONGODB_DATABASE: svlogistics_tms_db
     ports:
       - '8086:8086'
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          memory: 256M
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:8086/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 10
-      start_period: 360s
+      start_period: 180s
 
   angular:
     # use a Debian-based image so native node modules (lightningcss) load correctly
+    profiles: ["frontend"]
     image: node:20-bullseye
     container_name: svtms-angular
     working_dir: /usr/src/app

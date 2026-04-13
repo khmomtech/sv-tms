@@ -9,6 +9,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.test.context.ActiveProfiles;
 import com.svtrucking.logistics.service.DeviceRegistrationService;
 import com.svtrucking.logistics.service.TelematicsProxyService;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.test.context.TestPropertySource;
@@ -37,12 +38,14 @@ public class VehicleDriverRepositoryTest {
     @TestConfiguration
     static class TestConfig {
 
-        @Bean
+            @Bean
+        @ConditionalOnMissingBean(DeviceRegistrationService.class)
         public DeviceRegistrationService deviceRegistrationService() {
             return mock(DeviceRegistrationService.class);
         }
 
         @Bean
+        @ConditionalOnMissingBean(TelematicsProxyService.class)
         public TelematicsProxyService telematicsProxyService() {
             return mock(TelematicsProxyService.class);
         }

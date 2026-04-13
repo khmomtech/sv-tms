@@ -1,13 +1,12 @@
 import { CommonModule } from '@angular/common';
-import type { OnInit, QueryList, ElementRef, AfterViewInit } from '@angular/core';
+import type { OnInit } from '@angular/core';
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { ChangeDetectorRef } from '@angular/core';
-import { Component, Input, Output, EventEmitter, ViewChildren } from '@angular/core';
+import { Component, Input, Output, EventEmitter } from '@angular/core';
 import type { FormArray } from '@angular/forms';
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { FormBuilder } from '@angular/forms';
 import { FormGroup, Validators, ReactiveFormsModule, FormsModule } from '@angular/forms';
-import { GoogleMapsModule } from '@angular/google-maps';
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { ActivatedRoute } from '@angular/router';
 
@@ -28,23 +27,17 @@ import { EditStopModalComponent } from './modals/edit-stop-modal.component';
     CommonModule,
     FormsModule,
     ReactiveFormsModule,
-    GoogleMapsModule,
     AppDriverModalComponent,
     AppVehicleModalComponent,
     EditStopModalComponent,
   ],
 })
-export class DispatchFormComponent implements OnInit, AfterViewInit {
+export class DispatchFormComponent implements OnInit {
   @Input() form!: FormGroup;
   @Input() selectedDriver: any = null;
   @Input() selectedVehicle: any = null;
   @Output() submitForm = new EventEmitter<any>();
   @Output() cancel = new EventEmitter<void>();
-  @ViewChildren('searchInput') searchInputs!: QueryList<ElementRef<HTMLInputElement>>;
-  @ViewChildren('modalSearchInput') modalSearchInputs!: QueryList<ElementRef<HTMLInputElement>>;
-
-  mapCenter: google.maps.LatLngLiteral = { lat: 11.5564, lng: 104.9282 };
-  geocoder!: google.maps.Geocoder;
 
   allVehicles: Vehicle[] = [];
   loadingVehicles = false;
@@ -75,7 +68,6 @@ export class DispatchFormComponent implements OnInit, AfterViewInit {
 
   ngOnInit(): void {
     console.debug('[DispatchFormComponent] Received form:', this.form);
-    this.geocoder = new google.maps.Geocoder();
 
     if (!this.form || !(this.form instanceof FormGroup)) {
       console.warn('No input form provided, initializing new form.');
@@ -119,16 +111,6 @@ export class DispatchFormComponent implements OnInit, AfterViewInit {
         this.loadingVehicles = false;
       },
     });
-  }
-
-  ngAfterViewInit(): void {
-    setTimeout(() => {
-      this.modalSearchInputs?.forEach((inputRef) => {
-        if (inputRef?.nativeElement) {
-          this.initEditModalAutocomplete(inputRef.nativeElement);
-        }
-      });
-    }, 100);
   }
 
   get stopsFormArray(): FormArray<FormGroup> {
@@ -189,14 +171,6 @@ export class DispatchFormComponent implements OnInit, AfterViewInit {
     this.editingStopIndex = index;
     this.showEditStopModal = true;
     this.cdRef.detectChanges();
-
-    setTimeout(() => {
-      this.modalSearchInputs?.forEach((inputRef) => {
-        if (inputRef?.nativeElement) {
-          this.initEditModalAutocomplete(inputRef.nativeElement);
-        }
-      });
-    }, 100);
   }
 
   saveStop(): void {
@@ -213,67 +187,6 @@ export class DispatchFormComponent implements OnInit, AfterViewInit {
 
   cancelStopEdit(): void {
     this.showEditStopModal = false;
-  }
-
-  initEditModalAutocomplete(input: HTMLInputElement): void {
-    const autocomplete = new google.maps.places.Autocomplete(input, {
-      fields: ['geometry', 'formatted_address'],
-      types: ['geocode'],
-    });
-
-    autocomplete.addListener('place_changed', () => {
-      const place = autocomplete.getPlace();
-      if (!place.geometry || !place.geometry.location) return;
-
-      const lat = place.geometry.location.lat();
-      const lng = place.geometry.location.lng();
-      const coord = `${lat},${lng}`;
-      const address = place.formatted_address || coord;
-
-      this.editStopForm.patchValue({
-        latitude: lat,
-        longitude: lng,
-        coordinates: coord,
-        location: address,
-        note: `Selected: ${address}`,
-      });
-
-      this.cdRef.detectChanges();
-    });
-  }
-
-  onMapSelect(event: google.maps.MapMouseEvent, index: number): void {
-    const latLng = event.latLng?.toJSON();
-    if (!latLng) return;
-
-    const coord = `${latLng.lat},${latLng.lng}`;
-    const stop = this.stopsFormArray.at(index);
-    if (!stop) return;
-
-    stop.patchValue({
-      latitude: latLng.lat,
-      longitude: latLng.lng,
-      coordinates: coord,
-    });
-
-    this.geocoder.geocode({ location: latLng }, (results, status) => {
-      if (status === 'OK' && results && results.length > 0) {
-        const result = results[0];
-        stop.patchValue({
-          location: result.formatted_address,
-          note: `Selected: ${result.formatted_address}`,
-        });
-      }
-    });
-  }
-
-  getMapCenter(index: number): google.maps.LatLngLiteral {
-    const coord = this.stopsFormArray.at(index)?.get('coordinates')?.value;
-    if (coord) {
-      const [lat, lng] = coord.split(',').map(Number);
-      return { lat, lng };
-    }
-    return this.mapCenter;
   }
 
   onDriverSelected(driver: any): void {

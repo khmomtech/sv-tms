@@ -1,620 +1,563 @@
-<div class="p-6 mx-auto bg-white rounded shadow max-w-7xl">
-  <!-- Action Buttons -->
-  <div class="flex justify-end gap-2 mb-4">
-    <button
-      (click)="printTripDetails()"
-      class="px-4 py-2 text-sm text-white bg-blue-600 rounded hover:bg-blue-700"
-    >
-      🖨️ Print
-    </button>
-    <button
-      (click)="exportTripDetailsToPDF()"
-      class="px-4 py-2 text-sm text-white bg-green-600 rounded hover:bg-green-700"
-    >
-      📄 Export PDF
-    </button>
-  </div>
-
-  <!-- Content to Print/Export -->
-  <div id="tripDetailsContent" class="html2canvas-ignore" #tripDetailsContent>
-    <div class="flex items-center justify-between mb-6">
-      <div>
-        <h2 class="text-3xl font-bold text-gray-800">Delivery Note</h2>
-        <p class="text-sm text-gray-500">Full delivery journey and status details</p>
+<div class="dispatch-page" *ngIf="dispatch; else loading">
+  <div class="dispatch-shell">
+    <div class="dispatch-toolbar no-print">
+      <a routerLink="/dispatch/list" class="toolbar-link">Back to Dispatches</a>
+      <div class="toolbar-actions">
+        <button type="button" class="btn btn-secondary" (click)="copy(dispatch.orderReference)">
+          Copy Reference
+        </button>
+        <button type="button" class="btn btn-secondary" (click)="printTripDetails()">Print</button>
+        <button type="button" class="btn btn-primary" (click)="exportTripDetailsToPDF()">
+          Export PDF
+        </button>
       </div>
-      <span
-        class="px-3 py-1 text-sm font-semibold text-white rounded"
-        [ngClass]="{
-          'bg-yellow-600': dispatch?.status === 'PENDING',
-          'bg-green-600': dispatch?.status === 'DELIVERED',
-          'bg-red-600': dispatch?.status === 'CANCELLED',
-        }"
-      >
-        {{ dispatch?.status }}
-      </span>
     </div>
 
-    <div *ngIf="dispatch; else loading">
-      <!-- Trip Summary Cards -->
-      <div class="grid grid-cols-1 gap-6 mb-6 md:grid-cols-3">
-        <div class="p-4 rounded shadow bg-gray-50">
-          <h4 class="mb-2 font-semibold text-gray-700">Trip Info</h4>
-          <p><strong>Trip ID:</strong> {{ dispatch.id }}</p>
-          <p><strong>Route Code:</strong> {{ dispatch.routeCode }}</p>
-          <p class="flex items-center gap-2">
-            <strong>Ref:</strong>
-            <span class="px-2 py-0.5 rounded border font-mono">{{ dispatch.orderReference }}</span>
-            <button
-              type="butto no-print "
-              (click)="copy(dispatch.orderReference)"
-              class="px-2 py-1 text-xs border rounded no-print hover:bg-gray-50"
-            >
-              Copy
-            </button>
-          </p>
-          <p><strong>Trip No:</strong> {{ dispatch.transportOrder?.tripNo || '-' }}</p>
-        </div>
-
-        <div class="p-4 rounded shadow bg-gray-50">
-          <h4 class="mb-2 font-semibold text-gray-700">Timing</h4>
-          <p>
-            <strong>Start:</strong> {{ toDate(dispatch.startTime) | date: 'dd-MMM-yyyy HH:mm' }}
-          </p>
-          <p>
-            <strong>ETA:</strong>
-            {{
-              dispatch.estimatedArrival
-                ? (toDate(dispatch.estimatedArrival)
-                  | date
-                    : 'dd-MMM-yyyy
-            HH:mm')
-                : '-'
-            }}
-          </p>
-          <p>
-            <strong>Delivery:</strong>
-            {{
-              dispatch.expectedDelivery
-                ? (toDate(dispatch.expectedDelivery) | date: 'dd-MMM-yyyy HH:mm')
-                : '-'
-            }}
-          </p>
-          <p class="text-xs text-gray-500">TZ: {{ toDate(dispatch.startTime) | date: 'zzz' }}</p>
-        </div>
-
-        <div class="p-4 rounded shadow bg-gray-50">
-          <h4 class="mb-2 font-semibold text-gray-700">Driver & Vehicle</h4>
-          <p><strong>Name:</strong> {{ dispatch.driverName || '-' }}</p>
-          <p>
-            <strong>Phone:</strong>
-            <ng-container *ngIf="dispatch.driverPhone; else noPhone">
-              <a [href]="'tel:' + dispatch.driverPhone" class="text-blue-600 underline">{{
-                dispatch.driverPhone
-              }}</a>
-            </ng-container>
-            <ng-template #noPhone>-</ng-template>
-          </p>
-          <p>
-            <strong>Plate:</strong>
-            {{ dispatch.licensePlate || dispatch.transportOrder?.truckNumber || '-' }}
-          </p>
-        </div>
-      </div>
-
-      <div class="p-4 mb-6 bg-white border rounded">
-        <h3 class="mb-2 text-lg font-semibold">Locations</h3>
-
-        <div *ngIf="dispatch.transportOrder?.stops?.length > 0">
-          <div *ngFor="let stop of dispatch.transportOrder.stops" class="mb-2">
-            <p>
-              <strong>{{ stop.type === 'PICKUP' ? 'Loading' : 'Unloading' }}:</strong>
-              {{ stop.address?.name }} - {{ stop.address?.address }}
+    <section class="hero-card">
+      <div class="hero-main">
+        <div class="hero-eyebrow">Dispatch Operations</div>
+        <div class="hero-heading-row">
+          <div>
+            <h1>Dispatch #{{ dispatch.id }}</h1>
+            <p class="hero-subtitle">
+              {{ dispatch.customerName || 'Customer pending' }} •
+              {{ dispatch.routeCode || dispatch.orderReference || 'No route code' }}
             </p>
           </div>
+          <span class="status-pill" [ngClass]="statusTone(dispatch.status)">
+            {{ humanizeStatus(dispatch.status) }}
+          </span>
         </div>
 
-        <div *ngIf="!dispatch.transportOrder?.stops?.length">
-          <p><strong>Loading:</strong> {{ dispatch.pickupLocation }}</p>
-          <p><strong>Unloading:</strong> {{ dispatch.dropoffLocation }}</p>
-        </div>
-      </div>
-
-      <!-- Order Items -->
-      <div class="p-4 mb-6 bg-white border rounded" *ngIf="dispatch.transportOrder?.items?.length">
-        <h3 class="mb-2 text-lg font-semibold">Order Items</h3>
-        <div class="overflow-auto max-h-[420px]">
-          <table class="min-w-full text-sm text-left border">
-            <thead class="text-white bg-blue-600">
-              <tr>
-                <th class="p-2" scope="col">#</th>
-                <th class="p-2" scope="col">Item Code</th>
-                <th class="p-2" scope="col">Item Name</th>
-                <th class="p-2" scope="col">Type</th>
-                <th class="p-2 text-right" scope="col">Qty</th>
-                <th class="p-2" scope="col">UOM</th>
-                <th class="p-2 text-right" scope="col">Pallet</th>
-                <th class="p-2" scope="col">From</th>
-                <th class="p-2" scope="col">To</th>
-                <th class="p-2" scope="col">Warehouse</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                *ngFor="let it of dispatch.transportOrder.items; let i = index"
-                class="odd:bg-white even:bg-gray-50"
-              >
-                <td class="p-2">{{ i + 1 }}</td>
-                <td class="p-2">{{ it.itemCode }}</td>
-                <td class="p-2">{{ it.itemName }}</td>
-                <td class="p-2">{{ it.itemType }}</td>
-                <td class="p-2 text-right">{{ it.quantity }}</td>
-                <td class="p-2">{{ it.unitOfMeasurement }}</td>
-                <td class="p-2 text-right">{{ it.palletType }}</td>
-                <td class="p-2">{{ it.fromDestination || '-' }}</td>
-                <td class="p-2">{{ it.toDestination || '-' }}</td>
-                <td class="p-2">{{ it.warehouse || '-' }}</td>
-              </tr>
-            </tbody>
-            <tfoot class="font-semibold">
-              <tr>
-                <td class="p-2" colspan="4">Totals</td>
-                <td class="p-2 text-right">{{ totalQty(dispatch.transportOrder.items) }}</td>
-                <td class="p-2"></td>
-                <td class="p-2 text-right">{{ totalPallets(dispatch.transportOrder.items) }}</td>
-                <td class="p-2" colspan="3"></td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      </div>
-
-      <!-- Proof Section -->
-      <div class="grid grid-cols-1 gap-6 mb-6 lg:grid-cols-2">
-        <!-- Loading Proof -->
-        <div
-          class="p-4 bg-white border rounded shadow"
-          *ngIf="dispatch.loadingProofImages?.length || dispatch.loadingSignature"
-        >
-          <h3 class="mb-2 text-lg font-semibold">📦 Loading Proof</h3>
-          <div class="flex flex-wrap gap-4">
-            <img
-              *ngFor="let img of dispatch.loadingProofImages || []; let i = index"
-              [src]="buildUploadUrl(img)"
-              (click)="openPreview(dispatch.loadingProofImages || [], i)"
-              class="object-cover w-40 h-40 border rounded shadow cursor-pointer"
-              (error)="onImageError($event, true)"
-            />
+        <div class="hero-meta">
+          <div class="meta-chip">
+            <span class="meta-label">Order Ref</span>
+            <span class="meta-value">{{ dispatch.orderReference || '-' }}</span>
           </div>
-          <div *ngIf="dispatch.loadingSignature" class="mt-3">
-            <p><strong>Signature:</strong></p>
-            <img
-              [src]="dispatch.loadingSignature"
-              class="w-48 h-auto border rounded"
-              alt="Loading Signature"
-              (error)="onImageError($event, false)"
-            />
+          <div class="meta-chip">
+            <span class="meta-label">Trip No</span>
+            <span class="meta-value">{{ dispatch.transportOrder?.tripNo || dispatch.tripNo || '-' }}</span>
           </div>
-        </div>
-
-        <!-- Unloading Proof -->
-        <div
-          class="p-4 bg-white border rounded shadow"
-          *ngIf="dispatch.unloadingProofImages?.length || dispatch.unloadingSignature"
-        >
-          <h3 class="mb-2 text-lg font-semibold">📥 Unloading Proof</h3>
-          <div class="flex flex-wrap gap-4">
-            <img
-              *ngFor="let img of dispatch.unloadingProofImages || []; let i = index"
-              [src]="buildUploadUrl(img)"
-              (click)="openPreview(dispatch.unloadingProofImages || [], i)"
-              class="object-cover w-40 h-40 border rounded shadow cursor-pointer"
-              (error)="onImageError($event, true)"
-            />
+          <div class="meta-chip">
+            <span class="meta-label">Driver</span>
+            <span class="meta-value">{{ dispatch.driverName || 'Unassigned' }}</span>
           </div>
-          <div *ngIf="dispatch.unloadingSignature" class="mt-3">
-            <p><strong>Signature:</strong></p>
-            <img
-              [src]="dispatch.unloadingSignature"
-              class="w-48 h-auto border rounded"
-              alt="Unloading Signature"
-              (error)="onImageError($event, false)"
-            />
+          <div class="meta-chip">
+            <span class="meta-label">Truck</span>
+            <span class="meta-value">{{ vehicleLabel }}</span>
           </div>
         </div>
       </div>
 
-      <!-- Location Logs -->
-      <div class="mb-6" *ngIf="dispatch.locationLogs?.length">
-        <h3 class="mb-2 text-lg font-semibold">Tracking History</h3>
-        <p *ngIf="dispatch.lastLocation">
-          <strong>Last Location:</strong>
-          <a
-            [href]="
-              'https://maps.google.com/?q=' +
-              dispatch.lastLocation.lat +
-              ',' +
-              dispatch.lastLocation.lng
-            "
-            target="_blank"
-            class="text-blue-600 underline"
-          >
-            {{ dispatch.lastLocation.lat }}, {{ dispatch.lastLocation.lng }}
-          </a>
+      <div class="hero-panel">
+        <div class="panel-kicker">Dispatch Readiness</div>
+        <div class="completion-score">{{ completionScore }}%</div>
+        <p class="panel-copy">
+          {{ alerts.length ? alerts.length + ' operational risks need attention.' : 'Core dispatch checkpoints look healthy.' }}
         </p>
-
-        <div class="mt-2 overflow-auto border rounded max-h-64">
-          <table class="min-w-full text-sm text-left">
-            <thead class="sticky top-0 z-10">
-              <tr>
-                <th class="p-2">#</th>
-                <th class="p-2">Latitude</th>
-                <th class="p-2">Longitude</th>
-                <th class="p-2">Timestamp</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let log of dispatch.locationLogs; let i = index">
-                <td class="p-2">{{ i + 1 }}</td>
-                <td class="p-2">{{ log.lat }}</td>
-                <td class="p-2">{{ log.lng }}</td>
-                <td class="p-2">{{ toDate(log.timestamp) | date: 'dd-MMM-yyyy HH:mm:ss' }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
       </div>
+    </section>
 
-      <!-- Dispatch Status History -->
-      <div class="pl-4 border-l-2">
-        <h3 class="mb-4 text-lg font-semibold">
-          Dispatch Status History — {{ dispatch.orderReference }}
-        </h3>
-        <div *ngFor="let entry of statusHistory" class="relative mb-6">
-          <div
-            class="absolute w-4 h-4 bg-blue-600 border-2 border-white rounded-full shadow -left-2 top-1"
-          ></div>
-          <div class="ml-4">
-            <p class="text-sm text-gray-600">
-              <strong>{{ toDate(entry.updatedAt) | date: 'dd-MMM-yyyy HH:mm' }}</strong
-              ><br />
-              <strong>Status:</strong> {{ entry.status }}<br />
-              <strong>By:</strong> {{ entry.updatedBy }}<br />
-              <span *ngIf="entry.remarks" class="italic text-gray-500">"{{ entry.remarks }}"</span
-              ><br />
-              <span *ngIf="entry.latitude && entry.longitude">
-                📍
+    <section class="metric-grid">
+      <article class="metric-card">
+        <span class="metric-label">Stops</span>
+        <strong class="metric-value">{{ stopCount }}</strong>
+        <span class="metric-note">Pickup to delivery checkpoints</span>
+      </article>
+      <article class="metric-card">
+        <span class="metric-label">Items</span>
+        <strong class="metric-value">{{ itemCount }}</strong>
+        <span class="metric-note">{{ totalQty(itemList) }} total quantity</span>
+      </article>
+      <article class="metric-card">
+        <span class="metric-label">Proof Docs</span>
+        <strong class="metric-value">{{ proofCount }}</strong>
+        <span class="metric-note">
+          {{ hasLoadProof ? 'Load proof ready' : 'Load proof missing' }} /
+          {{ hasUnloadProof ? 'Unload proof ready' : 'Unload proof missing' }}
+        </span>
+      </article>
+      <article class="metric-card">
+        <span class="metric-label">Tracking</span>
+        <strong class="metric-value">{{ hasTracking ? 'Live' : 'No Signal' }}</strong>
+        <span class="metric-note">
+          {{
+            dispatch.lastLocation?.timestamp
+              ? (toDate(dispatch.lastLocation?.timestamp) | date: 'dd-MMM-yyyy HH:mm')
+              : 'No last location'
+          }}
+        </span>
+      </article>
+    </section>
+
+    <div class="dispatch-layout">
+      <main class="dispatch-main">
+        <section class="content-card">
+          <div class="section-header">
+            <div>
+              <h2>Route Timeline</h2>
+              <p>Stops, appointments, and movement context for dispatch execution.</p>
+            </div>
+          </div>
+
+          <div class="stop-timeline" *ngIf="dispatchStops.length; else noStops">
+            <article class="stop-card" *ngFor="let stop of dispatchStops; let i = index">
+              <div class="stop-index">{{ i + 1 }}</div>
+              <div class="stop-content">
+                <div class="stop-topline">
+                  <span class="stop-type">{{ stopTypeLabel(stop.type) }}</span>
+                  <span class="stop-status" *ngIf="stop.status">{{ humanizeStatus(stop.status) }}</span>
+                </div>
+                <h3>{{ stopHeadline(stop) }}</h3>
+                <p class="stop-address">{{ stopAddress(stop) }}</p>
+
+                <div class="stop-grid">
+                  <div>
+                    <span class="field-label">Appointment</span>
+                    <span class="field-value">
+                      {{
+                        stopAppointment(stop)
+                          ? (toDate(stopAppointment(stop)) | date: 'dd-MMM-yyyy HH:mm')
+                          : '-'
+                      }}
+                    </span>
+                  </div>
+                  <div>
+                    <span class="field-label">Check In</span>
+                    <span class="field-value">
+                      {{ stop.checkInTime ? (toDate(stop.checkInTime) | date: 'dd-MMM-yyyy HH:mm') : '-' }}
+                    </span>
+                  </div>
+                  <div>
+                    <span class="field-label">Check Out</span>
+                    <span class="field-value">
+                      {{
+                        (stop.checkOutTime || stop.actualDeparture)
+                          ? (toDate(stop.checkOutTime || stop.actualDeparture) | date: 'dd-MMM-yyyy HH:mm')
+                          : '-'
+                      }}
+                    </span>
+                  </div>
+                </div>
+
+                <div class="stop-actions no-print">
+                  <a
+                    *ngIf="buildMapsUrl({ lat: stop.latitude, lng: stop.longitude, address: stopAddress(stop) }) as mapUrl"
+                    [href]="mapUrl"
+                    target="_blank"
+                    rel="noopener"
+                    class="action-link"
+                  >
+                    Open Map
+                  </a>
+                </div>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="content-card">
+          <div class="section-header">
+            <div>
+              <h2>Load & Assignment</h2>
+              <p>Core order, customer, and asset details for dispatcher context.</p>
+            </div>
+          </div>
+
+          <div class="info-grid">
+            <div class="info-block">
+              <h3>Dispatch Summary</h3>
+              <dl>
+                <div>
+                  <dt>Route Code</dt>
+                  <dd>{{ dispatch.routeCode || '-' }}</dd>
+                </div>
+                <div>
+                  <dt>Trip Type</dt>
+                  <dd>{{ dispatch.tripType || dispatch.transportOrder?.shipmentType || '-' }}</dd>
+                </div>
+                <div>
+                  <dt>Start Time</dt>
+                  <dd>{{ toDate(dispatch.startTime) | date: 'dd-MMM-yyyy HH:mm' }}</dd>
+                </div>
+                <div>
+                  <dt>ETA</dt>
+                  <dd>{{ dispatch.estimatedArrival ? (toDate(dispatch.estimatedArrival) | date: 'dd-MMM-yyyy HH:mm') : '-' }}</dd>
+                </div>
+                <div>
+                  <dt>Expected Delivery</dt>
+                  <dd>{{ dispatch.expectedDelivery ? (toDate(dispatch.expectedDelivery) | date: 'dd-MMM-yyyy HH:mm') : '-' }}</dd>
+                </div>
+                <div>
+                  <dt>Updated</dt>
+                  <dd>{{ dispatch.updatedDate ? (toDate(dispatch.updatedDate) | date: 'dd-MMM-yyyy HH:mm') : '-' }}</dd>
+                </div>
+              </dl>
+            </div>
+
+            <div class="info-block">
+              <h3>Customer & Driver</h3>
+              <dl>
+                <div>
+                  <dt>Customer</dt>
+                  <dd>{{ dispatch.customerName || '-' }}</dd>
+                </div>
+                <div>
+                  <dt>Customer Phone</dt>
+                  <dd>
+                    <a *ngIf="dispatch.customerPhone" [href]="'tel:' + dispatch.customerPhone">{{ dispatch.customerPhone }}</a>
+                    <span *ngIf="!dispatch.customerPhone">-</span>
+                  </dd>
+                </div>
+                <div>
+                  <dt>Driver</dt>
+                  <dd>{{ dispatch.driverName || 'Unassigned' }}</dd>
+                </div>
+                <div>
+                  <dt>Driver Phone</dt>
+                  <dd>
+                    <a *ngIf="dispatch.driverPhone" [href]="'tel:' + dispatch.driverPhone">{{ dispatch.driverPhone }}</a>
+                    <span *ngIf="!dispatch.driverPhone">-</span>
+                  </dd>
+                </div>
+                <div>
+                  <dt>Vehicle</dt>
+                  <dd>{{ vehicleLabel }}</dd>
+                </div>
+                <div>
+                  <dt>Safety</dt>
+                  <dd>
+                    {{
+                      dispatch.preEntrySafetyRequired
+                        ? (dispatch.preEntrySafetyStatus || 'Required')
+                        : (dispatch.safetyStatus || 'Not required')
+                    }}
+                  </dd>
+                </div>
+              </dl>
+            </div>
+          </div>
+        </section>
+
+        <section class="content-card" *ngIf="itemList.length">
+          <div class="section-header">
+            <div>
+              <h2>Order Items</h2>
+              <p>Shipment line items and quantity visibility.</p>
+            </div>
+            <div class="section-summary">{{ totalQty(itemList) }} total qty</div>
+          </div>
+
+          <div class="table-shell">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Item Code</th>
+                  <th>Item Name</th>
+                  <th>Type</th>
+                  <th class="text-right">Qty</th>
+                  <th>UOM</th>
+                  <th class="text-right">Pallet</th>
+                  <th>From</th>
+                  <th>To</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let item of itemList; let i = index">
+                  <td>{{ i + 1 }}</td>
+                  <td>{{ item.itemCode || '-' }}</td>
+                  <td>{{ item.itemName || '-' }}</td>
+                  <td>{{ item.itemType || '-' }}</td>
+                  <td class="text-right">{{ item.quantity || 0 }}</td>
+                  <td>{{ item.unitOfMeasurement || '-' }}</td>
+                  <td class="text-right">{{ item.palletType || 0 }}</td>
+                  <td>{{ item.fromDestination || '-' }}</td>
+                  <td>{{ item.toDestination || '-' }}</td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="4">Totals</td>
+                  <td class="text-right">{{ totalQty(itemList) }}</td>
+                  <td></td>
+                  <td class="text-right">{{ totalPallets(itemList) }}</td>
+                  <td colspan="2"></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </section>
+
+        <section class="content-card">
+          <div class="section-header">
+            <div>
+              <h2>Proof & Documents</h2>
+              <p>Loading and unloading evidence attached to this dispatch.</p>
+            </div>
+          </div>
+
+          <div class="proof-grid">
+            <article class="proof-card">
+              <div class="proof-header">
+                <div>
+                  <h3>Loading Proof</h3>
+                  <p>{{ proofMeta('loading').count }} images • Uploaded by {{ proofMeta('loading').uploadedBy }}</p>
+                </div>
+                <span class="status-pill" [ngClass]="hasLoadProof ? 'status-success' : 'status-warning'">
+                  {{ hasLoadProof ? 'Ready' : 'Missing' }}
+                </span>
+              </div>
+              <p class="proof-meta">
+                Uploaded:
+                {{ proofMeta('loading').uploadedAt ? (toDate(proofMeta('loading').uploadedAt) | date: 'dd-MMM-yyyy HH:mm') : '-' }}
+              </p>
+              <div class="proof-images" *ngIf="dispatch.loadingProofImages?.length; else noLoadProof">
+                <img
+                  *ngFor="let img of dispatch.loadingProofImages; let i = index"
+                  [src]="buildUploadUrl(img)"
+                  (click)="openPreview(dispatch.loadingProofImages || [], i)"
+                  (error)="onImageError($event, true)"
+                  class="proof-image"
+                  alt="Loading proof"
+                />
+              </div>
+              <ng-template #noLoadProof>
+                <div class="empty-state compact">No loading proof uploaded yet.</div>
+              </ng-template>
+            </article>
+
+            <article class="proof-card">
+              <div class="proof-header">
+                <div>
+                  <h3>Unloading Proof</h3>
+                  <p>{{ proofMeta('unloading').count }} images • Uploaded by {{ proofMeta('unloading').uploadedBy }}</p>
+                </div>
+                <span class="status-pill" [ngClass]="hasUnloadProof ? 'status-success' : 'status-warning'">
+                  {{ hasUnloadProof ? 'Ready' : 'Missing' }}
+                </span>
+              </div>
+              <p class="proof-meta">
+                Uploaded:
+                {{ proofMeta('unloading').uploadedAt ? (toDate(proofMeta('unloading').uploadedAt) | date: 'dd-MMM-yyyy HH:mm') : '-' }}
+              </p>
+              <div class="proof-images" *ngIf="dispatch.unloadingProofImages?.length; else noUnloadProof">
+                <img
+                  *ngFor="let img of dispatch.unloadingProofImages; let i = index"
+                  [src]="buildUploadUrl(img)"
+                  (click)="openPreview(dispatch.unloadingProofImages || [], i)"
+                  (error)="onImageError($event, true)"
+                  class="proof-image"
+                  alt="Unloading proof"
+                />
+              </div>
+              <ng-template #noUnloadProof>
+                <div class="empty-state compact">No unloading proof uploaded yet.</div>
+              </ng-template>
+            </article>
+          </div>
+        </section>
+
+        <section class="content-card">
+          <div class="section-header">
+            <div>
+              <h2>Tracking & Activity</h2>
+              <p>Movement signals and audit history for operational accountability.</p>
+            </div>
+          </div>
+
+          <div class="tracking-grid">
+            <article class="tracking-card">
+              <h3>Last Known Location</h3>
+              <p class="tracking-primary" *ngIf="dispatch.lastLocation; else noLastLocation">
                 <a
-                  class="text-blue-600 underline"
+                  [href]="'https://maps.google.com/?q=' + dispatch.lastLocation.lat + ',' + dispatch.lastLocation.lng"
                   target="_blank"
-                  [href]="'https://maps.google.com/?q=' + entry.latitude + ',' + entry.longitude"
+                  rel="noopener"
                 >
-                  {{ entry.latitude }}, {{ entry.longitude }}
+                  {{ dispatch.lastLocation.lat }}, {{ dispatch.lastLocation.lng }}
                 </a>
-              </span>
+              </p>
+              <ng-template #noLastLocation>
+                <p class="tracking-primary">No live position received.</p>
+              </ng-template>
+              <p class="tracking-secondary">
+                {{ dispatch.lastLocation?.timestamp ? (toDate(dispatch.lastLocation?.timestamp) | date: 'dd-MMM-yyyy HH:mm:ss') : 'Waiting for tracking updates' }}
+              </p>
+
+              <div class="table-shell compact" *ngIf="dispatch.locationLogs?.length">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Latitude</th>
+                      <th>Longitude</th>
+                      <th>Timestamp</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let log of dispatch.locationLogs; let i = index">
+                      <td>{{ i + 1 }}</td>
+                      <td>{{ log.lat }}</td>
+                      <td>{{ log.lng }}</td>
+                      <td>{{ toDate(log.timestamp) | date: 'dd-MMM-yyyy HH:mm:ss' }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </article>
+
+            <article class="tracking-card">
+              <h3>Status History</h3>
+              <div class="activity-list" *ngIf="statusHistory.length; else noHistory">
+                <div class="activity-row" *ngFor="let entry of statusHistory">
+                  <div class="activity-dot"></div>
+                  <div class="activity-body">
+                    <div class="activity-topline">
+                      <strong>{{ humanizeStatus(entry.status) }}</strong>
+                      <span>{{ toDate(entry.updatedAt) | date: 'dd-MMM-yyyy HH:mm' }}</span>
+                    </div>
+                    <p>Updated by {{ entry.updatedBy || 'System' }}</p>
+                    <p *ngIf="entry.remarks" class="activity-note">{{ entry.remarks }}</p>
+                    <a
+                      *ngIf="entry.latitude && entry.longitude"
+                      [href]="'https://maps.google.com/?q=' + entry.latitude + ',' + entry.longitude"
+                      target="_blank"
+                      rel="noopener"
+                    >
+                      View map point
+                    </a>
+                  </div>
+                </div>
+              </div>
+              <ng-template #noHistory>
+                <div class="empty-state compact">No dispatch status history recorded yet.</div>
+              </ng-template>
+            </article>
+          </div>
+        </section>
+      </main>
+
+      <aside class="dispatch-sidebar">
+        <section class="sidebar-card">
+          <div class="sidebar-header">
+            <h2>Current Snapshot</h2>
+          </div>
+          <div class="snapshot-list">
+            <div>
+              <span>Status</span>
+              <strong>{{ humanizeStatus(dispatch.status) }}</strong>
+            </div>
+            <div>
+              <span>Latest Event</span>
+              <strong>{{ latestTimelineEvent ? humanizeStatus(latestTimelineEvent.status) : '-' }}</strong>
+            </div>
+            <div>
+              <span>Created</span>
+              <strong>{{ toDate(dispatch.createdDate) | date: 'dd-MMM-yyyy HH:mm' }}</strong>
+            </div>
+            <div>
+              <span>Updated By</span>
+              <strong>{{ latestTimelineEvent?.updatedBy || dispatch.createdByUsername || '-' }}</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="sidebar-card">
+          <div class="sidebar-header">
+            <h2>Contacts & Actions</h2>
+          </div>
+          <div class="primary-action" *ngIf="primaryAction">
+            <span class="primary-action-label">Primary next step</span>
+            <strong>{{ actionLabel(primaryAction) }}</strong>
+            <p>
+              {{ primaryAction.validationMessage || actionPayload?.actionRestrictionMessage || 'Available according to the current dispatch workflow.' }}
             </p>
           </div>
-        </div>
-      </div>
+          <div class="action-list" *ngIf="availableActions.length; else noActions">
+            <div class="action-item" *ngFor="let action of availableActions">
+              <div>
+                <strong>{{ actionLabel(action) }}</strong>
+                <p>{{ humanizeStatus(action.targetStatus) }}</p>
+              </div>
+              <span
+                class="status-pill"
+                [ngClass]="action.requiresAdminApproval || action.validationMessage ? 'status-warning' : 'status-info'"
+              >
+                {{ action.requiresAdminApproval ? 'Approval' : action.validationMessage ? 'Blocked' : 'Ready' }}
+              </span>
+            </div>
+          </div>
+          <ng-template #noActions>
+            <div class="empty-state compact">
+              {{ actionLoading ? 'Loading available workflow actions...' : 'No backend workflow actions are available for this dispatch.' }}
+            </div>
+          </ng-template>
+          <div class="quick-list">
+            <a *ngIf="dispatch.driverPhone" [href]="'tel:' + dispatch.driverPhone">Call Driver</a>
+            <a *ngIf="dispatch.customerPhone" [href]="'tel:' + dispatch.customerPhone">Call Customer</a>
+            <a
+              *ngIf="dispatchStops[0] && buildMapsUrl({ lat: dispatchStops[0].latitude, lng: dispatchStops[0].longitude, address: stopAddress(dispatchStops[0]) }) as firstStopUrl"
+              [href]="firstStopUrl"
+              target="_blank"
+              rel="noopener"
+            >
+              Open First Stop
+            </a>
+            <button type="button" class="link-button no-print" (click)="copy(dispatch.orderReference)">
+              Copy Dispatch Reference
+            </button>
+          </div>
+        </section>
+
+        <section class="sidebar-card">
+          <div class="sidebar-header">
+            <h2>Document Checklist</h2>
+          </div>
+          <div class="checklist">
+            <div class="checklist-item" *ngFor="let item of documentChecklist">
+              <div class="check-indicator" [ngClass]="item.ready ? 'check-ready' : 'check-missing'"></div>
+              <div>
+                <strong>{{ item.label }}</strong>
+                <p>{{ item.note }}</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="sidebar-card">
+          <div class="sidebar-header">
+            <h2>Operational Alerts</h2>
+          </div>
+          <div *ngIf="alerts.length; else healthyState" class="alert-list">
+            <div class="alert-item" *ngFor="let alert of alerts">{{ alert }}</div>
+          </div>
+          <ng-template #healthyState>
+            <div class="healthy-state">No blocking operational signals detected from the available data.</div>
+          </ng-template>
+        </section>
+      </aside>
     </div>
   </div>
 
-  <!-- Loading Template -->
-  <ng-template #loading>
-    <p>⏳ Loading dispatch details...</p>
-  </ng-template>
-
-  <!-- Preview Modal -->
   <app-image-preview-modal
     *ngIf="showModal"
     [images]="modalImages"
     [currentIndex]="currentImageIndex"
-    (closeModal)="showModal = false"
+    (closeModal)="closeModal()"
     (next)="currentImageIndex = (currentImageIndex + 1) % modalImages.length"
     (prev)="currentImageIndex = (currentImageIndex - 1 + modalImages.length) % modalImages.length"
-  >
-  </app-image-preview-modal>
+  />
 </div>
 
-<style>
-  @media print {
-    /* ===== GLOBAL PRINT SETTINGS ===== */
-    * {
-      -webkit-print-color-adjust: exact !important;
-      print-color-adjust: exact !important;
-      color-adjust: exact !important;
-    }
+<ng-template #loading>
+  <div class="dispatch-page">
+    <div class="dispatch-shell">
+      <div class="empty-state loading-state">Loading dispatch operations view...</div>
+    </div>
+  </div>
+</ng-template>
 
-    /* ===== PAGE LAYOUT ===== */
-    /* A4: 210mm x 297mm, 10mm margins on all sides */
-    body {
-      margin: 0;
-      padding: 10mm; /* Consistent with PDF export */
-      background: white;
-      font-family: Helvetica, Arial, sans-serif;
-    }
-
-    /* ===== CONTAINER & SHADOWS ===== */
-    .p-6.mx-auto.bg-white.rounded.shadow.max-w-7xl {
-      max-width: 100%;
-      margin: 0;
-      padding: 0;
-      box-shadow: none;
-      border: none;
-    }
-
-    /* ===== HIDE INTERACTIVE ELEMENTS ===== */
-    .html2canvas-ignore,
-    button,
-    .no-print,
-    app-image-preview-modal {
-      display: none !important;
-    }
-
-    /* ===== HEADERS & TEXT ===== */
-    h1,
-    h2,
-    h3,
-    h4,
-    h5,
-    h6 {
-      page-break-after: avoid;
-      margin: 0;
-      color: #1f2937 !important; /* gray-800 */
-    }
-
-    h2 {
-      font-size: 24pt;
-      margin-bottom: 8pt;
-    }
-
-    h3 {
-      font-size: 16pt;
-      margin-bottom: 6pt;
-    }
-
-    h4 {
-      font-size: 14pt;
-      margin-bottom: 4pt;
-    }
-
-    p {
-      margin: 4px 0;
-      widows: 2;
-      orphans: 2;
-      color: #1f2937 !important; /* gray-800 */
-    }
-
-    /* ===== STATUS BADGE COLORS ===== */
-    /* Must match Tailwind color definitions */
-    .bg-yellow-600 {
-      background-color: #ca8a04 !important;
-      color: white !important;
-    }
-
-    .bg-green-600 {
-      background-color: #16a34a !important;
-      color: white !important;
-    }
-
-    .bg-red-600 {
-      background-color: #dc2626 !important;
-      color: white !important;
-    }
-
-    .bg-blue-600 {
-      background-color: #2563eb !important;
-      color: white !important;
-    }
-
-    /* ===== CARD BACKGROUNDS ===== */
-    .bg-gray-50 {
-      background-color: #f9fafb !important;
-      color: #1f2937 !important;
-    }
-
-    .bg-gray-100 {
-      background-color: #f3f4f6 !important;
-    }
-
-    .bg-white {
-      background-color: white !important;
-    }
-
-    /* ===== TEXT COLORS ===== */
-    .text-gray-800 {
-      color: #1f2937 !important;
-    }
-
-    .text-gray-600 {
-      color: #4b5563 !important;
-    }
-
-    .text-gray-500 {
-      color: #6b7280 !important;
-    }
-
-    .text-white {
-      color: white !important;
-    }
-
-    .text-blue-600 {
-      color: #2563eb !important;
-    }
-
-    /* ===== BORDERS ===== */
-    .border {
-      border: 1px solid #000 !important;
-    }
-
-    .border-gray-300 {
-      border-color: #d1d5db !important;
-    }
-
-    .border-l-2 {
-      border-left: 2px solid #000 !important;
-    }
-
-    /* ===== GRID LAYOUT FOR CARDS ===== */
-    .grid {
-      display: block !important;
-      margin-bottom: 20px;
-    }
-
-    .grid > div {
-      margin-bottom: 15px;
-      page-break-inside: avoid;
-    }
-
-    .md\:grid-cols-3 {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
-    }
-
-    /* ===== SPACING & PADDING ===== */
-    .p-4 {
-      padding: 12pt !important;
-    }
-
-    .p-6 {
-      padding: 16pt !important;
-    }
-
-    .mb-6 {
-      margin-bottom: 15pt !important;
-    }
-
-    .mb-4 {
-      margin-bottom: 10pt !important;
-    }
-
-    .mb-2 {
-      margin-bottom: 6pt !important;
-    }
-
-    /* ===== TABLE STYLING ===== */
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      page-break-inside: avoid;
-      margin: 15pt 0;
-      font-size: 9pt;
-    }
-
-    thead {
-      display: table-header-group; /* Repeat headers on new pages */
-      background-color: #2563eb !important; /* blue-600 */
-      color: white !important;
-      font-weight: bold;
-    }
-
-    tbody {
-      display: table-row-group;
-    }
-
-    tfoot {
-      display: table-footer-group; /* Repeat footers on new pages */
-      background-color: #f9fafb !important; /* gray-50 */
-      font-weight: bold;
-      color: #1f2937 !important; /* gray-800 */
-    }
-
-    tr {
-      page-break-inside: avoid;
-      border: none;
-    }
-
-    th,
-    td {
-      border: 1px solid #000 !important;
-      padding: 8pt !important;
-      text-align: left;
-      color: #1f2937 !important; /* gray-800 */
-    }
-
-    th {
-      background-color: #2563eb !important; /* blue-600 */
-      color: white !important;
-      font-weight: bold;
-    }
-
-    /* Alternating row colors */
-    tbody tr:nth-child(even) {
-      background-color: #f9fafb !important; /* gray-50 */
-    }
-
-    tbody tr:nth-child(odd) {
-      background-color: white !important;
-    }
-
-    /* ===== IMAGES ===== */
-    img {
-      max-width: 100%;
-      height: auto;
-      page-break-inside: avoid;
-      margin: 10px 0;
-      border: 1px solid #d1d5db !important;
-    }
-
-    /* ===== OVERFLOW & SCROLLABLE CONTENT ===== */
-    .overflow-auto {
-      overflow: visible !important;
-      max-height: none !important;
-      height: auto !important;
-    }
-
-    .overflow-hidden {
-      overflow: visible !important;
-    }
-
-    /* ===== TIMELINE ===== */
-    .pl-4.border-l-2 {
-      border-left: 2px solid #000 !important;
-      page-break-inside: avoid;
-      padding-left: 12pt !important;
-    }
-
-    /* ===== LINKS ===== */
-    a {
-      color: #2563eb !important;
-      text-decoration: underline !important;
-    }
-
-    /* ===== FLEX LAYOUT ===== */
-    .flex {
-      display: flex;
-    }
-
-    .justify-between {
-      justify-content: space-between;
-    }
-
-    .items-center {
-      align-items: center;
-    }
-
-    .gap-2 {
-      gap: 8pt;
-    }
-
-    /* ===== PAGE BREAKS ===== */
-    .page-break {
-      page-break-before: always;
-    }
-
-    /* ===== UTILITY ===== */
-    .rounded {
-      border-radius: 0; /* Remove for print */
-    }
-
-    .shadow {
-      box-shadow: none !important;
-    }
-
-    .no-break {
-      page-break-inside: avoid;
-      page-break-before: avoid;
-      page-break-after: avoid;
-    }
-  }
-</style>
+<ng-template #noStops>
+  <div class="empty-state">No route stops are attached to this dispatch yet.</div>
+</ng-template>

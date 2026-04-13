@@ -1,5 +1,6 @@
 package com.svtrucking.logistics.dto.requests;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.svtrucking.logistics.dto.CustomerDto;
 import com.svtrucking.logistics.dto.CustomerAddressDto;
@@ -51,8 +52,10 @@ public class UpdateTransportOrderDto {
   private Boolean requiresDriver;
   private String sourceReference;
 
-  private List<CustomerAddressDto> pickupLocations;
-  private List<CustomerAddressDto> dropLocations;
+  @JsonAlias("pickupLocations")
+  private List<CustomerAddressDto> pickupAddresses;
+  @JsonAlias("dropLocations")
+  private List<CustomerAddressDto> dropAddresses;
 
   private List<OrderItemDto> items;
   private List<OrderStopDto> stops;

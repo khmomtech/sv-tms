@@ -33,7 +33,7 @@ Make shift handover clear, short, and complete.
 Attach stabilization watch log:
 
 ```bash
-./deploy/post_release_stabilization_watch_vps.sh \
+infra/scripts/post_deploy_smoke.sh \
   --vps root@YOUR_VPS --ssh-key ~/.ssh/id_ed25519 \
   --duration-min 60 --interval-sec 60
 ```

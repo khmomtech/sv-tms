@@ -32,9 +32,14 @@ export class InAppNotificationService {
   private readonly http = inject(HttpClient);
   private readonly authService = inject(AuthService);
   private readonly baseUrl = `${environment.apiBaseUrl}/notifications/admin`;
+  private readonly POLL_INTERVAL_MS = 30000;
+  private readonly MAX_CONSECUTIVE_FAILURES = 3;
+  private readonly FAILURE_COOLDOWN_MS = 60000;
 
   private readonly _unreadCount = new BehaviorSubject<number>(0);
   readonly unreadCount$ = this._unreadCount.asObservable();
+  private consecutiveFailures = 0;
+  private suppressedUntilMs = 0;
 
   constructor() {
     this.pollUnreadCount();
@@ -94,12 +99,37 @@ export class InAppNotificationService {
   }
 
   private pollUnreadCount(): void {
-    interval(30000)
+    interval(this.POLL_INTERVAL_MS)
       .pipe(
         startWith(0),
-        switchMap(() => this.countUnread()),
-        map((res) => res?.data ?? 0),
-        catchError(() => of(0)),
+        switchMap(() => {
+          const now = Date.now();
+          const token = this.authService.getToken();
+          if (!token || this.authService.isTokenExpired(token)) {
+            return of(this._unreadCount.value);
+          }
+          if (this.suppressedUntilMs > now) {
+            return of(this._unreadCount.value);
+          }
+          return this.countUnread().pipe(
+            map((res) => {
+              this.consecutiveFailures = 0;
+              this.suppressedUntilMs = 0;
+              return res?.data ?? 0;
+            }),
+            catchError(() => {
+              this.consecutiveFailures += 1;
+              if (this.consecutiveFailures >= this.MAX_CONSECUTIVE_FAILURES) {
+                this.consecutiveFailures = 0;
+                this.suppressedUntilMs = Date.now() + this.FAILURE_COOLDOWN_MS;
+                console.warn(
+                  `[InAppNotificationService] Pausing unread-count polling for ${Math.round(this.FAILURE_COOLDOWN_MS / 1000)}s after repeated failures.`,
+                );
+              }
+              return of(this._unreadCount.value);
+            }),
+          );
+        }),
       )
       .subscribe((count) => this._unreadCount.next(count));
   }

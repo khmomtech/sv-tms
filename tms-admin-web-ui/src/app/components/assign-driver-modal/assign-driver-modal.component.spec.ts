@@ -9,6 +9,9 @@ describe('AssignDriverModalComponent', () => {
       .createSpy('getAvailableDrivers')
       .and.returnValue(of({ data: [{ id: 1, name: 'Driver One' }] })),
   };
+  const driverServiceMock = {
+    searchDrivers: jasmine.createSpy('searchDrivers').and.returnValue(of({ data: [] })),
+  };
   const toastrMock = {
     success: jasmine.createSpy('success'),
   };
@@ -17,12 +20,14 @@ describe('AssignDriverModalComponent', () => {
     return new AssignDriverModalComponent(
       new FormBuilder(),
       dispatchServiceMock as any,
+      driverServiceMock as any,
       toastrMock as any,
     );
   }
 
   beforeEach(() => {
     dispatchServiceMock.getAvailableDrivers.calls.reset();
+    driverServiceMock.searchDrivers.calls.reset();
     toastrMock.success.calls.reset();
   });
 

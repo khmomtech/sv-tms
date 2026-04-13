@@ -34,16 +34,19 @@ import com.svtrucking.logistics.security.PermissionNames;
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
+    private final DriverAppVersionEnforcementFilter driverAppVersionEnforcementFilter;
     private final ApiKeyFilter apiKeyFilter;
     private final CustomUserDetailsService userDetailsService;
     private final Environment environment;
 
     public SecurityConfig(
             JwtAuthFilter jwtAuthFilter,
+            DriverAppVersionEnforcementFilter driverAppVersionEnforcementFilter,
             ApiKeyFilter apiKeyFilter,
             CustomUserDetailsService userDetailsService,
             Environment environment) {
         this.jwtAuthFilter = jwtAuthFilter;
+        this.driverAppVersionEnforcementFilter = driverAppVersionEnforcementFilter;
         this.apiKeyFilter = apiKeyFilter;
         this.userDetailsService = userDetailsService;
         this.environment = environment;
@@ -83,6 +86,17 @@ public class SecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(appCorsConfigurationSource(allowedOrigins)))
+                .headers(headers -> headers
+                        // Prevent clickjacking
+                        .frameOptions(frame -> frame.deny())
+                        // Stop browsers from MIME-sniffing away from declared content-type
+                        .contentTypeOptions(org.springframework.security.config.Customizer.withDefaults())
+                        // Force HTTPS for 1 year, include subdomains (active only when served over TLS)
+                        .httpStrictTransportSecurity(hsts -> hsts
+                                .maxAgeInSeconds(31536000)
+                                .includeSubDomains(true))
+                        // Basic XSS protection header (defence-in-depth; CSP is stronger)
+                        .xssProtection(org.springframework.security.config.Customizer.withDefaults()))
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint((request, response, authException) -> {
                             response.setStatus(jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED);
@@ -180,6 +194,7 @@ public class SecurityConfig {
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtAuthFilter,
                         org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(driverAppVersionEnforcementFilter, JwtAuthFilter.class)
                 .addFilterBefore(apiKeyFilter, JwtAuthFilter.class);
 
         return http.build();
