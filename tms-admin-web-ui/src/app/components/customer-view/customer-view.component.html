@@ -1310,18 +1310,269 @@
         <!-- Customer Admin -->
         <section *ngIf="activeGroup === 'customer-admin'" id="customer-admin" class="scroll-mt-24">
           <div class="p-6 bg-white shadow rounded-xl">
-            <div class="flex items-center justify-between gap-3 mb-2">
+            <div class="flex items-center justify-between gap-3 mb-4">
               <div>
                 <h3 class="text-lg font-semibold text-gray-900">Customer Admin</h3>
-                <p class="text-sm text-gray-500">Portal access and admin settings (optional).</p>
+                <p class="text-sm text-gray-500">
+                  Finance shortcuts, account context, and portal actions for this customer.
+                </p>
               </div>
             </div>
-            <div class="p-4 text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded">
-              Coming soon: manage customer portal accounts, roles, and permissions.
+
+            <div class="customer-finance-hero mb-6">
+              <div>
+                <div class="customer-finance-eyebrow">Finance Workspace</div>
+                <div class="customer-finance-title">Customer financial controls</div>
+                <div class="customer-finance-subtitle">
+                  Quick actions for opening balance adjustments and customer notes, with current
+                  account context visible before you proceed.
+                </div>
+              </div>
+              <div class="customer-finance-metrics">
+                <div class="customer-finance-metric">
+                  <span class="customer-finance-metric-label">Current Balance</span>
+                  <span class="customer-finance-metric-value">
+                    {{ formatCurrency(customer.currentBalance || customer.balance || 0) }}
+                  </span>
+                </div>
+                <div class="customer-finance-metric">
+                  <span class="customer-finance-metric-label">Credit Limit</span>
+                  <span class="customer-finance-metric-value">
+                    {{ formatCurrency(customer.creditLimit || 0) }}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div class="customer-finance-actions mb-6">
+              <button type="button" class="customer-finance-card" (click)="openOpeningBalanceAction()">
+                <span class="customer-finance-card-icon customer-finance-card-icon--primary">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="1.8"
+                      d="M3 10h18M5 10V7l7-4 7 4v3M6 10v8m4-8v8m4-8v8m4-8v8M3 21h18"
+                    />
+                  </svg>
+                </span>
+                <span class="customer-finance-card-copy">
+                  <span class="customer-finance-card-title">Add Opening Balance</span>
+                  <span class="customer-finance-card-text">
+                    Start a new customer ledger balance and document the initial amount.
+                  </span>
+                </span>
+              </button>
+
+              <button type="button" class="customer-finance-card" (click)="openCreditNoteAction()">
+                <span class="customer-finance-card-icon customer-finance-card-icon--success">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="1.8"
+                      d="M12 5v14M5 12h14"
+                    />
+                  </svg>
+                </span>
+                <span class="customer-finance-card-copy">
+                  <span class="customer-finance-card-title">Credit Note</span>
+                  <span class="customer-finance-card-text">
+                    Reduce receivable or issue a customer credit for approved adjustments.
+                  </span>
+                </span>
+              </button>
+
+              <button type="button" class="customer-finance-card" (click)="openDebitNoteAction()">
+                <span class="customer-finance-card-icon customer-finance-card-icon--warning">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="1.8"
+                      d="M5 12h14"
+                    />
+                  </svg>
+                </span>
+                <span class="customer-finance-card-copy">
+                  <span class="customer-finance-card-title">Debit Note</span>
+                  <span class="customer-finance-card-text">
+                    Add charge corrections or balance increases with a clear audit trail.
+                  </span>
+                </span>
+              </button>
+            </div>
+
+            <div class="mb-6 rounded-2xl border border-slate-200 bg-white">
+              <div class="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+                <div>
+                  <div class="text-sm font-semibold text-slate-900">Finance History</div>
+                  <div class="text-xs text-slate-500">
+                    Opening balance, credit note, and debit note activity for this customer.
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  class="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  (click)="loadFinanceTransactions(true)"
+                  [disabled]="financeHistoryLoading"
+                >
+                  {{ financeHistoryLoading ? 'Refreshing...' : 'Refresh' }}
+                </button>
+              </div>
+
+              <div *ngIf="financeTransactions.length; else noFinanceHistory" class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-slate-200 text-sm">
+                  <thead class="bg-slate-50 text-slate-600">
+                    <tr>
+                      <th class="px-4 py-3 text-left font-medium">Date</th>
+                      <th class="px-4 py-3 text-left font-medium">Type</th>
+                      <th class="px-4 py-3 text-left font-medium">Amount</th>
+                      <th class="px-4 py-3 text-left font-medium">Balance</th>
+                      <th class="px-4 py-3 text-left font-medium">Reference</th>
+                      <th class="px-4 py-3 text-left font-medium">Note</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-100">
+                    <tr *ngFor="let tx of financeTransactions">
+                      <td class="px-4 py-3 text-slate-700">{{ formatDateDisplay(tx.effectiveDate) }}</td>
+                      <td class="px-4 py-3">
+                        <span class="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
+                          {{ tx.transactionType.replace('_', ' ').replace('_', ' ') }}
+                        </span>
+                      </td>
+                      <td class="px-4 py-3 text-slate-900">
+                        {{ formatCurrency(tx.amount, tx.currency || customer.currency || 'USD') }}
+                      </td>
+                      <td class="px-4 py-3 text-slate-700">
+                        {{ formatCurrency(tx.balanceAfter, tx.currency || customer.currency || 'USD') }}
+                      </td>
+                      <td class="px-4 py-3 text-slate-600">{{ tx.reference || '—' }}</td>
+                      <td class="px-4 py-3 text-slate-600">{{ tx.note || '—' }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <ng-template #noFinanceHistory>
+                <div class="px-4 py-8 text-center text-sm text-slate-500">
+                  No finance transactions recorded yet.
+                </div>
+              </ng-template>
+            </div>
+
+            <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div class="text-sm font-semibold text-slate-900">Account Snapshot</div>
+                <div class="mt-3 space-y-3 text-sm text-slate-600">
+                  <div class="flex items-center justify-between gap-3">
+                    <span>Customer Code</span>
+                    <span class="font-medium text-slate-900">
+                      {{ customer.customerCode || 'Not assigned' }}
+                    </span>
+                  </div>
+                  <div class="flex items-center justify-between gap-3">
+                    <span>Status</span>
+                    <span class="font-medium text-slate-900">{{ customer.status || 'Unknown' }}</span>
+                  </div>
+                  <div class="flex items-center justify-between gap-3">
+                    <span>Payment Terms</span>
+                    <span class="font-medium text-slate-900">
+                      {{ customer.paymentTerms || 'Not configured' }}
+                    </span>
+                  </div>
+                  <div class="flex items-center justify-between gap-3">
+                    <span>Account Manager</span>
+                    <span class="font-medium text-slate-900">
+                      {{ customer.accountManager || 'Unassigned' }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="rounded-2xl border border-dashed border-slate-300 bg-white p-4">
+                <div class="text-sm font-semibold text-slate-900">Portal & Admin</div>
+                <div class="mt-2 text-sm text-slate-500">
+                  Customer portal account tools can be added here next. The finance actions above
+                  are ready for operational use.
+                </div>
+              </div>
             </div>
           </div>
         </section>
       </main>
+    </div>
+
+    <div *ngIf="isFinanceModalOpen" class="modal-backdrop">
+      <div class="modal-content max-w-2xl" (click)="$event.stopPropagation()">
+        <h3 class="text-lg font-semibold mb-4">{{ financeModalTitle }}</h3>
+        <p class="mb-4 text-sm text-gray-500">
+          Save this customer finance transaction and update the running balance.
+        </p>
+
+        <div class="grid gap-4 md:grid-cols-2">
+          <label class="block">
+            <span class="text-sm font-medium text-gray-700">Amount</span>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              class="form-control"
+              [(ngModel)]="financeForm.amount"
+              name="financeAmount"
+            />
+          </label>
+
+          <label class="block">
+            <span class="text-sm font-medium text-gray-700">Effective Date</span>
+            <input
+              type="date"
+              class="form-control"
+              [(ngModel)]="financeForm.effectiveDate"
+              name="financeEffectiveDate"
+            />
+          </label>
+
+          <label class="block">
+            <span class="text-sm font-medium text-gray-700">Reference</span>
+            <input
+              type="text"
+              class="form-control"
+              [(ngModel)]="financeForm.reference"
+              name="financeReference"
+            />
+          </label>
+
+          <label class="block md:col-span-2">
+            <span class="text-sm font-medium text-gray-700">Note</span>
+            <textarea
+              rows="3"
+              class="form-control"
+              [(ngModel)]="financeForm.note"
+              name="financeNote"
+            ></textarea>
+          </label>
+        </div>
+
+        <div class="flex justify-end gap-2 mt-6">
+          <button
+            type="button"
+            class="button-secondary"
+            (click)="closeFinanceModal()"
+            [disabled]="financeSubmitting"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="button-primary"
+            (click)="submitFinanceAction()"
+            [disabled]="financeSubmitting"
+          >
+            {{ financeSubmitting ? 'Saving...' : financeSubmitLabel }}
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Contact Modal -->

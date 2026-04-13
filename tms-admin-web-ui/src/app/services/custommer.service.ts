@@ -30,6 +30,36 @@ export interface CustomerImportPayload {
   failureMessages?: string[];
 }
 
+export type CustomerFinanceTransactionType = 'OPENING_BALANCE' | 'CREDIT_NOTE' | 'DEBIT_NOTE';
+
+export interface CustomerFinanceTransaction {
+  id: number;
+  customerId: number;
+  transactionType: CustomerFinanceTransactionType;
+  amount: number;
+  balanceBefore: number;
+  balanceAfter: number;
+  currency: string;
+  effectiveDate: string;
+  reference?: string;
+  note?: string;
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface CustomerFinanceMutationPayload {
+  amount: number;
+  reference?: string;
+  note?: string;
+  effectiveDate?: string;
+}
+
+export interface CustomerFinanceMutationResponse {
+  customer: Customer;
+  transaction: CustomerFinanceTransaction;
+  history: CustomerFinanceTransaction[];
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -107,6 +137,39 @@ export class CustomerService {
       .pipe(catchError(this.handleError));
   }
 
+  getFinanceTransactions(id: number): Observable<CustomerFinanceTransaction[]> {
+    return this.http
+      .get<ApiResponse<CustomerFinanceTransaction[]>>(
+        `${this.apiUrl}/${id}/finance-transactions`,
+        this.getHttpOptions(),
+      )
+      .pipe(
+        map((res) => res.data ?? []),
+        catchError(this.handleError),
+      );
+  }
+
+  createOpeningBalance(
+    id: number,
+    payload: CustomerFinanceMutationPayload,
+  ): Observable<CustomerFinanceMutationResponse> {
+    return this.postFinanceMutation(id, 'opening-balance', payload);
+  }
+
+  createCreditNote(
+    id: number,
+    payload: CustomerFinanceMutationPayload,
+  ): Observable<CustomerFinanceMutationResponse> {
+    return this.postFinanceMutation(id, 'credit-note', payload);
+  }
+
+  createDebitNote(
+    id: number,
+    payload: CustomerFinanceMutationPayload,
+  ): Observable<CustomerFinanceMutationResponse> {
+    return this.postFinanceMutation(id, 'debit-note', payload);
+  }
+
   /** ----------------------------
    *  Customer Filter & Search
    * ---------------------------- */
@@ -164,6 +227,23 @@ export class CustomerService {
   private generateLocalFallbackCode(): string {
     const timestamp = Date.now().toString().slice(-4);
     return `CUST${timestamp}`;
+  }
+
+  private postFinanceMutation(
+    id: number,
+    action: 'opening-balance' | 'credit-note' | 'debit-note',
+    payload: CustomerFinanceMutationPayload,
+  ): Observable<CustomerFinanceMutationResponse> {
+    return this.http
+      .post<ApiResponse<CustomerFinanceMutationResponse>>(
+        `${this.apiUrl}/${id}/${action}`,
+        payload,
+        this.getHttpOptions(),
+      )
+      .pipe(
+        map((res) => res.data),
+        catchError(this.handleError),
+      );
   }
 
   searchCustomersByFilters(

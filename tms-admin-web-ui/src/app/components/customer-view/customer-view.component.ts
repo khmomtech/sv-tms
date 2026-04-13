@@ -9,7 +9,11 @@ import { CustomerAddress } from '../../models/customer-address.model';
 import { CustomerBillToAddress } from '../../models/customer-bill-to-address.model';
 import { CustomerContact } from '../../models/customer-contact.model';
 import { TransportOrder } from '../../models/transport-order.model';
-import { CustomerService } from '../../services/custommer.service';
+import {
+  CustomerFinanceMutationPayload,
+  CustomerFinanceTransaction,
+  CustomerService,
+} from '../../services/custommer.service';
 import { CustomerContactService } from '../../services/customer-contact.service';
 import { CustomerAddressService } from '../../services/customer-address.service';
 import { CustomerBillToAddressService } from '../../services/customer-bill-to-address.service';
@@ -37,6 +41,21 @@ export class CustomerViewComponent {
   readonly Math = Math;
   activeGroup: CustomerGroup = 'details';
   private groupSub: Subscription | null = null;
+  private financeActionHandled = false;
+  private pendingFinanceAction: string | null = null;
+  financeTransactions: CustomerFinanceTransaction[] = [];
+  financeHistoryLoading = false;
+  financeSubmitting = false;
+  isFinanceModalOpen = false;
+  financeModalTitle = '';
+  financeSubmitLabel = '';
+  financeModalMode: 'opening-balance' | 'credit-note' | 'debit-note' | null = null;
+  financeForm = {
+    amount: null as number | null,
+    reference: '',
+    note: '',
+    effectiveDate: new Date().toISOString().slice(0, 10),
+  };
 
   addressesLoading = false;
   addressesError: string | null = null;
@@ -173,11 +192,14 @@ export class CustomerViewComponent {
   ngOnInit(): void {
     this.groupSub = this.route.queryParamMap.subscribe((qpm: ParamMap) => {
       this.setActiveGroup(qpm.get('group'));
+      this.pendingFinanceAction = qpm.get('financeAction');
+      this.financeActionHandled = false;
       // support optional bill-to query params
       const bp = qpm.get('billPage');
       const bs = qpm.get('billSearch');
       if (bp) this.billToCurrentPage = Number(bp) || 1;
       if (bs !== null && bs !== undefined) this.billToFilter.search = bs || '';
+      this.handleFinanceRouteAction();
     });
     this.applyAddressFilter();
 
@@ -193,6 +215,7 @@ export class CustomerViewComponent {
           this.legacyBillToLoaded = false;
           this.applyAddressFilter();
           this.isLoading = false;
+          this.handleFinanceRouteAction();
           this.ensureGroupDataLoaded();
         },
         error: () => {
@@ -212,6 +235,27 @@ export class CustomerViewComponent {
   ngOnDestroy(): void {
     this.groupSub?.unsubscribe();
     this.groupSub = null;
+  }
+
+  openOpeningBalanceAction(): void {
+    void this.router.navigate(['/customers', this.customer.id], {
+      queryParams: { group: 'customer-admin', financeAction: 'opening-balance' },
+      queryParamsHandling: 'merge',
+    });
+  }
+
+  openCreditNoteAction(): void {
+    void this.router.navigate(['/customers', this.customer.id], {
+      queryParams: { group: 'customer-admin', financeAction: 'credit-note' },
+      queryParamsHandling: 'merge',
+    });
+  }
+
+  openDebitNoteAction(): void {
+    void this.router.navigate(['/customers', this.customer.id], {
+      queryParams: { group: 'customer-admin', financeAction: 'debit-note' },
+      queryParamsHandling: 'merge',
+    });
   }
 
   private setActiveGroup(groupParam: string | null): void {
@@ -272,6 +316,134 @@ export class CustomerViewComponent {
     if (this.activeGroup === 'bill-to-address' && !this.legacyBillToLoaded) {
       this.loadLegacyBillToAddresses(customerId);
     }
+
+    if (this.activeGroup === 'customer-admin') {
+      this.loadFinanceTransactions();
+    }
+  }
+
+  private handleFinanceRouteAction(): void {
+    if (this.financeActionHandled || !this.customer?.id) {
+      return;
+    }
+
+    const financeAction = this.pendingFinanceAction;
+    if (!financeAction) {
+      return;
+    }
+
+    this.financeActionHandled = true;
+    this.activeGroup = 'customer-admin';
+
+    if (financeAction === 'opening-balance') {
+      this.openFinanceModal('opening-balance');
+      return;
+    }
+    if (financeAction === 'credit-note') {
+      this.openFinanceModal('credit-note');
+      return;
+    }
+    if (financeAction === 'debit-note') {
+      this.openFinanceModal('debit-note');
+    }
+  }
+
+  openFinanceModal(mode: 'opening-balance' | 'credit-note' | 'debit-note'): void {
+    this.financeModalMode = mode;
+    this.isFinanceModalOpen = true;
+    this.financeForm = {
+      amount: null,
+      reference: '',
+      note: '',
+      effectiveDate: new Date().toISOString().slice(0, 10),
+    };
+
+    if (mode === 'opening-balance') {
+      this.financeModalTitle = 'Add Opening Balance';
+      this.financeSubmitLabel = 'Save Opening Balance';
+      return;
+    }
+    if (mode === 'credit-note') {
+      this.financeModalTitle = 'Create Credit Note';
+      this.financeSubmitLabel = 'Save Credit Note';
+      return;
+    }
+    this.financeModalTitle = 'Create Debit Note';
+    this.financeSubmitLabel = 'Save Debit Note';
+  }
+
+  closeFinanceModal(): void {
+    this.isFinanceModalOpen = false;
+    this.financeSubmitting = false;
+    this.financeModalMode = null;
+    if (this.pendingFinanceAction) {
+      void this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: { financeAction: null },
+        queryParamsHandling: 'merge',
+      });
+      this.pendingFinanceAction = null;
+    }
+  }
+
+  submitFinanceAction(): void {
+    if (!this.customer?.id || !this.financeModalMode) {
+      return;
+    }
+
+    const amount = Number(this.financeForm.amount);
+    const needsPositive = this.financeModalMode !== 'opening-balance';
+    if (!Number.isFinite(amount) || amount < 0 || (needsPositive && amount <= 0)) {
+      this.notify.error('Please enter a valid amount.');
+      return;
+    }
+
+    const payload: CustomerFinanceMutationPayload = {
+      amount,
+      reference: this.financeForm.reference.trim() || undefined,
+      note: this.financeForm.note.trim() || undefined,
+      effectiveDate: this.financeForm.effectiveDate || undefined,
+    };
+
+    let request$;
+    if (this.financeModalMode === 'opening-balance') {
+      request$ = this.customerService.createOpeningBalance(this.customer.id, payload);
+    } else if (this.financeModalMode === 'credit-note') {
+      request$ = this.customerService.createCreditNote(this.customer.id, payload);
+    } else {
+      request$ = this.customerService.createDebitNote(this.customer.id, payload);
+    }
+
+    this.financeSubmitting = true;
+    request$.subscribe({
+      next: (res) => {
+        this.customer = { ...this.customer, ...(res.customer ?? {}) };
+        this.financeTransactions = res.history ?? [];
+        this.financeSubmitting = false;
+        this.notify.success(`${this.financeModalTitle} saved successfully.`);
+        this.closeFinanceModal();
+      },
+      error: (err) => {
+        this.financeSubmitting = false;
+        this.notify.error(err?.message || 'Failed to save finance transaction');
+      },
+    });
+  }
+
+  loadFinanceTransactions(force = false): void {
+    if (!this.customer?.id || (this.financeHistoryLoading && !force)) {
+      return;
+    }
+    this.financeHistoryLoading = true;
+    this.customerService.getFinanceTransactions(this.customer.id).subscribe({
+      next: (rows) => {
+        this.financeTransactions = rows ?? [];
+        this.financeHistoryLoading = false;
+      },
+      error: () => {
+        this.financeHistoryLoading = false;
+      },
+    });
   }
 
   private normalizeAddressType(type?: string): string {
@@ -1320,10 +1492,21 @@ export class CustomerViewComponent {
     return labels[terms || ''] || 'Not Set';
   }
 
-  formatCurrency(amount?: number, currency?: string): string {
-    if (amount === undefined || amount === null) return 'N/A';
-    const currencySymbol = currency === 'KHR' ? '៛' : currency === 'THB' ? '฿' : '$';
-    return `${currencySymbol}${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  formatCurrency(amount?: number | null, currency?: string): string {
+    const safeAmount = Number(amount ?? 0);
+    const resolvedCurrency = currency || this.customer.currency || 'USD';
+    try {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: resolvedCurrency,
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(Number.isFinite(safeAmount) ? safeAmount : 0);
+    } catch {
+      const currencySymbol =
+        resolvedCurrency === 'KHR' ? '៛' : resolvedCurrency === 'THB' ? '฿' : '$';
+      return `${currencySymbol}${(Number.isFinite(safeAmount) ? safeAmount : 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
   }
 
   formatDateDisplay(date?: string | number | Date): string {
