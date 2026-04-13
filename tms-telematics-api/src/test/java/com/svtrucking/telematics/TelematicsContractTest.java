@@ -120,6 +120,22 @@ class TelematicsContractTest {
                                 .compact();
         }
 
+        static String buildExpiredTrackingToken(String sid) {
+                Key key = Keys.hmacShaKeyFor(TEST_JWT_SECRET.getBytes(StandardCharsets.UTF_8));
+                long nowMs = System.currentTimeMillis();
+                return Jwts.builder()
+                                .setSubject("test_driver_contract")
+                                .claim("driverId", DRIVER_ID)
+                                .claim("typ", "tracking")
+                                .claim("scope", "LOCATION_WRITE TRACKING_WS")
+                                .claim("deviceId", DEVICE_ID)
+                                .claim("sessionId", sid)
+                                .setIssuedAt(new Date(nowMs - 120_000L))
+                                .setExpiration(new Date(nowMs - 60_000L))
+                                .signWith(key, SignatureAlgorithm.HS256)
+                                .compact();
+        }
+
         HttpHeaders authHeaders(String token) {
                 HttpHeaders h = new HttpHeaders();
                 h.setContentType(MediaType.APPLICATION_JSON);
@@ -248,15 +264,18 @@ class TelematicsContractTest {
                                 """.formatted(deviceAlt).strip();
 
                 ResponseEntity<String> resp = rest.postForEntity(
-                                base() + "/api/driver/tracking/session/start",
+                                base() + "/api/driver/tracking-session/start",
                                 new HttpEntity<>(body, authHeaders(accessToken)),
                                 String.class);
 
-                // Driver app uses /tracking/session/start (with slash); must be routed to same
-                // handler
+                // Legacy hyphenated path must remain backward-compatible but advertise the
+                // canonical successor URL.
                 assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
                 JsonNode root = om.readTree(resp.getBody());
                 assertThat(root.has("trackingToken")).isTrue();
+                assertThat(resp.getHeaders().getFirst("Deprecation")).isEqualTo("true");
+                assertThat(resp.getHeaders().getFirst("Sunset")).isNotBlank();
+                assertThat(resp.getHeaders().getFirst("Link")).contains("/api/driver/tracking/session/start");
         }
 
         @Test
@@ -274,6 +293,21 @@ class TelematicsContractTest {
                 JsonNode root = om.readTree(resp.getBody());
                 assertThat(root.get("ok").asBoolean()).as("ok=true in response").isTrue();
                 assertThat(root.get("driverId").asLong()).as("driverId echoed back").isEqualTo(DRIVER_ID);
+        }
+
+        @Test
+        @Order(8_1)
+        void canonicalLocationUpdateAcceptsTrackingToken() throws Exception {
+                TrackingSessionFixture fixture = startTrackingSessionFixture(DEVICE_ID + "-canonical-location");
+                long nowMs = System.currentTimeMillis();
+                String body = locationPayload(fixture.sessionId(), nowMs + 1);
+
+                ResponseEntity<String> resp = rest.postForEntity(
+                                base() + "/api/driver/location",
+                                new HttpEntity<>(body, authHeaders(fixture.trackingToken())),
+                                String.class);
+
+                assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
         }
 
         @Test
@@ -375,6 +409,37 @@ class TelematicsContractTest {
         }
 
         @Test
+        @Order(10_1)
+        void canonicalLocationBatchAcceptsTrackingToken() throws Exception {
+                TrackingSessionFixture fixture = startTrackingSessionFixture(DEVICE_ID + "-canonical-batch");
+                long nowMs = System.currentTimeMillis();
+                String batchBody = """
+                                [
+                                  {
+                                    "driverId": %d,
+                                    "driverName": "Contract Driver",
+                                    "vehiclePlate": "TT-7777",
+                                    "latitude": 11.5564,
+                                    "longitude": 104.9282,
+                                    "clientTime": %d,
+                                    "timestampEpochMs": %d,
+                                    "sessionId": "%s",
+                                    "pointId": "batch-point-3",
+                                    "seq": 3,
+                                    "locationSource": "GPS"
+                                  }
+                                ]
+                                """.formatted(DRIVER_ID, nowMs, nowMs, fixture.sessionId()).strip();
+
+                ResponseEntity<String> resp = rest.postForEntity(
+                                base() + "/api/driver/location/batch",
+                                new HttpEntity<>(batchBody, authHeaders(fixture.trackingToken())),
+                                String.class);
+
+                assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
+        }
+
+        @Test
         @Order(11)
         void locationUpdateWithSessionIdRejectsAccessToken() {
                 long nowMs = System.currentTimeMillis();
@@ -458,6 +523,21 @@ class TelematicsContractTest {
                 assertThat(root.has("presenceStatus")).as("presenceStatus present").isTrue();
                 assertThat(root.has("lastSeen")).as("lastSeen present").isTrue();
                 assertThat(root.get("driverId").asLong()).isEqualTo(DRIVER_ID);
+                assertThat(resp.getHeaders().getFirst("Deprecation")).isEqualTo("true");
+                assertThat(resp.getHeaders().getFirst("Sunset")).isNotBlank();
+                assertThat(resp.getHeaders().getFirst("Link")).contains("/api/admin/drivers/" + DRIVER_ID + "/presence");
+        }
+
+        @Test
+        @Order(15_1)
+        void canonicalAdminPresenceLookupReturnsPresenceStatus() {
+                ResponseEntity<String> resp = rest.exchange(
+                                base() + "/api/admin/drivers/" + DRIVER_ID + "/presence",
+                                HttpMethod.GET,
+                                new HttpEntity<>(authHeaders(accessToken)),
+                                String.class);
+
+                assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
         }
 
         @Test
@@ -476,6 +556,22 @@ class TelematicsContractTest {
                 assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
                 JsonNode root = om.readTree(resp.getBody());
                 assertThat(root.get("status").asText()).isEqualTo("ok");
+        }
+
+        @Test
+        @Order(16_1)
+        void canonicalSpoofingAlertPersistedWithTrackingToken() {
+                String body = """
+                                {"driverId":%d,"reason":"HIGH_SPEED_SPIKE","latitude":11.5564,"longitude":104.9282,
+                                 "accuracy":12.0,"speed":150.0,"isMocked":false}
+                                """.formatted(DRIVER_ID).strip();
+
+                ResponseEntity<String> resp = rest.postForEntity(
+                                base() + "/api/driver/location/spoofing-alert",
+                                new HttpEntity<>(body, authHeaders(trackingToken)),
+                                String.class);
+
+                assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
         }
 
         @Test
@@ -515,6 +611,36 @@ class TelematicsContractTest {
         }
 
         @Test
+        @Order(18_1)
+        void canonicalAdminLiveDriversRequiresAuth() {
+                ResponseEntity<String> noAuth = rest.getForEntity(
+                                base() + "/api/admin/drivers/live", String.class);
+                assertThat(noAuth.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+
+                ResponseEntity<String> authed = rest.exchange(
+                                base() + "/api/admin/drivers/live",
+                                HttpMethod.GET,
+                                new HttpEntity<>(authHeaders(accessToken)),
+                                String.class);
+                assertThat(authed.getStatusCode()).isEqualTo(HttpStatus.OK);
+                assertThat(authed.getHeaders().getFirst("Deprecation")).isNull();
+        }
+
+        @Test
+        @Order(18_2)
+        void legacyAdminLiveDriversReturnsDeprecationHeaders() {
+                ResponseEntity<String> authed = rest.exchange(
+                                base() + "/api/admin/telematics/live-drivers",
+                                HttpMethod.GET,
+                                new HttpEntity<>(authHeaders(accessToken)),
+                                String.class);
+                assertThat(authed.getStatusCode()).isEqualTo(HttpStatus.OK);
+                assertThat(authed.getHeaders().getFirst("Deprecation")).isEqualTo("true");
+                assertThat(authed.getHeaders().getFirst("Sunset")).isNotBlank();
+                assertThat(authed.getHeaders().getFirst("Link")).contains("/api/admin/drivers/live");
+        }
+
+        @Test
         @Order(19)
         void adminDriverLocationEndpoint() {
                 // 200 if driver has location persisted, 404 if not yet flushed from batch queue
@@ -526,6 +652,17 @@ class TelematicsContractTest {
                 assertThat(resp.getStatusCode().value())
                                 .as("Admin driver location should return 200 (found) or 404 (not yet flushed)")
                                 .isIn(200, 404);
+        }
+
+        @Test
+        @Order(19_1)
+        void canonicalAdminDriverLocationEndpoint() {
+                ResponseEntity<String> resp = rest.exchange(
+                                base() + "/api/admin/drivers/" + DRIVER_ID + "/location",
+                                HttpMethod.GET,
+                                new HttpEntity<>(authHeaders(accessToken)),
+                                String.class);
+                assertThat(resp.getStatusCode().value()).isIn(200, 404);
         }
 
         @Test
@@ -577,6 +714,20 @@ class TelematicsContractTest {
 
         @Test
         @Order(23)
+        void locationUpdateIgnoresStalePayloadSessionIdWhenTrackingTokenIsCurrent() {
+                long nowMs = System.currentTimeMillis();
+                String stalePayload = locationPayload("stale-client-session-id", nowMs);
+
+                ResponseEntity<String> resp = rest.postForEntity(
+                                base() + "/api/driver/location/update",
+                                new HttpEntity<>(stalePayload, authHeaders(trackingToken)),
+                                String.class);
+
+                assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
+        }
+
+        @Test
+        @Order(24)
         void driverLogoutClearsPresence() throws Exception {
                 ResponseEntity<String> resp = rest.postForEntity(
                                 base() + "/api/driver/logout?driverId=" + DRIVER_ID,
@@ -590,7 +741,7 @@ class TelematicsContractTest {
         }
 
         @Test
-        @Order(24)
+        @Order(25)
         void trackingSessionStopRevokesSession() throws Exception {
                 ResponseEntity<String> resp = rest.exchange(
                                 base() + "/api/driver/tracking-session/stop",
@@ -612,7 +763,7 @@ class TelematicsContractTest {
         }
 
         @Test
-        @Order(25)
+        @Order(26)
         void trackingSessionStopViaDriverAppPathAlias() {
                 // Build a fresh tracking token for a new session — the original is revoked
                 String freshToken = buildTrackingToken("orphan-session-for-stop-alias-test");
@@ -631,7 +782,7 @@ class TelematicsContractTest {
         }
 
         @Test
-        @Order(26)
+        @Order(27)
         void locationUpdateWithRevokedTrackingSessionIsRejected() throws Exception {
                 // The tracking session was stopped in test 22 — writes using that token must
                 // now fail
@@ -644,6 +795,22 @@ class TelematicsContractTest {
                                 String.class);
 
                 assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        }
+
+        @Test
+        @Order(28)
+        void expiredTrackingTokenOnLocationWriteReturnsRecoverableUnauthorized() {
+                long nowMs = System.currentTimeMillis();
+                String expiredToken = buildExpiredTrackingToken("expired-tracking-session");
+                String body = locationPayload("expired-tracking-session", nowMs);
+
+                ResponseEntity<String> resp = rest.postForEntity(
+                                base() + "/api/driver/location/update",
+                                new HttpEntity<>(body, authHeaders(expiredToken)),
+                                String.class);
+
+                assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+                assertThat(resp.getBody()).contains("STALE_TRACKING_TOKEN");
         }
 
         // ── Payload builders ──────────────────────────────────────────────────────
@@ -683,5 +850,25 @@ class TelematicsContractTest {
                 HttpHeaders h = new HttpHeaders();
                 h.setContentType(MediaType.APPLICATION_JSON);
                 return h;
+        }
+
+        private TrackingSessionFixture startTrackingSessionFixture(String deviceId) throws Exception {
+                String body = """
+                                {"deviceId":"%s","appVersion":"1.5.0","platform":"android"}
+                                """.formatted(deviceId).strip();
+
+                ResponseEntity<String> resp = rest.postForEntity(
+                                base() + "/api/driver/tracking/session/start",
+                                new HttpEntity<>(body, authHeaders(accessToken)),
+                                String.class);
+
+                assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
+                JsonNode root = om.readTree(resp.getBody());
+                return new TrackingSessionFixture(
+                                root.get("sessionId").asText(),
+                                root.get("trackingToken").asText());
+        }
+
+        private record TrackingSessionFixture(String sessionId, String trackingToken) {
         }
 }

@@ -2,6 +2,7 @@ package com.svtrucking.telematics.security;
 
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -63,8 +64,7 @@ public class TelematicsJwtAuthFilter extends OncePerRequestFilter {
 
         try {
             if (!jwtUtil.isTokenValid(token)) {
-                sendJsonError(response, HttpServletResponse.SC_UNAUTHORIZED,
-                        "INVALID_TOKEN", "JWT is invalid or expired");
+                sendInvalidTokenError(request, response, token, "JWT is invalid or expired");
                 return;
             }
 
@@ -84,13 +84,11 @@ public class TelematicsJwtAuthFilter extends OncePerRequestFilter {
             }
         } catch (ExpiredJwtException e) {
             LOG.debug("JWT expired (path={}): {}", request.getRequestURI(), e.getMessage());
-            sendJsonError(response, HttpServletResponse.SC_UNAUTHORIZED,
-                    "TOKEN_EXPIRED", "Access token expired");
+            sendExpiredTokenError(request, response, token, e);
             return;
         } catch (JwtException | IllegalArgumentException e) {
             LOG.warn("Invalid JWT (path={}): {}", request.getRequestURI(), e.getMessage());
-            sendJsonError(response, HttpServletResponse.SC_UNAUTHORIZED,
-                    "INVALID_TOKEN", "Invalid JWT");
+            sendInvalidTokenError(request, response, token, "Invalid JWT");
             return;
         }
 
@@ -110,5 +108,54 @@ public class TelematicsJwtAuthFilter extends OncePerRequestFilter {
         resp.setStatus(status);
         resp.setContentType("application/json");
         resp.getWriter().write("{\"error\":\"" + code + "\",\"message\":\"" + message + "\"}");
+    }
+
+    private void sendExpiredTokenError(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            String token,
+            ExpiredJwtException exception) throws IOException {
+        String tokenType = null;
+        try {
+            Claims claims = exception.getClaims() != null
+                    ? exception.getClaims()
+                    : jwtUtil.extractAllClaimsAllowExpired(token);
+            Object rawType = claims != null ? claims.get("typ") : null;
+            tokenType = rawType == null ? "access" : String.valueOf(rawType);
+        } catch (Exception ignored) {
+        }
+
+        if (isRecoverableTrackingWritePath(request) && "tracking".equalsIgnoreCase(tokenType)) {
+            sendJsonError(response, HttpServletResponse.SC_UNAUTHORIZED,
+                    "STALE_TRACKING_TOKEN", "Tracking token expired; clear and reacquire tracking session");
+            return;
+        }
+
+        sendJsonError(response, HttpServletResponse.SC_UNAUTHORIZED,
+                "TOKEN_EXPIRED", "Access token expired");
+    }
+
+    private void sendInvalidTokenError(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            String token,
+            String defaultMessage) throws IOException {
+        String tokenType = jwtUtil.extractTokenType(token);
+        if (isRecoverableTrackingWritePath(request) && "tracking".equalsIgnoreCase(tokenType)) {
+            sendJsonError(response, HttpServletResponse.SC_UNAUTHORIZED,
+                    "STALE_TRACKING_TOKEN", "Tracking token invalid; clear and reacquire tracking session");
+            return;
+        }
+        sendJsonError(response, HttpServletResponse.SC_UNAUTHORIZED,
+                "INVALID_TOKEN", defaultMessage);
+    }
+
+    private boolean isRecoverableTrackingWritePath(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        return "/api/driver/location".equals(path)
+                || "/api/driver/location/batch".equals(path)
+                || "/api/driver/location/update".equals(path)
+                || "/api/driver/location/update/batch".equals(path)
+                || "/api/driver/presence/heartbeat".equals(path);
     }
 }
