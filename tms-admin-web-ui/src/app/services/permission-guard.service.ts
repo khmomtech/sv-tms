@@ -1,244 +1,159 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, OnDestroy } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { BehaviorSubject, Observable, Subscription, tap, map, catchError, of, filter } from 'rxjs';
 
 import { PERMISSIONS } from '../shared/permissions';
-
 import { AuthService } from './auth.service';
 import { type User } from './auth.service';
 
-const ROLES_PERMISSIONS: { [key: string]: string[] } = {
-  SUPERADMIN: ['all_functions'], // SUPERADMIN has all permissions
-  ADMIN: [
-    PERMISSIONS.CUSTOMER_READ,
-    PERMISSIONS.CUSTOMER_CREATE,
-    PERMISSIONS.CUSTOMER_UPDATE,
-    PERMISSIONS.CUSTOMER_DELETE,
-    PERMISSIONS.ITEM_READ,
-    PERMISSIONS.ITEM_CREATE,
-    PERMISSIONS.ITEM_UPDATE,
-    PERMISSIONS.ITEM_DELETE,
-    PERMISSIONS.USER_READ,
-    PERMISSIONS.USER_CREATE,
-    PERMISSIONS.USER_UPDATE,
-    PERMISSIONS.USER_DELETE,
-    PERMISSIONS.ROLE_READ,
-    PERMISSIONS.ROLE_CREATE,
-    PERMISSIONS.ROLE_UPDATE,
-    PERMISSIONS.DRIVER_READ,
-    PERMISSIONS.DRIVER_VIEW_ALL,
-    PERMISSIONS.DRIVER_CREATE,
-    PERMISSIONS.DRIVER_UPDATE,
-    PERMISSIONS.DRIVER_MANAGE,
-    PERMISSIONS.DRIVER_DOCUMENTS_READ,
-    PERMISSIONS.DRIVER_DOCUMENTS_UPLOAD,
-    PERMISSIONS.DRIVER_SCHEDULE_READ,
-    PERMISSIONS.DRIVER_SCHEDULE_UPDATE,
-    PERMISSIONS.DRIVER_ACCOUNT_MANAGE,
-    PERMISSIONS.VEHICLE_READ,
-    PERMISSIONS.VEHICLE_CREATE,
-    PERMISSIONS.VEHICLE_UPDATE,
-    PERMISSIONS.VEHICLE_DELETE,
-    PERMISSIONS.ORDER_READ,
-    PERMISSIONS.ORDER_CREATE,
-    PERMISSIONS.ORDER_UPDATE,
-    PERMISSIONS.ORDER_ASSIGN,
-    PERMISSIONS.DISPATCH_READ,
-    PERMISSIONS.DISPATCH_CREATE,
-    PERMISSIONS.DISPATCH_UPDATE,
-    PERMISSIONS.DISPATCH_MONITOR,
-    PERMISSIONS.POD_READ,
-    PERMISSIONS.TELEMATICS_LIVE_READ,
-    PERMISSIONS.DRIVER_LIVE_READ,
-    PERMISSIONS.TELEMATICS_GEOFENCE_READ,
-    PERMISSIONS.GEOFENCE_READ,
-    PERMISSIONS.GEOFENCE_CREATE,
-    PERMISSIONS.GEOFENCE_UPDATE,
-    PERMISSIONS.GEOFENCE_DELETE,
-    PERMISSIONS.TELEMATICS_CONSOLE_READ,
-    PERMISSIONS.ADMIN_READ,
-  ],
-  MANAGER: [
-    PERMISSIONS.CUSTOMER_READ,
-    PERMISSIONS.ITEM_READ,
-    PERMISSIONS.ITEM_CREATE,
-    PERMISSIONS.ITEM_UPDATE,
-    PERMISSIONS.USER_READ,
-    PERMISSIONS.DRIVER_READ,
-    PERMISSIONS.DRIVER_VIEW_ALL,
-    PERMISSIONS.DRIVER_DOCUMENTS_READ,
-    PERMISSIONS.DRIVER_SCHEDULE_READ,
-    PERMISSIONS.DRIVER_SCHEDULE_UPDATE,
-    PERMISSIONS.DRIVER_ACCOUNT_MANAGE,
-    PERMISSIONS.VEHICLE_READ,
-    PERMISSIONS.ORDER_READ,
-    PERMISSIONS.ORDER_CREATE,
-    PERMISSIONS.ORDER_UPDATE,
-    PERMISSIONS.ORDER_ASSIGN,
-    PERMISSIONS.DISPATCH_READ,
-    PERMISSIONS.DISPATCH_MONITOR,
-    PERMISSIONS.POD_READ,
-    PERMISSIONS.REPORT_DRIVER_PERFORMANCE,
-    PERMISSIONS.TELEMATICS_LIVE_READ,
-    PERMISSIONS.DRIVER_LIVE_READ,
-    PERMISSIONS.TELEMATICS_GEOFENCE_READ,
-    PERMISSIONS.GEOFENCE_READ,
-    PERMISSIONS.GEOFENCE_CREATE,
-    PERMISSIONS.GEOFENCE_UPDATE,
-  ],
-  USER: [PERMISSIONS.ITEM_READ, PERMISSIONS.USER_READ, PERMISSIONS.NOTIFICATION_READ],
-};
+interface EffectivePermissionsResponse {
+  userId: number;
+  permissions: string[];
+  permissionMatrix: Record<string, string[]>;
+}
 
 @Injectable({
   providedIn: 'root',
 })
-export class PermissionGuardService {
+export class PermissionGuardService implements OnDestroy {
   private authService = inject(AuthService);
+  private http = inject(HttpClient);
 
-  constructor() {}
+  private readonly _effectivePermissions = new BehaviorSubject<Set<string>>(new Set());
+  private readonly _authSub: Subscription;
+  private _loadedForUsername: string | null = null;
+
+  constructor() {
+    // Auto-clear cached permissions whenever the user logs out.
+    this._authSub = this.authService.isAuthenticated$
+      .pipe(filter((authenticated) => !authenticated))
+      .subscribe(() => this.clearEffectivePermissions());
+  }
+
+  ngOnDestroy(): void {
+    this._authSub.unsubscribe();
+  }
+
+  /**
+   * Load effective permissions for the current user from the server and cache them.
+   * Call this once after a successful login.
+   */
+  loadEffectivePermissions(force = false): Observable<void> {
+    const currentUser = this.authService.getCurrentUser();
+    const username = currentUser?.username?.trim() ?? '';
+    if (
+      !force &&
+      username &&
+      this._loadedForUsername === username &&
+      this._effectivePermissions.getValue().size > 0
+    ) {
+      return of(undefined);
+    }
+
+    return this.http
+      .get<EffectivePermissionsResponse>('/api/admin/user-permissions/me/effective')
+      .pipe(
+        tap((response) => {
+          const perms = new Set<string>(
+            (response.permissions ?? []).map((p) => p.toLowerCase().trim()),
+          );
+          this._effectivePermissions.next(perms);
+          this._loadedForUsername = username || null;
+        }),
+        map(() => undefined),
+        catchError(() => {
+          // Non-admin users (e.g. DRIVER) won't have access to this endpoint — ignore silently.
+          return of(undefined);
+        }),
+      );
+  }
+
+  /** Clear cached permissions on logout. */
+  clearEffectivePermissions(): void {
+    this._effectivePermissions.next(new Set());
+    this._loadedForUsername = null;
+  }
 
   /**
    * Check if the current user has a specific permission.
-   * This is the core logic that checks against roles and direct permissions.
+   * Resolution order:
+   *   1. SUPERADMIN role → always granted
+   *   2. Server-loaded effective permissions set (populated via loadEffectivePermissions)
+   *   3. Permissions embedded in the auth token / user object (fallback for non-admin roles)
    */
   hasPermission(permissionName: string): boolean {
     const normalizedPermission = permissionName?.toLowerCase().trim();
     if (!normalizedPermission) return false;
 
     const currentUser: User | null = this.authService.getCurrentUser();
-    if (!currentUser) {
-      return false;
+    if (!currentUser) return false;
+
+    // 1. SUPERADMIN always has full access
+    const userRoles = (currentUser.roles ?? []).map((r) => r?.toUpperCase());
+    if (userRoles.includes('SUPERADMIN')) return true;
+
+    // 2. Server-loaded effective permissions (source of truth for admin users)
+    const serverPerms = this._effectivePermissions.getValue();
+    if (serverPerms.size > 0) {
+      return serverPerms.has('all_functions') || serverPerms.has(normalizedPermission);
     }
 
-    // 1. SUPERADMIN has all permissions (check with exact case and uppercase)
-    const userRoles = (currentUser.roles || []).map((r) => r?.toUpperCase());
-    if (userRoles.includes('SUPERADMIN')) {
-      return true;
-    }
-
-    // 2. Check for permissions directly assigned to the user
-    //    This covers both the login response permissions and anything stored in localStorage.
-    if (this.authService.hasPermission(normalizedPermission)) {
-      return true;
-    }
-
-    // 3. Check for permissions attached to the user object (if backend included them)
-    const userPerms = (currentUser.permissions ?? []).map((p) => p.toLowerCase());
-    if (userPerms.includes('all_functions') || userPerms.includes(normalizedPermission)) {
-      return true;
-    }
-
-    // 4. Check for permissions granted by the user's roles (normalized, deduped)
-    const rolePerms = new Set<string>();
-    (currentUser.roles || []).forEach((role) => {
-      const perms = ROLES_PERMISSIONS[role?.toUpperCase()];
-      perms?.forEach((p) => rolePerms.add(p.toLowerCase()));
-    });
-
-    return rolePerms.has('all_functions') || rolePerms.has(normalizedPermission);
+    // 3. Fallback: permissions embedded directly in the user object from the auth token
+    const tokenPerms = (currentUser.permissions ?? []).map((p) => p.toLowerCase());
+    return tokenPerms.includes('all_functions') || tokenPerms.includes(normalizedPermission);
   }
 
-  /** Check if the user has any of the provided permissions */
+  /** Returns true if the user has at least one of the provided permissions. */
   hasAnyPermission(requiredPermissions: string[] = []): boolean {
     if (!requiredPermissions.length) return true;
     return requiredPermissions.some((p) => this.hasPermission(p));
   }
 
-  // --- Customer Permissions ---
-  canReadCustomers(): boolean {
-    return this.hasPermission(PERMISSIONS.CUSTOMER_READ);
-  }
-  canCreateCustomers(): boolean {
-    return this.hasPermission(PERMISSIONS.CUSTOMER_CREATE);
-  }
-  canUpdateCustomers(): boolean {
-    return this.hasPermission(PERMISSIONS.CUSTOMER_UPDATE);
-  }
-  canDeleteCustomers(): boolean {
-    return this.hasPermission(PERMISSIONS.CUSTOMER_DELETE);
-  }
+  // ---------------------------------------------------------------------------
+  //  Convenience helpers — delegates to hasPermission()
+  // ---------------------------------------------------------------------------
 
-  // --- Item Permissions ---
-  canReadItems(): boolean {
-    return this.hasPermission(PERMISSIONS.ITEM_READ);
-  }
-  canCreateItems(): boolean {
-    return this.hasPermission(PERMISSIONS.ITEM_CREATE);
-  }
-  canUpdateItems(): boolean {
-    return this.hasPermission(PERMISSIONS.ITEM_UPDATE);
-  }
-  canDeleteItems(): boolean {
-    return this.hasPermission(PERMISSIONS.ITEM_DELETE);
-  }
+  // Customer
+  canReadCustomers = () => this.hasPermission(PERMISSIONS.CUSTOMER_READ);
+  canCreateCustomers = () => this.hasPermission(PERMISSIONS.CUSTOMER_CREATE);
+  canUpdateCustomers = () => this.hasPermission(PERMISSIONS.CUSTOMER_UPDATE);
+  canDeleteCustomers = () => this.hasPermission(PERMISSIONS.CUSTOMER_DELETE);
 
-  // --- User Permissions ---
-  canReadUsers(): boolean {
-    return this.hasPermission(PERMISSIONS.USER_READ);
-  }
-  canCreateUsers(): boolean {
-    return this.hasPermission(PERMISSIONS.USER_CREATE);
-  }
-  canUpdateUsers(): boolean {
-    return this.hasPermission(PERMISSIONS.USER_UPDATE);
-  }
-  canDeleteUsers(): boolean {
-    return this.hasPermission(PERMISSIONS.USER_DELETE);
-  }
+  // Item
+  canReadItems = () => this.hasPermission(PERMISSIONS.ITEM_READ);
+  canCreateItems = () => this.hasPermission(PERMISSIONS.ITEM_CREATE);
+  canUpdateItems = () => this.hasPermission(PERMISSIONS.ITEM_UPDATE);
+  canDeleteItems = () => this.hasPermission(PERMISSIONS.ITEM_DELETE);
 
-  // --- Role Permissions ---
-  canReadRoles(): boolean {
-    return this.hasPermission(PERMISSIONS.ROLE_READ);
-  }
-  canCreateRoles(): boolean {
-    return this.hasPermission(PERMISSIONS.ROLE_CREATE);
-  }
-  canUpdateRoles(): boolean {
-    return this.hasPermission(PERMISSIONS.ROLE_UPDATE);
-  }
+  // User
+  canReadUsers = () => this.hasPermission(PERMISSIONS.USER_READ);
+  canCreateUsers = () => this.hasPermission(PERMISSIONS.USER_CREATE);
+  canUpdateUsers = () => this.hasPermission(PERMISSIONS.USER_UPDATE);
+  canDeleteUsers = () => this.hasPermission(PERMISSIONS.USER_DELETE);
 
-  // --- Driver Permissions ---
-  canReadDrivers(): boolean {
-    return this.hasPermission(PERMISSIONS.DRIVER_READ);
-  }
-  canCreateDrivers(): boolean {
-    return this.hasPermission(PERMISSIONS.DRIVER_CREATE);
-  }
-  canUpdateDrivers(): boolean {
-    return this.hasPermission(PERMISSIONS.DRIVER_UPDATE);
-  }
-  canManageDrivers(): boolean {
-    return this.hasPermission(PERMISSIONS.DRIVER_MANAGE);
-  }
+  // Role
+  canReadRoles = () => this.hasPermission(PERMISSIONS.ROLE_READ);
+  canCreateRoles = () => this.hasPermission(PERMISSIONS.ROLE_CREATE);
+  canUpdateRoles = () => this.hasPermission(PERMISSIONS.ROLE_UPDATE);
 
-  // --- Vehicle Permissions ---
-  canReadVehicles(): boolean {
-    return this.hasPermission(PERMISSIONS.VEHICLE_READ);
-  }
-  canCreateVehicles(): boolean {
-    return this.hasPermission(PERMISSIONS.VEHICLE_CREATE);
-  }
-  canUpdateVehicles(): boolean {
-    return this.hasPermission(PERMISSIONS.VEHICLE_UPDATE);
-  }
-  canDeleteVehicles(): boolean {
-    return this.hasPermission(PERMISSIONS.VEHICLE_DELETE);
-  }
+  // Driver
+  canReadDrivers = () => this.hasPermission(PERMISSIONS.DRIVER_READ);
+  canCreateDrivers = () => this.hasPermission(PERMISSIONS.DRIVER_CREATE);
+  canUpdateDrivers = () => this.hasPermission(PERMISSIONS.DRIVER_UPDATE);
+  canManageDrivers = () => this.hasPermission(PERMISSIONS.DRIVER_MANAGE);
 
-  // --- Order Permissions ---
-  canReadOrders(): boolean {
-    return this.hasPermission(PERMISSIONS.ORDER_READ);
-  }
-  canCreateOrders(): boolean {
-    return this.hasPermission(PERMISSIONS.ORDER_CREATE);
-  }
-  canUpdateOrders(): boolean {
-    return this.hasPermission(PERMISSIONS.ORDER_UPDATE);
-  }
-  canAssignOrders(): boolean {
-    return this.hasPermission(PERMISSIONS.ORDER_ASSIGN);
-  }
+  // Vehicle
+  canReadVehicles = () => this.hasPermission(PERMISSIONS.VEHICLE_READ);
+  canCreateVehicles = () => this.hasPermission(PERMISSIONS.VEHICLE_CREATE);
+  canUpdateVehicles = () => this.hasPermission(PERMISSIONS.VEHICLE_UPDATE);
+  canDeleteVehicles = () => this.hasPermission(PERMISSIONS.VEHICLE_DELETE);
 
-  // --- Notification Permissions ---
-  canReadNotifications(): boolean {
-    return this.hasPermission(PERMISSIONS.NOTIFICATION_READ);
-  }
+  // Order
+  canReadOrders = () => this.hasPermission(PERMISSIONS.ORDER_READ);
+  canCreateOrders = () => this.hasPermission(PERMISSIONS.ORDER_CREATE);
+  canUpdateOrders = () => this.hasPermission(PERMISSIONS.ORDER_UPDATE);
+  canAssignOrders = () => this.hasPermission(PERMISSIONS.ORDER_ASSIGN);
+
+  // Notification
+  canReadNotifications = () => this.hasPermission(PERMISSIONS.NOTIFICATION_READ);
 }

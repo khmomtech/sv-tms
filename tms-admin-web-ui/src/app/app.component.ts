@@ -13,6 +13,7 @@ import { SidebarComponent } from './components/sidebar/sidebar.component';
 import { environment } from './environments/environment';
 import { AuthService } from './services/auth.service';
 import { ConnectionMonitorService } from './services/connection-monitor.service';
+import { PermissionGuardService } from './services/permission-guard.service';
 import { SocketService } from './services/socket.service';
 
 @Component({
@@ -34,7 +35,7 @@ export class AppComponent implements OnInit, OnDestroy {
   private readonly socketService = inject(SocketService);
   private readonly connectionMonitor = inject(ConnectionMonitorService);
   private readonly authService = inject(AuthService);
-  private readonly appSocketContextId = 'app-root';
+  private readonly permissionGuardService = inject(PermissionGuardService);
   private statusSub?: Subscription;
   private routeSub?: Subscription;
 
@@ -84,7 +85,8 @@ export class AppComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.socketService.connect([], this.appSocketContextId);
+    this.socketService.connect([], 'app-root');
+    this.permissionGuardService.loadEffectivePermissions().subscribe();
   }
 
   toggleSidebar(): void {
@@ -94,6 +96,6 @@ export class AppComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.statusSub?.unsubscribe();
     this.routeSub?.unsubscribe();
-    this.socketService.disconnectContext(this.appSocketContextId);
+    this.socketService.disconnectContext('app-root');
   }
 }

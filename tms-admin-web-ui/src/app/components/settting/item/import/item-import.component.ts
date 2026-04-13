@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/consistent-type-imports */
 import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
+import { Component, ElementRef, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import * as ExcelJS from 'exceljs';
 
@@ -16,11 +16,14 @@ import { firstValueFrom } from 'rxjs';
   imports: [CommonModule, FormsModule],
 })
 export class ItemImportComponent {
+  @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
+
   file: File | null = null;
   previewItems: Item[] = [];
   failedItems: Item[] = [];
   isPreviewReady = false;
   loading = false;
+  isDragging = false;
 
   toastMessage = '';
   toastType: 'success' | 'error' | '' = '';
@@ -60,23 +63,49 @@ export class ItemImportComponent {
 
   constructor(private itemService: ItemService) {}
 
-  showToastMessage(message: string, type: 'success' | 'error', duration = 3000) {
-    this.toastMessage = message;
-    this.toastType = type;
-    this.showToast = true;
-    setTimeout(() => (this.showToast = false), duration);
+  // ── Drag & Drop ──────────────────────────────────────────────────────────
+
+  onDragOver(event: DragEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragging = true;
   }
 
-  async handleFileInput(event: any): Promise<void> {
-    this.file = event.target.files[0];
-    if (!this.file) return;
+  onDragLeave(event: DragEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragging = false;
+  }
+
+  onDrop(event: DragEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragging = false;
+    const file = event.dataTransfer?.files?.[0];
+    if (file) this.loadFile(file);
+  }
+
+  onFileInputChange(event: Event) {
+    const file = (event.target as HTMLInputElement).files?.[0] ?? null;
+    if (file) this.loadFile(file);
+  }
+
+  private async loadFile(file: File) {
+    if (!file.name.match(/\.xlsx$/i)) {
+      this.showToastMessage('Only .xlsx files are supported', 'error');
+      return;
+    }
+    this.file = file;
+    this.isPreviewReady = false;
+    this.previewItems = [];
+    this.failedItems = [];
 
     const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(await this.file.arrayBuffer());
+    await workbook.xlsx.load(await file.arrayBuffer());
     const worksheet = workbook.getWorksheet('Items') || workbook.worksheets[0];
 
     if (!worksheet) {
-      this.showToastMessage(' No worksheet found!', 'error');
+      this.showToastMessage('No worksheet found in file', 'error');
       return;
     }
 
@@ -92,11 +121,9 @@ export class ItemImportComponent {
       );
       this.columnMapping[field] = match ?? '';
     }
-
-    this.isPreviewReady = false;
-    this.previewItems = [];
-    this.failedItems = [];
   }
+
+  // ── Preview ──────────────────────────────────────────────────────────────
 
   async generatePreview(): Promise<void> {
     if (!this.file) return;
@@ -108,9 +135,7 @@ export class ItemImportComponent {
     const headerRow = worksheet.getRow(1);
     const headerIndexMap: Record<string, number> = {};
     headerRow.eachCell((cell: any, colNumber: number) => {
-      const key = String(cell.text || '')
-        .trim()
-        .toLowerCase();
+      const key = String(cell.text || '').trim().toLowerCase();
       headerIndexMap[key] = colNumber;
     });
 
@@ -121,13 +146,10 @@ export class ItemImportComponent {
     };
 
     const preview: Item[] = [];
-
     worksheet.eachRow((row, rowIndex) => {
       if (rowIndex === 1) return;
-
       const itemName = getValue(row, 'itemName');
       if (!itemName) return;
-
       preview.push({
         itemCode: getValue(row, 'itemCode'),
         itemName,
@@ -148,6 +170,8 @@ export class ItemImportComponent {
     this.isPreviewReady = true;
   }
 
+  // ── Import ───────────────────────────────────────────────────────────────
+
   async confirmImport(): Promise<void> {
     this.loading = true;
     let success = 0;
@@ -159,22 +183,71 @@ export class ItemImportComponent {
         await firstValueFrom(this.itemService.createItem(item));
         success++;
       } catch (err) {
-        console.error(' Error importing item:', item, err);
+        console.error('Error importing item:', item, err);
         failed++;
         this.failedItems.push(item);
       }
     }
 
     if (success > 0) {
-      this.showToastMessage(` Imported: ${success},  Failed: ${failed}`, 'success');
+      this.showToastMessage(`Imported: ${success}  Failed: ${failed}`, 'success');
     } else {
-      this.showToastMessage(` Failed to import any items`, 'error');
+      this.showToastMessage('Failed to import any items', 'error');
     }
 
     this.previewItems = [];
     this.isPreviewReady = false;
     this.loading = false;
+    this.resetInput();
   }
+
+  // ── Download Template ────────────────────────────────────────────────────
+
+  async downloadTemplate(): Promise<void> {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Items');
+
+    sheet.columns = Object.keys(this.fieldLabels).map((key) => ({
+      header: this.fieldLabels[key],
+      key,
+      width: 20,
+    }));
+
+    // Style header row
+    const headerRow = sheet.getRow(1);
+    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    headerRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF2563EB' },
+    };
+    headerRow.alignment = { horizontal: 'center' };
+
+    // Sample row
+    sheet.addRow({
+      itemCode: 'ITEM-001',
+      itemName: 'Sample Item',
+      itemNameKh: 'ទំនិញគំរូ',
+      quantity: 10,
+      size: 'M',
+      unit: 'PCS',
+      weight: '1.5',
+      itemType: 'GENERAL',
+      pallets: '2',
+      palletType: 'EURO',
+      status: 1,
+      sortOrder: 1,
+    });
+
+    const blob = await workbook.xlsx.writeBuffer();
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(new Blob([blob]));
+    link.download = 'items_import_template.xlsx';
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }
+
+  // ── Export Failed ────────────────────────────────────────────────────────
 
   async exportFailedToExcel(): Promise<void> {
     const workbook = new ExcelJS.Workbook();
@@ -183,13 +256,34 @@ export class ItemImportComponent {
     sheet.columns = Object.keys(this.fieldLabels).map((key) => ({
       header: this.fieldLabels[key],
       key,
+      width: 20,
     }));
 
     this.failedItems.forEach((item) => sheet.addRow(item));
+
     const blob = await workbook.xlsx.writeBuffer();
     const link = document.createElement('a');
     link.href = URL.createObjectURL(new Blob([blob]));
     link.download = 'failed_items.xlsx';
     link.click();
+    URL.revokeObjectURL(link.href);
+  }
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
+
+  showToastMessage(message: string, type: 'success' | 'error', duration = 4000) {
+    this.toastMessage = message;
+    this.toastType = type;
+    this.showToast = true;
+    setTimeout(() => (this.showToast = false), duration);
+  }
+
+  private resetInput() {
+    this.file = null;
+    this.excelColumns = [];
+    for (const field in this.columnMapping) {
+      this.columnMapping[field] = '';
+    }
+    this.fileInput.nativeElement.value = '';
   }
 }

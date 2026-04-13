@@ -77,9 +77,18 @@ export class SocketService {
   private readonly DEGRADED_AFTER_MS = 15_000;
   private readonly DISCONNECTED_AFTER_MS = 30_000;
   private readonly FALLBACK_POLL_MS = 10_000;
+  private readonly MAX_WS_FAILURES_BEFORE_COOLDOWN = 4;
+  private readonly WS_FAILURE_COOLDOWN_MS = 60_000;
+  private readonly MAX_FALLBACK_POLL_FAILURES = 3;
+  private readonly FALLBACK_POLL_COOLDOWN_MS = 60_000;
 
   // merge cache so presence + location fold into one object per driver
   private readonly cache = new Map<string, DriverLocation>();
+  private fallbackPollInFlight = false;
+  private fallbackPollFailureCount = 0;
+  private fallbackPollSuppressedUntilMs = 0;
+  private wsFailureCount = 0;
+  private wsReconnectSuppressedUntilMs = 0;
 
   // streams for UI
   private readonly driverLocationSubject = new BehaviorSubject<DriverLocation | null>(null);
@@ -104,6 +113,8 @@ export class SocketService {
 
   private readonly reconnectAttemptsSubject = new BehaviorSubject<number>(0);
   public readonly reconnectAttempts$ = this.reconnectAttemptsSubject.asObservable();
+  private readonly activeDemandSubject = new BehaviorSubject<boolean>(false);
+  public readonly activeDemand$ = this.activeDemandSubject.asObservable();
 
   public readonly connectionStatus$ = new BehaviorSubject<boolean>(false);
 
@@ -170,11 +181,8 @@ export class SocketService {
     }
 
     const normalizedIds = (driverIds ?? []).filter((id): id is string => !!id);
-    if (normalizedIds.length === 0) {
-      this.contextDriverIds.delete(contextId);
-    } else {
-      this.contextDriverIds.set(contextId, new Set(normalizedIds));
-    }
+    this.contextDriverIds.set(contextId, new Set(normalizedIds));
+    this.updateActiveDemand();
 
     this.ensureClient(token);
 
@@ -189,12 +197,35 @@ export class SocketService {
       return;
     }
     this.contextDriverIds.delete(contextId);
+    this.updateActiveDemand();
+    if (this.contextDriverIds.size === 0) {
+      this.disconnect(false);
+      return;
+    }
     if (this.isConnected) {
       this.syncDriverSubscriptions();
     }
   }
 
+  hasActiveDemand(): boolean {
+    return this.activeDemandSubject.value;
+  }
+
+  private updateActiveDemand(): void {
+    this.activeDemandSubject.next(this.contextDriverIds.size > 0);
+  }
+
   private ensureClient(token: string): void {
+    const now = Date.now();
+    if (this.wsReconnectSuppressedUntilMs > now) {
+      this.warnOnce(
+        '[WebSocket] Reconnect paused while backend is unstable. Using degraded mode.',
+        'ws-reconnect-cooldown',
+      );
+      this.setDisconnected('Realtime temporarily paused');
+      return;
+    }
+
     // Don't connect with expired token
     if (this.authService.isTokenExpired(token)) {
       this.warnOnce(
@@ -256,9 +287,11 @@ export class SocketService {
       onConnect: () => this.onConnect(),
       onStompError: (frame) => this.setDisconnected(`[STOMP ERROR] ${frame.headers['message']}`),
       onWebSocketClose: () => {
+        this.noteWebSocketFailure('websocket close');
         this.setDisconnected('WebSocket closed');
       },
       onWebSocketError: (err) => {
+        this.noteWebSocketFailure('websocket error');
         this.setDisconnected(`WebSocket error: ${err?.message ?? 'unknown'}`);
         this.warnOnce(
           '[WebSocket] Error occurred, connection will retry automatically',
@@ -290,6 +323,10 @@ export class SocketService {
     this.isConnected = true;
     this.disconnectedAtMs = 0;
     this.lastRealtimeEventMs = Date.now();
+    this.wsFailureCount = 0;
+    this.wsReconnectSuppressedUntilMs = 0;
+    this.fallbackPollFailureCount = 0;
+    this.fallbackPollSuppressedUntilMs = 0;
     this.disconnectedDurationMsSubject.next(0);
     this.reconnectAttemptsSubject.next(0);
     this.setConnectionStatus(true);
@@ -448,6 +485,7 @@ export class SocketService {
     if (clearContexts) {
       this.contextDriverIds.clear();
     }
+    this.updateActiveDemand();
     this.teardownDriverSubscriptions();
     this.clearGlobalSubscriptions();
 
@@ -460,6 +498,14 @@ export class SocketService {
 
   /** Force reconnect while preserving existing context driver subscriptions. */
   reconnect(): void {
+    const now = Date.now();
+    if (this.wsReconnectSuppressedUntilMs > now) {
+      this.warnOnce(
+        '[WebSocket] Manual reconnect ignored during cooldown window.',
+        'ws-manual-reconnect-cooldown',
+      );
+      return;
+    }
     console.log('[WebSocket] Reconnecting…');
     const contextsSnapshot = new Map<string, Set<string>>();
     this.contextDriverIds.forEach((set, key) => contextsSnapshot.set(key, new Set(set)));
@@ -496,6 +542,30 @@ export class SocketService {
     this.startFallbackPolling();
     // keep cache so UI can still show last known positions if desired
     this.warnOnce(`[WebSocket] Disconnected: ${reason}`, `disconnected:${reason}`);
+  }
+
+  private noteWebSocketFailure(reason: string): void {
+    this.wsFailureCount += 1;
+    if (this.wsFailureCount < this.MAX_WS_FAILURES_BEFORE_COOLDOWN) {
+      return;
+    }
+
+    this.wsReconnectSuppressedUntilMs = Date.now() + this.WS_FAILURE_COOLDOWN_MS;
+    this.wsFailureCount = 0;
+    try {
+      if (this.stompClient) {
+        this.stompClient.reconnectDelay = 0;
+        if (this.stompClient.active) {
+          this.stompClient.deactivate();
+        }
+      }
+    } catch {
+      /* noop */
+    }
+    this.warnOnce(
+      `[WebSocket] Pausing reconnect attempts for ${Math.round(this.WS_FAILURE_COOLDOWN_MS / 1000)}s after repeated ${reason}.`,
+      `ws-cooldown:${reason}`,
+    );
   }
 
   private processHealthMessage(message: IMessage): void {
@@ -577,6 +647,9 @@ export class SocketService {
       if (this.disconnectedAtMs > 0 && now - this.disconnectedAtMs < this.DISCONNECTED_AFTER_MS) {
         return;
       }
+      if (this.fallbackPollSuppressedUntilMs > now) {
+        return;
+      }
       this.pollLatestDrivers();
     }, this.FALLBACK_POLL_MS);
   }
@@ -589,16 +662,31 @@ export class SocketService {
   }
 
   private pollLatestDrivers(): void {
+    if (this.fallbackPollInFlight) {
+      return;
+    }
+
+    const now = Date.now();
+    if (this.fallbackPollSuppressedUntilMs > now) {
+      return;
+    }
+
     const token = this.authService.getToken();
     if (!token) {
       return;
     }
     const params = new HttpParams().set('onlyOnline', 'true').set('onlineSeconds', '120');
     const headers = new HttpHeaders({ Authorization: `Bearer ${token}` });
+    this.fallbackPollInFlight = true;
     this.http
-      .get<any>(`${environment.baseUrl}/api/admin/drivers/live-drivers`, { params, headers })
+      .get<any>(`${environment.baseUrl}/api/admin/drivers/live-drivers`, {
+        params,
+        headers,
+      })
       .subscribe({
         next: (response) => {
+          this.fallbackPollInFlight = false;
+          this.fallbackPollFailureCount = 0;
           const items = this.extractResponseItems(response);
           if (items.length === 0) {
             this.refreshConnectionHealth();
@@ -614,6 +702,16 @@ export class SocketService {
           this.connectionMonitor.setStatus('error');
         },
         error: (err) => {
+          this.fallbackPollInFlight = false;
+          this.fallbackPollFailureCount += 1;
+          if (this.fallbackPollFailureCount >= this.MAX_FALLBACK_POLL_FAILURES) {
+            this.fallbackPollFailureCount = 0;
+            this.fallbackPollSuppressedUntilMs = Date.now() + this.FALLBACK_POLL_COOLDOWN_MS;
+            this.warnOnce(
+              `[WebSocket fallback] Pausing live-driver polling for ${Math.round(this.FALLBACK_POLL_COOLDOWN_MS / 1000)}s after repeated failures.`,
+              'fallback-poll-cooldown',
+            );
+          }
           this.warnOnce(
             `[WebSocket fallback] live-drivers poll failed: ${err?.status ?? err}`,
             'fallback-poll-failed',
@@ -649,6 +747,16 @@ export class SocketService {
     } catch (err: any) {
       console.error(`[${label}] Parse error:`, err?.message ?? err);
     }
+  }
+
+  private warnOnce(message: string, key: string): void {
+    const now = Date.now();
+    const previous = this.logTimestamps.get(key) ?? 0;
+    if (now - previous < this.logThrottleMs) {
+      return;
+    }
+    this.logTimestamps.set(key, now);
+    console.warn(message);
   }
 
   private upsertFromPayload(
@@ -743,15 +851,5 @@ export class SocketService {
     }
     const path = window.location.pathname || '';
     return path === '/login' || path.startsWith('/tracking');
-  }
-
-  private warnOnce(message: string, key: string): void {
-    const now = Date.now();
-    const last = this.logTimestamps.get(key) ?? 0;
-    if (now - last < this.logThrottleMs) {
-      return;
-    }
-    this.logTimestamps.set(key, now);
-    console.warn(message);
   }
 }

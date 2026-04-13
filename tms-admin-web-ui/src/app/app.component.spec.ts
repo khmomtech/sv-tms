@@ -1,10 +1,11 @@
 import { TestBed } from '@angular/core/testing';
 import { NavigationEnd, Router } from '@angular/router';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, of } from 'rxjs';
 
 import { AppComponent } from './app.component';
 import { AuthService } from './services/auth.service';
 import { ConnectionMonitorService } from './services/connection-monitor.service';
+import { PermissionGuardService } from './services/permission-guard.service';
 import { SocketService } from './services/socket.service';
 
 describe('AppComponent', () => {
@@ -25,6 +26,9 @@ describe('AppComponent', () => {
     setStatus: jasmine.createSpy('setStatus'),
   };
   const authService = jasmine.createSpyObj('AuthService', ['isAuthenticated', 'logout']);
+  const permissionGuardService = jasmine.createSpyObj('PermissionGuardService', [
+    'loadEffectivePermissions',
+  ]);
 
   beforeEach(() => {
     socketService.connect.calls.reset();
@@ -32,6 +36,8 @@ describe('AppComponent', () => {
     socketService.disconnect.calls.reset();
     authService.isAuthenticated.calls.reset();
     authService.logout.calls.reset();
+    permissionGuardService.loadEffectivePermissions.calls.reset();
+    permissionGuardService.loadEffectivePermissions.and.returnValue(of(void 0));
     routerStub.url = '/login';
 
     TestBed.configureTestingModule({
@@ -40,6 +46,7 @@ describe('AppComponent', () => {
         { provide: SocketService, useValue: socketService },
         { provide: ConnectionMonitorService, useValue: connectionMonitor },
         { provide: AuthService, useValue: authService },
+        { provide: PermissionGuardService, useValue: permissionGuardService },
       ],
     });
   });
@@ -67,7 +74,7 @@ describe('AppComponent', () => {
     component.ngOnDestroy();
   });
 
-  it('connects websocket on protected route when authenticated', () => {
+  it('connects websocket and hydrates permissions on protected route when authenticated', () => {
     routerStub.url = '/dashboard';
     authService.isAuthenticated.and.returnValue(true);
 
@@ -75,6 +82,7 @@ describe('AppComponent', () => {
     component.ngOnInit();
 
     expect(socketService.connect).toHaveBeenCalledWith([], 'app-root');
+    expect(permissionGuardService.loadEffectivePermissions).toHaveBeenCalled();
     component.ngOnDestroy();
   });
 

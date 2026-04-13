@@ -50,7 +50,7 @@ describe('SocketService', () => {
   it('skips connect when token is missing', () => {
     authService.getToken.and.returnValue(null);
 
-    service.connect([], 'test');
+    service.connect(['101'], 'test');
 
     expect(connectionMonitor.setStatus).toHaveBeenCalledWith('disconnected');
   });
@@ -61,7 +61,7 @@ describe('SocketService', () => {
     authService.isTokenExpired.and.returnValue(false);
     spyOn<any>(service, 'isPublicRoute').and.returnValue(true);
 
-    service.connect([], 'test');
+    service.connect(['101'], 'test');
 
     expect(connectionMonitor.setStatus).toHaveBeenCalledWith('disconnected');
   });
@@ -73,10 +73,33 @@ describe('SocketService', () => {
     authService.refreshToken.and.returnValue(Promise.resolve(null));
     spyOn<any>(service, 'isPublicRoute').and.returnValue(false);
 
-    service.connect([], 'test');
+    service.connect(['101'], 'test');
     tick();
 
     expect(authService.refreshToken).toHaveBeenCalledTimes(1);
     expect(connectionMonitor.setStatus).toHaveBeenCalledWith('disconnected');
   }));
+
+  it('marks connection monitor disconnected when websocket is open but realtime events are stale', () => {
+    (service as any).isConnected = true;
+    (service as any).contextDriverIds.set('driver-map', new Set(['101']));
+    (service as any).lastRealtimeEventMs = Date.now() - 45_000;
+    connectionMonitor.setStatus.calls.reset();
+
+    (service as any).refreshConnectionHealth();
+
+    expect((service as any).realtimeStateSubject.value).toBe('DISCONNECTED');
+    expect(connectionMonitor.setStatus).toHaveBeenCalledWith('disconnected');
+  });
+
+  it('marks degraded fallback data as connection-monitor error', () => {
+    connectionMonitor.setStatus.calls.reset();
+
+    (service as any).processHealthMessage({
+      body: JSON.stringify({ status: 'degraded' }),
+    });
+
+    expect((service as any).realtimeStateSubject.value).toBe('DEGRADED');
+    expect(connectionMonitor.setStatus).toHaveBeenCalledWith('error');
+  });
 });
