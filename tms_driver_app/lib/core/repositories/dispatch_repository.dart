@@ -27,6 +27,7 @@ class DispatchRepository extends BaseRepository {
     'DRIVER_CONFIRMED',
     'APPROVED',
     'ARRIVED_LOADING',
+    'SAFETY_FAILED',
     'IN_QUEUE',
     'LOADING',
     'LOADED',
@@ -47,7 +48,6 @@ class DispatchRepository extends BaseRepository {
     'COMPLETED',
     'CANCELLED',
     'REJECTED',
-    'SAFETY_FAILED',
   };
 
   Future<List<Map<String, dynamic>>> _fetchAllDispatchPages(
@@ -69,13 +69,18 @@ class DispatchRepository extends BaseRepository {
         'size': _defaultPageSize,
       };
 
-      final response =
-          await dio.get(ApiConstants.endpoint(path).toString(), queryParameters: qp);
+      final response = await dio.get(
+        ApiConstants.endpoint(path).toString(),
+        queryParameters: qp,
+        options: Options(responseType: ResponseType.plain),
+      );
+
+      final responseData = _decodeResponseBody(response.data);
       if (response.statusCode != 200 || response.data == null) {
         break;
       }
 
-      final dispatches = _extractDispatches(response.data);
+      final dispatches = _extractDispatches(responseData);
       for (final dispatch in dispatches) {
         final idCandidate = dispatch['id'] ??
             dispatch['dispatchId'] ??
@@ -87,15 +92,17 @@ class DispatchRepository extends BaseRepository {
         }
       }
 
-      final payload = (response.data is Map && response.data['data'] is Map)
-          ? response.data['data'] as Map
-          : (response.data is Map ? response.data as Map : null);
+      final Map<dynamic, dynamic>? payload =
+          (responseData is Map && responseData['data'] is Map)
+              ? responseData['data']
+              : (responseData is Map ? responseData : null);
 
       if (payload != null) {
         final tp = payload['totalPages'];
         if (tp is num) {
           totalPages = tp.toInt().clamp(1, _maxPageFetches);
-        } else if (payload['last'] == true || dispatches.length < _defaultPageSize) {
+        } else if (payload['last'] == true ||
+            dispatches.length < _defaultPageSize) {
           totalPages = page + 1;
         }
       } else {
@@ -106,6 +113,29 @@ class DispatchRepository extends BaseRepository {
     }
 
     return all;
+  }
+
+  dynamic _decodeResponseBody(dynamic data) {
+    if (data is! String) {
+      return data;
+    }
+
+    final body = data.trim();
+    if (body.isEmpty) {
+      return null;
+    }
+
+    final first = body[0];
+    final looksLikeJson = first == '{' || first == '[';
+    if (!looksLikeJson) {
+      return data;
+    }
+
+    try {
+      return jsonDecode(body);
+    } on FormatException {
+      return data;
+    }
   }
 
   /// Fetch processing (not completed/cancelled) dispatches
@@ -146,10 +176,18 @@ class DispatchRepository extends BaseRepository {
   Future<List<Map<String, dynamic>>> getMyPendingDispatches() async {
     return executeWithRetry(
       () async {
-        var dispatches = await _fetchAllDispatchPages(
-          '/driver/dispatches/me/pending',
-          queryParameters: {'sort': 'startTime,DESC'},
-        );
+        List<Map<String, dynamic>> dispatches;
+        try {
+          dispatches = await _fetchAllDispatchPages(
+            '/driver/dispatches/me/pending',
+            queryParameters: {'sort': 'startTime,DESC'},
+          );
+        } catch (e) {
+          if (!_shouldFallbackToLegacyDispatchLookup(e)) rethrow;
+          dispatches = await _fallbackDispatchesFromDriverId(
+            statusFilter: _pendingStatusSet,
+          );
+        }
         if (dispatches.isEmpty) {
           dispatches = await _fallbackDispatchesFromDriverId(
             statusFilter: _pendingStatusSet,
@@ -168,10 +206,19 @@ class DispatchRepository extends BaseRepository {
   Future<List<Map<String, dynamic>>> getMyInProgressDispatches() async {
     return executeWithRetry(
       () async {
-        var dispatches = await _fetchAllDispatchPages(
-          '/driver/dispatches/me/in-progress',
-          queryParameters: {'sort': 'startTime,DESC'},
-        );
+        List<Map<String, dynamic>> dispatches;
+        try {
+          dispatches = await _fetchAllDispatchPages(
+            '/driver/dispatches/me/in-progress',
+            queryParameters: {'sort': 'startTime,DESC'},
+          );
+        } catch (e) {
+          if (!_shouldFallbackToLegacyDispatchLookup(e)) rethrow;
+          dispatches = await _fallbackDispatchesFromDriverId(
+            pathSuffix: '/processing',
+            statusFilter: _inProgressStatusSet,
+          );
+        }
         if (dispatches.isEmpty) {
           dispatches = await _fallbackDispatchesFromDriverId(
             pathSuffix: '/processing',
@@ -232,6 +279,26 @@ class DispatchRepository extends BaseRepository {
       final status = (dispatch['status'] ?? '').toString().toUpperCase().trim();
       return statusFilter.contains(status);
     }).toList();
+  }
+
+  bool _shouldFallbackToLegacyDispatchLookup(Object error) {
+    if (error is DioException) {
+      final statusCode = error.response?.statusCode;
+      if (statusCode == 502 || statusCode == 503 || statusCode == 504) {
+        return true;
+      }
+      if (error.type == DioExceptionType.connectionError ||
+          error.type == DioExceptionType.connectionTimeout ||
+          error.type == DioExceptionType.receiveTimeout) {
+        return true;
+      }
+    }
+    final text = error.toString().toLowerCase();
+    return text.contains('504') ||
+        text.contains('gateway') ||
+        text.contains('driver-app-api:8084') ||
+        text.contains('connection refused') ||
+        text.contains('timed out');
   }
 
   /// Extract dispatch list from paginated response

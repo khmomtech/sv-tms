@@ -88,7 +88,12 @@ Future<void> _bootstrapNativeConfigOnAppLoad() async {
     }
     if (wsPref.isNotEmpty) {
       final normalized = _deriveWsFromBase(wsPref);
-      wsUrl = _appendWsToken(normalized, wsAuthToken);
+      if (normalized.isNotEmpty) {
+        wsUrl = _appendWsToken(normalized, wsAuthToken);
+      } else {
+        wsUrl = await ApiConstants.getDriverLocationWebSocketUrlWithToken(
+            wsAuthToken);
+      }
     } else {
       wsUrl = await ApiConstants.getDriverLocationWebSocketUrlWithToken(
           wsAuthToken);
@@ -120,16 +125,37 @@ Future<void> _bootstrapNativeConfigOnAppLoad() async {
 
 String _deriveWsFromBase(String base) {
   if (base.isEmpty) return '';
-  var b = base.trim();
-  if (b.endsWith('/')) b = b.substring(0, b.length - 1);
-  if (b.startsWith('https://')) {
-    return '${b.replaceFirst('https://', 'wss://')}/ws';
+  final trimmed = base.trim();
+  final candidate = trimmed.contains('://') ? trimmed : 'https://$trimmed';
+  try {
+    final uri = Uri.parse(candidate);
+    if (uri.host.isEmpty || uri.port == 0) return '';
+
+    final isWs = uri.scheme == 'ws' || uri.scheme == 'wss';
+    final scheme = uri.scheme == 'https'
+        ? 'wss'
+        : uri.scheme == 'http'
+            ? 'ws'
+            : uri.scheme;
+    if (!(scheme == 'ws' || scheme == 'wss')) return '';
+
+    var path = uri.path.trim();
+    if (path.isEmpty || path == '/') {
+      path = '/ws';
+    } else if (!path.endsWith('/ws') && path != '/ws') {
+      path = '$path/ws';
+    }
+
+    final normalized = uri.replace(
+      scheme: isWs ? uri.scheme : scheme,
+      path: path,
+      query: '',
+      fragment: '',
+    );
+    return normalized.toString();
+  } catch (_) {
+    return '';
   }
-  if (b.startsWith('http://')) {
-    return '${b.replaceFirst('http://', 'ws://')}/ws';
-  }
-  if (b.startsWith('wss://') || b.startsWith('ws://')) return b; // already WS
-  return 'ws://$b/ws';
 }
 
 String _appendWsToken(String base, String token) {
@@ -359,40 +385,7 @@ Future<void> main() async {
     await setupServiceLocator();
     debugPrint('[Main] Service locator initialized');
 
-    await ApiConstants.init();
-    ApiConstants.setTokenUpdateListener((token) async {
-      if (token.trim().isEmpty) return;
-      final refreshToken = await ApiConstants.getRefreshToken();
-      final trackingToken = await ApiConstants.getTrackingToken();
-      final trackingSessionId = await ApiConstants.getTrackingSessionId();
-      await NativeServiceBridge.notifyTokenUpdated(
-        token: token,
-        trackingToken: trackingToken,
-        trackingSessionId: trackingSessionId,
-        refreshToken: refreshToken,
-      );
-    });
-    await NotificationHelper.initialize();
-
-    // Initialize security services
-    SecurityConfig.validateConfig();
-    SecurityConfig.printConfig();
-
-    // Start automatic token refresh monitoring
-    final isLoggedIn = await ApiConstants.isLoggedIn();
-    if (isLoggedIn) {
-      await TokenRefreshManager().startAutoRefresh();
-      await TrackingSessionManager.instance.ensureTrackingSession();
-      debugPrint('[Main] Token refresh manager started');
-    }
-
     FirebaseMessaging.onBackgroundMessage(_firebaseBackgroundHandler);
-    await FirebaseMessaging.instance
-        .setForegroundNotificationPresentationOptions(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
 
     _appRouteChannel.setMethodCallHandler((call) async {
       if (call.method == 'openRoute') {
@@ -406,6 +399,8 @@ Future<void> main() async {
       handleNotificationNavigation(
           data, navigatorKey.currentState?.overlay?.context);
     });
+
+    await _runStartupWarmup();
 
     runApp(
       EasyLocalization(
@@ -466,6 +461,47 @@ Future<void> main() async {
   }, (error, stack) {
     debugPrint('Uncaught zone error: $error\n$stack');
   });
+}
+
+Future<void> _runStartupWarmup() async {
+  try {
+    await ApiConstants.init();
+    ApiConstants.setTokenUpdateListener((token) async {
+      if (token.trim().isEmpty) return;
+      final refreshToken = await ApiConstants.getRefreshToken();
+      final trackingToken = await ApiConstants.getTrackingToken();
+      final trackingSessionId = await ApiConstants.getTrackingSessionId();
+      await NativeServiceBridge.notifyTokenUpdated(
+        token: token,
+        trackingToken: trackingToken,
+        trackingSessionId: trackingSessionId,
+        refreshToken: refreshToken,
+      );
+    });
+
+    await NotificationHelper.initialize().timeout(const Duration(seconds: 8));
+
+    SecurityConfig.validateConfig();
+    SecurityConfig.printConfig();
+
+    await FirebaseMessaging.instance
+        .setForegroundNotificationPresentationOptions(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    final isLoggedIn = await ApiConstants.isLoggedIn();
+    if (isLoggedIn) {
+      await TokenRefreshManager().startAutoRefresh();
+      await TrackingSessionManager.instance
+          .ensureTrackingSession()
+          .timeout(const Duration(seconds: 15));
+      debugPrint('[Main] Token refresh manager started');
+    }
+  } catch (e, stack) {
+    debugPrint('[Main] Startup warmup failed: $e\n$stack');
+  }
 }
 
 @pragma('vm:entry-point')

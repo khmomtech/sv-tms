@@ -125,7 +125,9 @@ class DispatchProvider with ChangeNotifier {
 
   // Cache for available actions with TTL
   final Map<String, _CachedActions> _availableActionsCache = {};
+  final Map<String, _PendingDispatchMutation> _pendingMutations = {};
   static const Duration _availableActionsTTL = Duration(seconds: 30);
+  static const Duration _pendingMutationTTL = Duration(seconds: 20);
   DispatchActionsResponse? _lastActionsResponse;
   String? _lastActionsDispatchId;
 
@@ -448,14 +450,15 @@ class DispatchProvider with ChangeNotifier {
       );
 
       if (res.success) {
-        return _unwrapMapPayload(res.data);
+        final server = _unwrapMapPayload(res.data);
+        return _mergeDispatchWithOptimisticState(dispatchId, server);
       } else {
         _log('Failed to fetch dispatch by ID: ${res.statusCode}');
-        return null;
+        return _mergeDispatchWithOptimisticState(dispatchId, null);
       }
     } catch (e) {
       _log('Error fetching dispatch by ID: $e');
-      return null;
+      return _mergeDispatchWithOptimisticState(dispatchId, null);
     }
   }
 
@@ -485,6 +488,17 @@ class DispatchProvider with ChangeNotifier {
         final data = _unwrapMapPayload(res.data);
         if (data != null) {
           final response = DispatchActionsResponse.fromJson(data);
+          final optimistic = _getPendingMutation(dispatchId);
+          if (optimistic != null &&
+              _isServerStatusOlder(
+                optimistic.status,
+                response.currentStatus,
+              )) {
+            _log(
+                'Ignoring stale available-actions response for $dispatchId '
+                '(server=${response.currentStatus}, optimistic=${optimistic.status})');
+            return null;
+          }
           // Cache the result
           _availableActionsCache[dispatchId] =
               _CachedActions(response: response, cachedAt: DateTime.now());
@@ -556,7 +570,7 @@ class DispatchProvider with ChangeNotifier {
           await patchDispatchStatusRequest(dispatchId, payload);
 
       if (res.success) {
-        final updated = _castResponsePayload(res.data?['data']);
+        final updated = _extractDispatchFromMutationResponse(res.data);
         if (updated != null) {
           _replaceDispatchData(updated);
         } else {
@@ -586,7 +600,7 @@ class DispatchProvider with ChangeNotifier {
       );
 
       if (res.success) {
-        final updated = _castResponsePayload(res.data?['data']);
+        final updated = _extractDispatchFromMutationResponse(res.data);
         if (updated != null) {
           _replaceDispatchData(updated);
         } else {
@@ -617,7 +631,7 @@ class DispatchProvider with ChangeNotifier {
       );
 
       if (res.success) {
-        final updated = _castResponsePayload(res.data?['data']);
+        final updated = _extractDispatchFromMutationResponse(res.data);
         if (updated != null) {
           _replaceDispatchData(updated);
         } else {
@@ -663,7 +677,7 @@ class DispatchProvider with ChangeNotifier {
       );
 
       if (res.success) {
-        final updated = _castResponsePayload(res.data?['data']);
+        final updated = _extractDispatchFromMutationResponse(res.data);
         if (updated != null) {
           _replaceDispatchData(updated);
         } else {
@@ -688,17 +702,49 @@ class DispatchProvider with ChangeNotifier {
     return null;
   }
 
+  Map<String, dynamic>? _extractDispatchFromMutationResponse(dynamic payload) {
+    final body = _castResponsePayload(payload);
+    if (body == null) return null;
+
+    final data = _castResponsePayload(body['data']) ?? body;
+    final nestedDispatch = _castResponsePayload(data['dispatch']);
+    final dispatch = nestedDispatch != null
+        ? Map<String, dynamic>.from(nestedDispatch)
+        : Map<String, dynamic>.from(data);
+
+    final dispatchId = data['dispatchId'] ?? body['dispatchId'];
+    if (!dispatch.containsKey('id') && dispatchId != null) {
+      dispatch['id'] = dispatchId;
+    }
+
+    final currentStatus = data['currentStatus'] ?? body['currentStatus'];
+    if (!dispatch.containsKey('status') && currentStatus != null) {
+      dispatch['status'] = currentStatus.toString();
+    }
+
+    return _dispatchIdFromMap(dispatch) == null ? null : dispatch;
+  }
+
   void _replaceDispatchData(Map<String, dynamic> updated) {
     final updatedId = _dispatchIdFromMap(updated);
     if (updatedId == null) return;
+    final merged = _mergeDispatchWithOptimisticState(updatedId, updated) ?? updated;
 
     final index = _dispatches
         .indexWhere((dispatch) => _dispatchIdFromMap(dispatch) == updatedId);
 
     if (index >= 0) {
-      _dispatches[index] = updated;
+      _dispatches[index] = merged;
     } else {
-      _dispatches.add(updated);
+      _dispatches.add(merged);
+    }
+
+    final confirmedStatus = (merged['status'] ?? '').toString().trim();
+    final optimistic = _pendingMutations[updatedId];
+    if (optimistic != null &&
+        confirmedStatus.isNotEmpty &&
+        !_isServerStatusOlder(optimistic.status, confirmedStatus)) {
+      _pendingMutations.remove(updatedId);
     }
 
     _categorizeDispatches(rebuildCaches: _cacheDriverId != null);
@@ -706,9 +752,17 @@ class DispatchProvider with ChangeNotifier {
   }
 
   void _applyStatusLocally(String dispatchId, String newStatus) {
+    _pendingMutations[dispatchId] = _PendingDispatchMutation(
+      status: newStatus,
+      expiresAt: DateTime.now().add(_pendingMutationTTL),
+    );
+
     final index = _dispatches
         .indexWhere((dispatch) => _dispatchIdFromMap(dispatch) == dispatchId);
-    if (index < 0) return;
+    if (index < 0) {
+      notifyListeners();
+      return;
+    }
 
     final updated = Map<String, dynamic>.from(_dispatches[index]);
     updated['status'] = newStatus;
@@ -1135,6 +1189,114 @@ class DispatchProvider with ChangeNotifier {
   void clearAvailableActionsCache(String dispatchId) {
     _availableActionsCache.remove(dispatchId);
   }
+
+  _PendingDispatchMutation? _getPendingMutation(String dispatchId) {
+    final pending = _pendingMutations[dispatchId];
+    if (pending == null) return null;
+    if (pending.isExpired) {
+      _pendingMutations.remove(dispatchId);
+      return null;
+    }
+    return pending;
+  }
+
+  Map<String, dynamic>? _mergeDispatchWithOptimisticState(
+    String dispatchId,
+    Map<String, dynamic>? serverDispatch,
+  ) {
+    final optimistic = _getPendingMutation(dispatchId);
+    if (optimistic == null) {
+      return serverDispatch ?? _findLocalDispatch(dispatchId);
+    }
+
+    final local = _findLocalDispatch(dispatchId);
+    final base = serverDispatch != null
+        ? Map<String, dynamic>.from(serverDispatch)
+        : (local != null ? Map<String, dynamic>.from(local) : <String, dynamic>{'id': dispatchId});
+
+    final serverStatus = (base['status'] ?? '').toString().trim();
+    if (serverStatus.isEmpty || _isServerStatusOlder(optimistic.status, serverStatus)) {
+      base['status'] = optimistic.status;
+    } else {
+      _pendingMutations.remove(dispatchId);
+    }
+    return base;
+  }
+
+  Map<String, dynamic>? _findLocalDispatch(String dispatchId) {
+    for (final dispatch in _dispatches) {
+      if (_dispatchIdFromMap(dispatch) == dispatchId) {
+        return Map<String, dynamic>.from(dispatch);
+      }
+    }
+    return null;
+  }
+
+  bool _isServerStatusOlder(String optimisticStatus, String serverStatus) {
+    final optimisticRank = _statusRank(optimisticStatus);
+    final serverRank = _statusRank(serverStatus);
+    if (optimisticRank == null || serverRank == null) {
+      return false;
+    }
+    return serverRank < optimisticRank;
+  }
+
+  int? _statusRank(String status) {
+    switch (status.toUpperCase().trim()) {
+      case DispatchStatus.planned:
+        return 0;
+      case DispatchStatus.pending:
+        return 1;
+      case DispatchStatus.scheduled:
+        return 2;
+      case DispatchStatus.assigned:
+        return 3;
+      case DispatchStatus.driverConfirmed:
+        return 4;
+      case DispatchStatus.arrivedLoading:
+        return 5;
+      case DispatchStatus.safetyFailed:
+        return 6;
+      case DispatchStatus.safetyPassed:
+      case DispatchStatus.approved:
+      case DispatchStatus.inQueue:
+        return 7;
+      case DispatchStatus.loading:
+        return 8;
+      case DispatchStatus.loaded:
+        return 9;
+      case DispatchStatus.atHub:
+        return 10;
+      case DispatchStatus.hubLoading:
+        return 11;
+      case DispatchStatus.inTransit:
+        return 12;
+      case DispatchStatus.inTransitBreakdown:
+        return 13;
+      case DispatchStatus.pendingInvestigation:
+        return 14;
+      case DispatchStatus.arrivedUnloading:
+        return 15;
+      case DispatchStatus.unloading:
+        return 16;
+      case DispatchStatus.unloaded:
+        return 17;
+      case DispatchStatus.delivered:
+        return 18;
+      case DispatchStatus.financialLocked:
+        return 19;
+      case DispatchStatus.closed:
+        return 20;
+      case DispatchStatus.completed:
+        return 21;
+      case DispatchStatus.cancelled:
+        return 22;
+      case DispatchStatus.rejected:
+        return 23;
+      default:
+        return null;
+    }
+  }
 }
 
 /// Helper class for caching available actions with TTL
@@ -1148,4 +1310,16 @@ class _CachedActions {
   bool get isValid =>
       DateTime.now().difference(cachedAt) <
       DispatchProvider._availableActionsTTL;
+}
+
+class _PendingDispatchMutation {
+  final String status;
+  final DateTime expiresAt;
+
+  _PendingDispatchMutation({
+    required this.status,
+    required this.expiresAt,
+  });
+
+  bool get isExpired => DateTime.now().isAfter(expiresAt);
 }

@@ -418,6 +418,8 @@ class ApiConstants {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_kAccess, accessToken);
     await prefs.setString(_kRefresh, refreshToken);
+    _cachedAccessToken = accessToken;
+    _cachedAccessTs = DateTime.now();
     debugPrint(
         '[ApiConstants] saveTokens: saved to both secure storage and SharedPreferences');
 
@@ -434,6 +436,8 @@ class ApiConstants {
   static Future<void> clearTokens() async {
     _lastRefreshSuccessAt = null;
     _refreshBlockedUntil = null;
+    _cachedAccessToken = null;
+    _cachedAccessTs = null;
     await _secure?.delete(key: _kAccess);
     await _secure?.delete(key: _kRefresh);
     await _secure?.delete(key: _kTrackingToken);
@@ -575,7 +579,11 @@ class ApiConstants {
       return null;
     }
     if (await isTokenExpired()) {
-      return await refreshAccessToken();
+      final refreshed = await refreshAccessToken();
+      if (refreshed != null && refreshed.isNotEmpty) {
+        return refreshed;
+      }
+      return null;
     }
     return accessToken;
   }
@@ -632,11 +640,7 @@ class ApiConstants {
           completer.complete(null);
           return null;
         }
-        // Corrupted session: access exists but no refresh -> force re-auth.
-        debugPrint('[Auth] Refresh token missing while access token exists.');
-        SessionManager.instance.markAuthInvalid(
-          reason: 'refresh_token_missing_with_access_present',
-        );
+        await _invalidateAuthSession('refresh_token_missing');
         completer.complete(null);
         return null;
       }
@@ -657,29 +661,24 @@ class ApiConstants {
       }
 
       debugPrint('[Auth] Refresh failed: ${res.statusCode} ${res.body}');
-      // If backend indicates revoked/invalid, clear tokens and trigger forced logout.
-      if (res.statusCode == 401 ||
-          res.statusCode == 403 ||
-          res.body.contains('invalid') ||
-          res.body.contains('revoked')) {
-        await clearTokens();
-        _refreshBlockedUntil = DateTime.now().add(_refreshBlockDuration);
-        // Also clear user to avoid stale state
-        await clearUser();
-        // Notify session manager to navigate to login
-        SessionManager.instance.markAuthInvalid(
-          reason: 'refresh_token_invalid_or_revoked',
-        );
-      }
+      await _invalidateAuthSession('refresh_failed_${res.statusCode}');
       completer.complete(null);
       return null;
     } catch (e, st) {
       debugPrint('[Auth] Refresh exception: $e\n$st');
+      await _invalidateAuthSession('refresh_exception');
       completer.complete(null);
       return null;
     } finally {
       _refreshInFlight = null;
     }
+  }
+
+  static Future<void> _invalidateAuthSession(String reason) async {
+    await clearTokens();
+    await clearUser();
+    _refreshBlockedUntil = DateTime.now().add(_refreshBlockDuration);
+    SessionManager.instance.markAuthInvalid(reason: reason);
   }
 
   static Future<String?> refreshTrackingToken() async {
@@ -819,7 +818,7 @@ class ApiConstants {
   // ===========================================================================
   static const String _loginPath = '/auth/driver/login';
   static const String _deliveriesPath = '/driver/deliveries';
-  static const String _updateLocationPath = '/driver/location/update';
+  static const String _updateLocationPath = '/driver/location';
 
   // 🚛 Driver endpoints map
   static const Map<String, String> driverEndpoints = {
@@ -827,7 +826,7 @@ class ApiConstants {
     'assigned-vehicles': '/driver/assigned-vehicles',
     'current-assignment': '/driver/current-assignment',
     'assign-vehicle': '/driver/assign-vehicle',
-    'update-location': '/driver/location/update',
+    'update-location': '/driver/location',
     'go-online': '/driver/go-online',
     'go-offline': '/driver/go-offline',
   };
@@ -865,8 +864,7 @@ class ApiConstants {
   static Uri get deliveries => Uri.parse('$_baseUrl$_deliveriesPath');
   static Uri get updateLocation => Uri.parse('$_baseUrl$_updateLocationPath');
 
-  static const String _updateLocationBatchPath =
-      '/driver/location/update/batch';
+  static const String _updateLocationBatchPath = '/driver/location/batch';
   static Uri get updateLocationBatch =>
       Uri.parse('$_baseUrl$_updateLocationBatchPath');
   static Uri endpoint(String path) => Uri.parse('$_baseUrl$path');
