@@ -19,6 +19,7 @@ const ENDPOINTS = {
     list: '/api/admin/drivers/list',
     search: '/api/admin/drivers/search',
     getById: (id: number | string) => `/api/admin/drivers/${id}`,
+    latestLocation: (id: number | string) => `/api/admin/drivers/${id}/latest-location`,
     create: '/api/admin/drivers/add',
     update: (id: number | string) => `/api/admin/drivers/update/${id}`,
     delete: (id: number | string) => `/api/admin/drivers/delete/${id}`,
@@ -72,6 +73,18 @@ interface Driver {
     username: string;
     roles: string[];
   };
+}
+
+interface LiveDriverLocation {
+  driverId: number;
+  latitude: number;
+  longitude: number;
+  locationName?: string | null;
+  geocodeStatus?: 'resolved' | 'pending' | 'failed' | string | null;
+  isOnline?: boolean;
+  lastSeenEpochMs?: number;
+  lastSeenSeconds?: number;
+  ingestLagSeconds?: number;
 }
 
 interface Vehicle {
@@ -208,6 +221,54 @@ test.describe('API Contract Tests', () => {
       expect(result.data.lastName).toBeTruthy();
       expect(result.data.phone).toBeTruthy();
       expect(result.data.user).toBeDefined();
+    });
+
+    test('GET /admin/drivers/:id/latest-location should preserve live location contract', async ({ request }) => {
+      const listResponse = await request.get(buildUrl(ENDPOINTS.drivers.list), {
+        params: { page: '0', size: '1' },
+        headers: createAuthHeaders(authToken),
+      });
+
+      expect(listResponse.ok()).toBeTruthy();
+      const listResult: ApiResponse<PaginatedResponse<Driver>> = await listResponse.json();
+      expect(listResult.success).toBe(true);
+      expect(listResult.data.content.length).toBeGreaterThan(0);
+
+      const driverId = listResult.data.content[0].id;
+      const response = await request.get(buildUrl(ENDPOINTS.drivers.latestLocation(driverId)), {
+        headers: createAuthHeaders(authToken),
+      });
+
+      expect(response.ok()).toBeTruthy();
+      const result: ApiResponse<LiveDriverLocation | null> = await response.json();
+
+      expect(result.success).toBe(true);
+
+      if (result.data !== null) {
+        expect(result.data.driverId).toBe(driverId);
+        expect(typeof result.data.latitude).toBe('number');
+        expect(typeof result.data.longitude).toBe('number');
+
+        if (result.data.locationName != null) {
+          expect(typeof result.data.locationName).toBe('string');
+        }
+
+        if (result.data.geocodeStatus != null) {
+          expect(['resolved', 'pending', 'failed']).toContain(result.data.geocodeStatus);
+        }
+
+        if (result.data.lastSeenEpochMs != null) {
+          expect(typeof result.data.lastSeenEpochMs).toBe('number');
+        }
+
+        if (result.data.lastSeenSeconds != null) {
+          expect(typeof result.data.lastSeenSeconds).toBe('number');
+        }
+
+        if (result.data.ingestLagSeconds != null) {
+          expect(typeof result.data.ingestLagSeconds).toBe('number');
+        }
+      }
     });
 
     test('POST /admin/drivers should create driver with correct structure', async ({ request }) => {

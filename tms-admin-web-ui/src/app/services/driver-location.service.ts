@@ -24,6 +24,7 @@ export interface LiveDriverDto {
   driverId: number;
   driverName?: string;
   locationName?: string;
+  geocodeStatus?: 'resolved' | 'pending' | 'failed' | string;
 
   // Coordinates: support both pairs
   latitude?: number;
@@ -194,7 +195,7 @@ export class DriverLocationService implements OnDestroy {
 
   /**
    * REST: Live map endpoint with optional bbox + ONLINE window
-   * GET /api/admin/live-drivers?onlyONLINE=true&south=...&west=...&north=...&east=...&ONLINESeconds=120
+   * GET /api/admin/drivers/live-drivers?onlyOnline=true&south=...&west=...&north=...&east=...&onlineSeconds=120
    */
   getLiveDrivers(
     params: {
@@ -253,7 +254,7 @@ export class DriverLocationService implements OnDestroy {
     if (from) params = params.set('from', from);
     if (to) params = params.set('to', to);
     return this.http.get<HistoryPoint[]>(
-      `${environment.baseUrl}/api/admin/telematics/driver/${driverId}/history`,
+      `${environment.baseUrl}/api/admin/drivers/${driverId}/history`,
       { headers: this.authHeaders(), params },
     );
   }
@@ -291,8 +292,8 @@ export class DriverLocationService implements OnDestroy {
     }
 
     // build URLs
-    const wsUrl = `${environment.wsSocketUrl}?token=${encodeURIComponent(token)}`;
-    const sockJsUrl = `${environment.sockJsUrl}?token=${encodeURIComponent(token)}`;
+    const wsUrl = `${environment.telematicsWsSocketUrl}?token=${encodeURIComponent(token)}`;
+    const sockJsUrl = `${environment.telematicsSockJsUrl}?token=${encodeURIComponent(token)}`;
 
     // instantiate
     this.stompClient = new Client({
@@ -334,7 +335,7 @@ export class DriverLocationService implements OnDestroy {
 
       onStompError: async (frame) => {
         console.error('💥 STOMP error:', frame);
-        const msg = (frame && (frame.headers?.message || frame.body)) || '';
+        const msg = (frame && (frame.headers?.['message'] || frame.body)) || '';
         const isAuthFailure = /401|403|unauth|expired|invalid|revoked/i.test(String(msg));
         if (isAuthFailure) {
           this.authFailureCount++;

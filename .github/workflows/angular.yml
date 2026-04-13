@@ -1,14 +1,11 @@
 name: Frontend CI
 
+# NOTE: This legacy workflow previously targeted the deprecated `tms-frontend` app.
+# The authoritative frontend pipeline now lives in `ci-cd.yml` and targets
+# `tms-admin-web-ui`. Kept for manual reference only.
+
 on:
-  push:
-    branches: [ main, develop ]
-    paths: [ 'tms-frontend/**' ]
-  pull_request:
-    paths: [ 'tms-frontend/**' ]
-  workflow_call:
-    inputs: {}
-    secrets: {}
+  workflow_dispatch:
 
 jobs:
   build:
@@ -18,20 +15,20 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'npm'
-          cache-dependency-path: tms-frontend/package-lock.json
+          cache-dependency-path: tms-admin-web-ui/package-lock.json
       - name: Install dependencies
         run: |
-          cd tms-frontend
+          cd tms-admin-web-ui
           npm ci
       - name: Lint and Build
         run: |
-          cd tms-frontend
+          cd tms-admin-web-ui
           npm run lint
           npm run build -- --configuration production
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: angular-build
-          path: tms-frontend/dist/
+          path: tms-admin-web-ui/dist/

@@ -132,8 +132,48 @@ jobs:
       - name: Unit tests (ChromeHeadless + coverage)
         run: npm run test -- --watch=false --browsers=ChromeHeadless --code-coverage
 
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Start Angular dev server
+        run: |
+          npm start > /tmp/tms-admin-web-ui.log 2>&1 &
+          echo $! > /tmp/tms-admin-web-ui.pid
+
+      - name: Wait for Angular dev server
+        run: |
+          for i in {1..60}; do
+            if curl -sf http://127.0.0.1:4200 > /dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Angular dev server did not become ready in time"
+          tail -200 /tmp/tms-admin-web-ui.log || true
+          exit 1
+
+      - name: Live map address regression (Playwright)
+        run: npx playwright test e2e/live-map-address-state.spec.ts --project=chromium
+
       - name: Production build
         run: npm run build -- --configuration production
+
+      - name: Upload Playwright artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tms-admin-web-ui-playwright-artifacts
+          path: |
+            tms-admin-web-ui/test-results/
+            tms-admin-web-ui/playwright-report/
+          retention-days: 7
+
+      - name: Stop Angular dev server
+        if: always()
+        run: |
+          if [ -f /tmp/tms-admin-web-ui.pid ]; then
+            kill "$(cat /tmp/tms-admin-web-ui.pid)" || true
+          fi
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4

@@ -62,6 +62,8 @@ For most local testing, you do not need the full stack in Docker.
   - `api-gateway`
   - `angular`
 
+The `angular` container is now opt-in behind the Compose `frontend` profile so backend restarts stay stable by default.
+
 Start the minimum Docker set:
 
 ```bash
@@ -74,6 +76,13 @@ Start the full Docker set:
 ```bash
 cd /Users/sotheakh/Documents/develop/sv-tms
 docker compose -f docker-compose.local-dev.yml up -d --build
+```
+
+Start the full Docker set including the frontend container:
+
+```bash
+cd /Users/sotheakh/Documents/develop/sv-tms
+docker compose -f docker-compose.local-dev.yml --profile frontend up -d --build
 ```
 
 ### 1. Full local stack with Docker
@@ -213,6 +222,14 @@ npm start
 Open:
 
 - `http://localhost:4200`
+
+Useful verification:
+
+```bash
+npm run test:e2e:live-map
+```
+
+This validates the selected-driver latest-address flow on `/live/map`.
 
 Useful proxy overrides:
 

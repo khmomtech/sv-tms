@@ -1,7 +1,7 @@
 # Cleanup 3-Phase Execution Guide
 
 Last updated: 2026-03-11
-Scope: `tms_driver_app`, `tms-frontend`, `tms-auth-api`, `tms-driver-app-api`
+Scope: `tms_driver_app`, `tms-admin-web-ui`, `tms-auth-api`, `tms-driver-app-api`
 
 ## Simple Goal
 Make navigation and APIs clean without breaking production URLs.
@@ -48,11 +48,11 @@ mvn -pl tms-auth-api,tms-driver-app-api -am -DskipTests clean compile
 mvn -pl tms-backend -am -Dtest='*IntegrationTest,*IT' -Dsurefire.failIfNoSpecifiedTests=false test
 
 # VPS routing smoke
-deploy/post_deploy_microservices_routing_smoke_vps.sh
+infra/scripts/post_deploy_smoke.sh
 
 # VPS OpenAPI ownership smoke
-deploy/post_deploy_openapi_split_smoke_vps.sh
+infra/scripts/post_deploy_smoke.sh
 
 # VPS dynamic driver-policy smoke
-deploy/post_deploy_dynamic_driver_policy_smoke_vps.sh
+infra/scripts/post_deploy_smoke.sh
 ```

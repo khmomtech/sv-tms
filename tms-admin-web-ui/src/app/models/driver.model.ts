@@ -73,6 +73,7 @@ export interface Driver {
   currentLatitude?: number;
   currentLongitude?: number;
   locationName?: string;
+  geocodeStatus?: 'resolved' | 'pending' | 'failed' | string;
   timestamp?: string;
   lastUpdated?: string;
 

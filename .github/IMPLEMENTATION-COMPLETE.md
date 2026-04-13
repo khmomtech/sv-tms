@@ -146,21 +146,21 @@ All implementation guides are in `/.github/`:
 
 ```
 Application bundle generation complete. [19.316 seconds]
-Output location: /dist/tms-frontend
+Output location: `/dist/tms-admin-web-ui`
 ```
 
 **Implementation Verification**:
 
 ```bash
 $ grep -c "authFailureCount\|wsCircuitOpen\|cleanupUnusedSubjects" \
-  tms-frontend/src/app/services/driver-location.service.ts
+  tms-admin-web-ui/src/app/services/driver-location.service.ts
 23  # ← Confirms all changes applied
 ```
 
 **Test on Localhost**:
 
 ```bash
-cd tms-frontend && npm start
+cd tms-admin-web-ui && npm start
 # Navigate to http://localhost:4200/live/drivers
 # Open DevTools Console
 # Should see: "[DriverLocationService] Connected to WebSocket"

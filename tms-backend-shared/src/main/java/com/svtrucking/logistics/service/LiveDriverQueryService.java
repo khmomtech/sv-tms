@@ -21,6 +21,10 @@ import org.springframework.stereotype.Service;
 @Service
 @Slf4j
 public class LiveDriverQueryService {
+  private static final String GEOCODE_RESOLVED = "resolved";
+  private static final String GEOCODE_PENDING = "pending";
+  private static final String GEOCODE_FAILED = "failed";
+  private static final String UNKNOWN_LOCATION = "Unknown location";
 
   private final DriverLatestLocationRepository latestRepo;
   private final ActiveVehicleAssignmentReadService assignmentReadService;
@@ -134,6 +138,18 @@ public class LiveDriverQueryService {
       }
     }
 
+    final int beforeCoordinateFilter = rows.size();
+    rows =
+        rows.stream()
+            .filter(r -> hasRenderableCoordinates(r.getLatitude(), r.getLongitude()))
+            .collect(Collectors.toList());
+    if (rows.size() != beforeCoordinateFilter) {
+      log.info(
+          "[live:{}] Filtered {} row(s) with invalid coordinates before DTO build",
+          requestId,
+          beforeCoordinateFilter - rows.size());
+    }
+
     long qMs = (System.nanoTime() - qStart) / 1_000_000;
     log.debug("[live:{}] Repo query done in {} ms, rows={}", requestId, qMs, rows.size());
 
@@ -192,7 +208,9 @@ public class LiveDriverQueryService {
               .speed(r.getSpeed())
               .heading(r.getHeading())
               .batteryLevel(r.getBatteryLevel())
-              .locationName(r.getLocationName())
+              .locationName(normalizeLocationName(r.getLocationName()))
+              .geocodeStatus(
+                  deriveGeocodeStatus(normalizeLocationName(r.getLocationName()), onlineFlag))
               .online(onlineFlag)
               .dispatchId(asg != null ? asg.assignmentId() : r.getDispatchId())
               .vehiclePlate(asg != null ? asg.vehiclePlate() : null)
@@ -230,6 +248,10 @@ public class LiveDriverQueryService {
     }
 
     var r = opt.get();
+    if (!hasRenderableCoordinates(r.getLatitude(), r.getLongitude())) {
+      log.debug("[{}] Latest location ignored because coordinates are invalid", requestId);
+      return Optional.empty();
+    }
     var dto =
         LiveDriverDto.builder()
             .driverId(r.getDriverId())
@@ -238,7 +260,10 @@ public class LiveDriverQueryService {
             .speed(r.getSpeed())
             .heading(r.getHeading())
             .batteryLevel(r.getBatteryLevel())
-            .locationName(r.getLocationName())
+            .locationName(normalizeLocationName(r.getLocationName()))
+            .geocodeStatus(
+                deriveGeocodeStatus(
+                    normalizeLocationName(r.getLocationName()), Boolean.TRUE.equals(r.getIsOnline())))
             .online(Boolean.TRUE.equals(r.getIsOnline()))
             .updatedAt(r.getLastSeen() != null ? r.getLastSeen().toInstant() : null)
             .lastSeenEpochMs(r.getLastSeen() != null ? r.getLastSeen().toInstant().toEpochMilli() : null)
@@ -260,7 +285,36 @@ public class LiveDriverQueryService {
     return Optional.of(dto);
   }
 
+  private static boolean hasRenderableCoordinates(Double latitude, Double longitude) {
+    if (latitude == null || longitude == null) {
+      return false;
+    }
+    if (!Double.isFinite(latitude) || !Double.isFinite(longitude)) {
+      return false;
+    }
+    return Math.abs(latitude) >= 0.000001d || Math.abs(longitude) >= 0.000001d;
+  }
+
+  private static String normalizeLocationName(String locationName) {
+    if (locationName == null) {
+      return null;
+    }
+    String normalized = locationName.trim();
+    if (normalized.isEmpty() || UNKNOWN_LOCATION.equalsIgnoreCase(normalized)) {
+      return null;
+    }
+    return normalized;
+  }
+
+  private static String deriveGeocodeStatus(String locationName, boolean onlineFlag) {
+    if (locationName != null && !locationName.isBlank()) {
+      return GEOCODE_RESOLVED;
+    }
+    return onlineFlag ? GEOCODE_PENDING : GEOCODE_FAILED;
+  }
+
   @org.springframework.scheduling.annotation.Scheduled(fixedDelay = 60_000)
+  @org.springframework.transaction.annotation.Transactional(transactionManager = "jpaTransactionManager")
   public void markStaleDriversOffline() {
     if (!schedulingEnabled) {
       log.info("Skipping markStaleDriversOffline because scheduling is disabled (export profile)");

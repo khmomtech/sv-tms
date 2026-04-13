@@ -2,7 +2,7 @@
 
 ## ✅ PHASE 1 COMPLETE: WebSocket Reliability
 
-Your `driver-location.service.ts` has been updated with 6 critical reliability fixes:
+Your live-tracking frontend service has been updated with 6 critical reliability fixes:
 
 1. **Backoff jitter control** - Prevents excessive reconnect delays
 2. **LRU cache eviction** - Memory stays under 50MB even with 1000+ drivers
@@ -14,7 +14,7 @@ Your `driver-location.service.ts` has been updated with 6 critical reliability f
 ### Verify Changes Applied
 
 ```bash
-cd tms-frontend
+cd tms-admin-web-ui
 grep -n "authFailureCount\|wsCircuitOpen\|cleanupUnusedSubjects" src/app/services/driver-location.service.ts
 ```
 
@@ -118,8 +118,8 @@ Watch for:
 # Terminal 1: Start backend
 cd tms-backend && ./mvnw spring-boot:run
 
-# Terminal 2: Start frontend
-cd tms-frontend && npm start
+# Terminal 2: Start admin UI
+cd tms-admin-web-ui && npm start
 
 # Terminal 3: Monitor reconnections
 open http://localhost:4200/live/drivers

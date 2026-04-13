@@ -22,6 +22,7 @@ public class LiveDriverDto {
   private Double heading; // degrees
   private Integer batteryLevel; // 0..100
   private String locationName;
+  private String geocodeStatus;
   private Boolean online;
 
   private Long dispatchId; // optional

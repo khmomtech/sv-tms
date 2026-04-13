@@ -4,14 +4,17 @@ import com.svtrucking.telematics.dto.LiveDriverDto;
 import com.svtrucking.telematics.dto.TelemetryEvent;
 import com.svtrucking.telematics.dto.requests.DriverLocationUpdateDto;
 import com.svtrucking.telematics.model.LocationHistory;
+import com.svtrucking.telematics.model.TelematicsIngestReceipt;
 import com.svtrucking.telematics.model.DriverLatestLocation;
 import com.svtrucking.telematics.repository.DriverLatestLocationRepository;
 import com.svtrucking.telematics.repository.LocationHistoryRepository;
+import com.svtrucking.telematics.repository.TelematicsIngestReceiptRepository;
 import com.svtrucking.telematics.service.TelemetryStreamService;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -25,6 +28,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -39,14 +43,17 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Slf4j
 public class LocationIngestService {
+    private static final String UNKNOWN_LOCATION = "Unknown location";
 
     private final DriverLatestLocationRepository latestRepo;
     private final LocationHistoryRepository historyRepo;
+    private final TelematicsIngestReceiptRepository ingestReceiptRepo;
     private final GeocodingService geocodingService;
     private final LiveLocationCacheServiceInterface cacheService;
     private final DriverLocationMongoService mongoService;
     private final LocationHistorySpoolService spoolService;
     private final TelemetryStreamService telemetryStreamService;
+    private final PresencePolicyService presencePolicyService;
     private final boolean mongoEnabled;
 
     @Autowired(required = false)
@@ -56,18 +63,22 @@ public class LocationIngestService {
     public LocationIngestService(
             DriverLatestLocationRepository latestRepo,
             LocationHistoryRepository historyRepo,
+            TelematicsIngestReceiptRepository ingestReceiptRepo,
             GeocodingService geocodingService,
             @Autowired(required = false) LiveLocationCacheServiceInterface cacheService,
             @Autowired(required = false) DriverLocationMongoService mongoService,
             @Autowired(required = false) LocationHistorySpoolService spoolService,
-            @Autowired(required = false) TelemetryStreamService telemetryStreamService) {
+            @Autowired(required = false) TelemetryStreamService telemetryStreamService,
+            PresencePolicyService presencePolicyService) {
         this.latestRepo = latestRepo;
         this.historyRepo = historyRepo;
+        this.ingestReceiptRepo = ingestReceiptRepo;
         this.geocodingService = geocodingService;
         this.cacheService = cacheService;
         this.mongoService = mongoService;
         this.spoolService = spoolService;
         this.telemetryStreamService = telemetryStreamService;
+        this.presencePolicyService = presencePolicyService;
         this.mongoEnabled = mongoService != null;
     }
 
@@ -91,10 +102,6 @@ public class LocationIngestService {
     private boolean spoolEnabled;
     @Value("${location.history.spool.replay.batch-size:2000}")
     private int spoolReplayBatchSize;
-    @Value("${presence.online_ms:35000}")
-    private long PRESENCE_ONLINE_MS;
-    @Value("${presence.idle_ms:180000}")
-    private long PRESENCE_IDLE_MS;
     @Value("${geocode.min_distance_m:200}")
     private double GEOCODE_MIN_DISTANCE_M;
 
@@ -114,10 +121,18 @@ public class LocationIngestService {
     }
 
     public Map<String, Object> accept(DriverLocationUpdateDto u) {
+        return acceptDetailed(u).live();
+    }
+
+    public IngestResult acceptDetailed(DriverLocationUpdateDto u) {
         return processLocationUpdate(u, true);
     }
 
     public Map<String, Object> acceptFromStream(TelemetryEvent event) {
+        return acceptFromStreamDetailed(event).live();
+    }
+
+    public IngestResult acceptFromStreamDetailed(TelemetryEvent event) {
         Long dispatchId = null;
         if (event.getDispatchId() != null) {
             try {
@@ -159,22 +174,21 @@ public class LocationIngestService {
         return processLocationUpdate(u, false);
     }
 
-    private Map<String, Object> processLocationUpdate(DriverLocationUpdateDto u, boolean publishToStream) {
+    private IngestResult processLocationUpdate(DriverLocationUpdateDto u, boolean publishToStream) {
         if (u.getDriverId() == null || !finite(u.getLatitude()) || !finite(u.getLongitude()))
-            return null;
-
-        if (postgresHistoryWriteEnabled && u.getPointId() != null && !u.getPointId().isBlank()
-                && historyRepo.existsByDriverIdAndPointId(u.getDriverId(), u.getPointId().trim()))
-            return null;
+            return rejectUpdate("invalid_payload", "Ignored update: missing/invalid driverId or coordinates");
 
         if (u.getLatitude() < -90.0 || u.getLatitude() > 90.0
                 || u.getLongitude() < -180.0 || u.getLongitude() > 180.0) {
-            log.warn("Ignored update: out-of-range lat/lng for driver={}", u.getDriverId());
-            return null;
+            return rejectUpdate("out_of_range", "Ignored update: out-of-range lat/lng for driver={}", u.getDriverId());
         }
 
         final long now = System.currentTimeMillis();
         final long eventMillis = u.effectiveEpochMillisOr(now);
+        final Timestamp eventTimestamp = new Timestamp(eventMillis);
+
+        if (!reserveIngestReceipt(u, eventMillis))
+            return rejectUpdate("duplicate_point", "Ignored duplicate point for driver={}", u.getDriverId());
 
         final LastPoint prev = lastPoint.get(u.getDriverId());
         if (prev != null) {
@@ -184,7 +198,8 @@ public class LocationIngestService {
             boolean timeEnough = dt >= SERVER_MIN_TIME_MS;
             boolean idleTooLong = dt >= MAX_IDLE_KEEPALIVE_MS;
             if (underThrottle && !timeEnough && !idleTooLong)
-                return null;
+                return rejectUpdate("throttled", "Ignored throttled update for driver={} dt={}ms dist={}m",
+                        u.getDriverId(), dt, Math.round(dist));
         }
 
         Integer battery = (u.getBatteryLevel() != null && u.getBatteryLevel() >= 0) ? u.getBatteryLevel() : null;
@@ -192,8 +207,8 @@ public class LocationIngestService {
         Long appVersionCode = (u.getVersion() != null) ? u.getVersion().longValue() : null;
 
         String locName;
-        if (u.getLocationName() != null && !u.getLocationName().isBlank()) {
-            locName = u.getLocationName();
+        if (isMeaningfulLocationName(u.getLocationName())) {
+            locName = u.getLocationName().trim();
         } else {
             try {
                 LastGeo lg = lastGeoName.get(u.getDriverId());
@@ -202,7 +217,9 @@ public class LocationIngestService {
                         : haversine(lg.lat(), lg.lng(), u.getLatitude(), u.getLongitude());
                 if (distFromNamed >= GEOCODE_MIN_DISTANCE_M) {
                     locName = geocodingService.reverseGeocode(u.getLatitude(), u.getLongitude());
-                    if (locName != null && !locName.isBlank())
+                    if (!isMeaningfulLocationName(locName))
+                        locName = null;
+                    if (isMeaningfulLocationName(locName))
                         lastGeoName.put(u.getDriverId(), new LastGeo(u.getLatitude(), u.getLongitude(), locName));
                 } else {
                     locName = (lg != null) ? lg.name() : null;
@@ -238,7 +255,8 @@ public class LocationIngestService {
         try {
             latestRepo.upsertLatest(u.getDriverId(), u.getLatitude(), u.getLongitude(),
                     u.getSpeed(), u.getHeading(), u.getDispatchId(), battery, src, locName,
-                    true, u.getAccuracyMeters(), u.getLocationSource(), u.getNetType(), appVersionCode);
+                    true, u.getAccuracyMeters(), u.getLocationSource(), u.getNetType(), appVersionCode,
+                    eventTimestamp);
             if (meterRegistry != null)
                 meterRegistry.counter("location.latest.upsert.success").increment();
         } catch (Exception e) {
@@ -274,9 +292,12 @@ public class LocationIngestService {
         h.setEventTime(eventLdt);
         h.setIsOnline(true);
 
-        enqueueHistory(h, u.getDriverId());
+        PersistOutcome persistOutcome = persistAcceptedHistory(h);
+        if (persistOutcome == PersistOutcome.FAILED)
+            throw new IllegalStateException(
+                    "Durable telematics history write failed for driver=" + u.getDriverId());
         lastPoint.put(u.getDriverId(), new LastPoint(u.getLatitude(), u.getLongitude(), eventMillis));
-        if (locName != null && !locName.isBlank())
+        if (isMeaningfulLocationName(locName))
             lastGeoName.put(u.getDriverId(), new LastGeo(u.getLatitude(), u.getLongitude(), locName));
 
         DriverLatestLocation latest = latestRepo.findById(u.getDriverId()).orElse(null);
@@ -284,13 +305,22 @@ public class LocationIngestService {
         live.put("driverId", u.getDriverId());
         live.put("clientTime", eventMillis);
         live.put("serverTime", now);
+        live.put("presenceStatus", PresencePolicyService.PresenceState.ONLINE.name());
         live.put("isOnline", Boolean.TRUE);
 
         if (latest != null) {
             live.put("latitude", latest.getLatitude());
             live.put("longitude", latest.getLongitude());
-            live.put("lastSeen",
-                    toEpochMillis(latest.getLastSeen()) != null ? toEpochMillis(latest.getLastSeen()) : now);
+            Long lastSeenMs = toEpochMillis(preferredReceivedAt(latest));
+            Long eventSeenMs = toEpochMillis(latest.getLastEventTime());
+            live.put("lastSeen", lastSeenMs != null ? lastSeenMs : now);
+            if (eventSeenMs != null) {
+                live.put("lastEventTime", eventSeenMs);
+                live.put("eventAgeSeconds", Math.max(0L, (now - eventSeenMs) / 1000L));
+            }
+            if (lastSeenMs != null && eventSeenMs != null) {
+                live.put("ingestLagSeconds", Math.max(0L, (lastSeenMs - eventSeenMs) / 1000L));
+            }
             if (latest.getSpeed() != null) {
                 double kmh = Math.max(0, latest.getSpeed()) * 3.6;
                 live.put("speedMps", Math.max(0, latest.getSpeed()));
@@ -315,7 +345,7 @@ public class LocationIngestService {
             }
         }
 
-        return live;
+        return new IngestResult(live, null);
     }
 
     @Scheduled(fixedDelayString = "${tracking.batch_flush_ms:2000}")
@@ -393,7 +423,11 @@ public class LocationIngestService {
         try {
             DriverLatestLocation latest = latestRepo.findById(driverId).orElse(null);
             if (latest != null) {
-                m.put("lastSeen", toEpochMillis(latest.getLastSeen()));
+                Long lastSeenMs = toEpochMillis(preferredReceivedAt(latest));
+                m.put("lastSeen", lastSeenMs != null ? lastSeenMs : now);
+                if (latest.getLastEventTime() != null) {
+                    m.put("lastEventTime", toEpochMillis(latest.getLastEventTime()));
+                }
                 m.put("latitude", latest.getLatitude());
                 m.put("longitude", latest.getLongitude());
                 if (latest.getBatteryLevel() != null)
@@ -408,13 +442,19 @@ public class LocationIngestService {
         return m;
     }
 
+    private boolean isMeaningfulLocationName(String locationName) {
+        return locationName != null
+                && !locationName.isBlank()
+                && !UNKNOWN_LOCATION.equalsIgnoreCase(locationName.trim());
+    }
+
     @Transactional(readOnly = true)
     public Long lastSeenEpochMs(Long driverId) {
         if (driverId == null)
             return null;
         try {
             return latestRepo.findById(driverId)
-                    .map(DriverLatestLocation::getLastSeen)
+                    .map(this::preferredReceivedAt)
                     .map(ts -> ts != null ? ts.getTime() : null).orElse(null);
         } catch (Exception e) {
             log.warn("lastSeenEpochMs({}) failed: {}", driverId, e.toString());
@@ -423,13 +463,7 @@ public class LocationIngestService {
     }
 
     public String presenceStatus(Long lastSeenEpochMs) {
-        long age = (lastSeenEpochMs == null) ? Long.MAX_VALUE
-                : Math.max(0L, System.currentTimeMillis() - lastSeenEpochMs);
-        if (age <= PRESENCE_ONLINE_MS)
-            return "online";
-        if (age <= PRESENCE_IDLE_MS)
-            return "idle";
-        return "offline";
+        return presencePolicyService.resolve(lastSeenEpochMs).name().toLowerCase();
     }
 
     public Map<String, Object> getHistoryPipelineHealth() {
@@ -457,23 +491,24 @@ public class LocationIngestService {
     protected int persistBatch(List<LocationHistory> batch) {
         if (batch == null || batch.isEmpty())
             return 0;
+        int persisted = 0;
         if (postgresHistoryWriteEnabled) {
             try {
                 historyRepo.saveAll(batch);
+                persisted = batch.size();
             } catch (Exception e) {
                 log.error("PostgreSQL batch save failed for {} item(s): {}", batch.size(), e.toString(), e);
                 for (LocationHistory item : batch) {
-                    try {
-                        historyRepo.save(item);
-                    } catch (Exception ex) {
-                        log.error("Failed PostgreSQL row save driverId={}: {}", item.getDriverId(), ex.toString(), ex);
-                        if (meterRegistry != null)
-                            meterRegistry.counter("location.history.postgres.write.failure").increment();
+                    PersistOutcome outcome = persistAcceptedHistory(item);
+                    if (outcome != PersistOutcome.FAILED) {
+                        persisted++;
                     }
                 }
             }
             if (meterRegistry != null) {
-                meterRegistry.counter("location.history.postgres.write.success").increment(batch.size());
+                if (persisted > 0) {
+                    meterRegistry.counter("location.history.postgres.write.success").increment(persisted);
+                }
             }
         }
         boolean mongoSaved = false;
@@ -494,7 +529,7 @@ public class LocationIngestService {
                     meterRegistry.counter("location.history.dropped.records").increment(batch.size());
             }
         }
-        return batch.size();
+        return persisted;
     }
 
     private void registerMetricsIfNeeded() {
@@ -519,15 +554,110 @@ public class LocationIngestService {
         dto.setBatteryLevel((Integer) live.get("batteryLevel"));
         dto.setLocationName((String) live.get("locationName"));
         dto.setOnline((Boolean) live.get("isOnline"));
-        dto.setUpdatedAt(Instant.now());
+        dto.setUpdatedAt(asInstant(live.get("lastSeen")));
+        dto.setEventAt(asInstant(live.get("lastEventTime")));
+        dto.setLastSeenEpochMs(asLong(live.get("lastSeen")));
+        dto.setLastEventEpochMs(asLong(live.get("lastEventTime")));
+        dto.setEventAgeSeconds(asLong(live.get("eventAgeSeconds")));
+        dto.setIngestLagSeconds(asLong(live.get("ingestLagSeconds")));
         dto.setSource((String) live.get("source"));
         return dto;
+    }
+
+    @Transactional
+    protected PersistOutcome persistAcceptedHistory(LocationHistory item) {
+        try {
+            historyRepo.saveAndFlush(item);
+            return PersistOutcome.PERSISTED;
+        } catch (DataIntegrityViolationException e) {
+            if (isKnownDuplicate(item)) {
+                log.info("Ignoring duplicate telematics point driverId={} pointId={} sessionId={} seq={}",
+                        item.getDriverId(), item.getPointId(), item.getSessionId(), item.getSeq());
+                return PersistOutcome.DEDUPED;
+            }
+            log.error("Failed PostgreSQL row save driverId={}: {}", item.getDriverId(), e.toString(), e);
+            if (meterRegistry != null)
+                meterRegistry.counter("location.history.postgres.write.failure").increment();
+            return PersistOutcome.FAILED;
+        } catch (Exception e) {
+            log.error("Failed PostgreSQL row save driverId={}: {}", item.getDriverId(), e.toString(), e);
+            if (meterRegistry != null)
+                meterRegistry.counter("location.history.postgres.write.failure").increment();
+            return PersistOutcome.FAILED;
+        }
+    }
+
+    private boolean isKnownDuplicate(LocationHistory item) {
+        if (item.getDriverId() == null)
+            return false;
+        if (item.getPointId() != null && !item.getPointId().isBlank()) {
+            return historyRepo.existsByDriverIdAndPointId(item.getDriverId(), item.getPointId().trim());
+        }
+        if (item.getSessionId() != null && !item.getSessionId().isBlank() && item.getSeq() != null) {
+            return historyRepo.existsByDriverIdAndSessionIdAndSeq(
+                    item.getDriverId(), item.getSessionId().trim(), item.getSeq());
+        }
+        return false;
+    }
+
+    private Timestamp preferredReceivedAt(DriverLatestLocation latest) {
+        if (latest == null)
+            return null;
+        return latest.getLastReceivedAt() != null ? latest.getLastReceivedAt() : latest.getLastSeen();
+    }
+
+    @Transactional
+    protected boolean reserveIngestReceipt(DriverLocationUpdateDto u, long eventMillis) {
+        try {
+            ingestReceiptRepo.saveAndFlush(TelematicsIngestReceipt.builder()
+                    .driverId(u.getDriverId())
+                    .pointId(trimToNull(u.getPointId()))
+                    .sessionId(trimToNull(u.getSessionId()))
+                    .seq(u.getSeq())
+                    .clientTime(Instant.ofEpochMilli(eventMillis).atZone(ZoneOffset.UTC).toLocalDateTime())
+                    .build());
+            return true;
+        } catch (DataIntegrityViolationException e) {
+            if (isKnownDuplicate(u)) {
+                return false;
+            }
+            throw e;
+        }
+    }
+
+    private boolean isKnownDuplicate(DriverLocationUpdateDto u) {
+        if (u.getDriverId() == null)
+            return false;
+        if (u.getPointId() != null && !u.getPointId().isBlank()) {
+            return ingestReceiptRepo.existsByDriverIdAndPointId(u.getDriverId(), u.getPointId().trim());
+        }
+        if (u.getSessionId() != null && !u.getSessionId().isBlank() && u.getSeq() != null) {
+            return ingestReceiptRepo.existsByDriverIdAndSessionIdAndSeq(
+                    u.getDriverId(), u.getSessionId().trim(), u.getSeq());
+        }
+        return false;
     }
 
     private record LastPoint(double lat, double lng, long eventTs) {
     }
 
     private record LastGeo(double lat, double lng, String name) {
+    }
+
+    public record IngestResult(Map<String, Object> live, String dropReason) {
+        public boolean accepted() {
+            return live != null;
+        }
+    }
+
+    private IngestResult rejectUpdate(String reason, String logTemplate, Object... args) {
+        if (meterRegistry != null) {
+            meterRegistry.counter("location.ingest.dropped", "reason", reason).increment();
+        }
+        if (logTemplate != null) {
+            log.warn(logTemplate, args);
+        }
+        return new IngestResult(null, reason);
     }
 
     private static boolean finite(Double x) {
@@ -544,5 +674,29 @@ public class LocationIngestService {
 
     private static Long toEpochMillis(java.sql.Timestamp ts) {
         return ts != null ? ts.getTime() : null;
+    }
+
+    private static Long asLong(Object value) {
+        if (value instanceof Number number)
+            return number.longValue();
+        return null;
+    }
+
+    private static Instant asInstant(Object value) {
+        Long epochMs = asLong(value);
+        return epochMs != null ? Instant.ofEpochMilli(epochMs) : null;
+    }
+
+    private enum PersistOutcome {
+        PERSISTED,
+        DEDUPED,
+        FAILED
+    }
+
+    private static String trimToNull(String value) {
+        if (value == null)
+            return null;
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 }

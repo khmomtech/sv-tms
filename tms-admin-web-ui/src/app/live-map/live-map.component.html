@@ -561,10 +561,9 @@
               </div>
 	              <div class="flex items-center text-[10px] text-gray-600 mt-0.5 leading-3.5">
 	                <span *ngIf="selectedDriver?.id === driver.id; else compactMeta">
-                    <span *ngIf="driver.locationName; else noLoc">{{ driver.locationName }}</span>
-                    <ng-template #noLoc
-                      ><span class="italic text-gray-400">No address yet</span></ng-template
-                    >
+                    <span [class.italic]="getDriverLocationMuted(driver)" [class.text-gray-400]="getDriverLocationMuted(driver)">
+                      {{ getDriverLocationDisplay(driver) }}
+                    </span>
                   </span>
                   <ng-template #compactMeta>
                     <span class="truncate">
@@ -758,14 +757,13 @@
                   {{ driver.satelliteCount ?? ('liveMap.not_available' | translate) }}
                 </span>
               </div>
-              <div
-                *ngIf="driver.locationName"
-                class="pt-1.5 border-t border-gray-100 flex items-start gap-1 text-gray-500"
-              >
+              <div class="pt-1.5 border-t border-gray-100 flex items-start gap-1 text-gray-500">
                 <span class="material-icons text-[12px] text-red-400 flex-shrink-0 mt-px"
                   >location_on</span
                 >
-                <span class="leading-4 line-clamp-2">{{ driver.locationName }}</span>
+                <span class="leading-4 line-clamp-2" [class.italic]="getDriverLocationMuted(driver)">
+                  {{ getDriverLocationDisplay(driver) }}
+                </span>
               </div>
             </div>
           </div>
@@ -842,11 +840,75 @@
         </div>
       </div>
 
-      <div *ngIf="mapsReady" #leafletMap class="h-full w-full"></div>
+      <div #leafletMap class="h-full w-full"></div>
+
+      <div
+        *ngIf="mapsReady"
+        class="pointer-events-none absolute left-4 top-4 z-[450] max-w-sm space-y-2"
+      >
+        <div class="map-hud-card pointer-events-auto">
+          <div class="map-hud-row">
+            <div>
+              <div class="map-hud-title">Live operations</div>
+              <div class="map-hud-subtitle">{{ mapOpsSummary }}</div>
+            </div>
+            <span
+              class="map-hud-pill"
+              [ngClass]="socketConnected ? 'map-hud-pill--good' : 'map-hud-pill--warn'"
+            >
+              {{ socketConnected ? 'Realtime connected' : 'Fallback mode' }}
+            </span>
+          </div>
+          <div class="map-hud-metrics">
+            <div class="map-hud-metric">
+              <span class="map-hud-metric-label">Visible</span>
+              <span class="map-hud-metric-value">{{ filteredDrivers.length }}</span>
+            </div>
+            <div class="map-hud-metric">
+              <span class="map-hud-metric-label">Healthy</span>
+              <span class="map-hud-metric-value">{{ healthyCount }}</span>
+            </div>
+            <div class="map-hud-metric">
+              <span class="map-hud-metric-label">Delayed</span>
+              <span class="map-hud-metric-value">{{ delayedCount }}</span>
+            </div>
+            <div class="map-hud-metric">
+              <span class="map-hud-metric-label">Stale</span>
+              <span class="map-hud-metric-value">{{ staleVisibleCount }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="geofenceNotice" class="map-hud-alert pointer-events-auto">
+          <span class="material-icons text-[16px]">info</span>
+          <span>{{ geofenceNotice }}</span>
+        </div>
+      </div>
+
+      <div
+        *ngIf="mapsReady && filteredDrivers.length === 0"
+        class="pointer-events-none absolute inset-x-0 top-28 z-[420] flex justify-center px-4"
+      >
+        <div class="map-empty-state">
+          <div class="map-empty-title">No drivers match the current filters</div>
+          <div class="map-empty-copy">
+            Clear filters or broaden the map area to bring drivers back into view.
+          </div>
+          <button
+            type="button"
+            class="pointer-events-auto map-empty-action"
+            (click)="resetFilters()"
+          >
+            Reset filters
+          </button>
+        </div>
+      </div>
 
       <div
         *ngIf="selectedDriver"
-        class="absolute bottom-4 right-4 z-[500] w-72 rounded-xl border border-slate-200 bg-white/95 p-4 shadow-2xl backdrop-blur"
+        class="absolute z-[500] w-[22rem] rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-2xl backdrop-blur"
+        [ngClass]="selectedDriverCardClass"
+        [ngStyle]="selectedDriverCardStyle"
       >
         <div class="mb-3 flex items-center gap-3">
           <div
@@ -861,6 +923,9 @@
             </div>
             <div class="truncate text-xs text-slate-500">
               {{ selectedDriver.phone || ('liveMap.not_available' | translate) }}
+            </div>
+            <div class="truncate text-[11px] font-medium text-slate-600">
+              {{ selectedDriver.currentVehiclePlate || selectedDriver.assignedVehicle?.licensePlate || 'No active vehicle' }}
             </div>
           </div>
           <button
@@ -895,6 +960,13 @@
           </span>
         </div>
 
+        <div class="mb-3 rounded-xl bg-slate-50 px-3 py-2 text-[11px] text-slate-600">
+          Last update:
+          <span class="font-semibold text-slate-800">
+            {{ selectedDriver.lastUpdated ? (selectedDriver.lastUpdated | date: 'short') : 'Unknown' }}
+          </span>
+        </div>
+
         <div class="mb-3 grid grid-cols-2 gap-2 text-[11px] text-slate-700">
           <div>{{ 'liveMap.speed' | translate }}: {{ selectedDriver.speed ?? '-' }}</div>
           <div>{{ 'liveMap.km' | translate }}: {{ selectedDriver.odometer ?? '-' }}</div>
@@ -902,8 +974,37 @@
           <div>{{ 'liveMap.sat' | translate }}: {{ selectedDriver.satelliteCount ?? '-' }}</div>
         </div>
 
-        <div class="mb-3 text-[11px] leading-4 text-slate-600">
-          {{ selectedDriver.locationName || ('liveMap.no_address_yet' | translate) }}
+        <div class="mb-3 space-y-2 text-[11px] leading-4 text-slate-600">
+          <div>
+            <div class="mb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+              Latest location
+            </div>
+            <div class="text-slate-700">
+              <span [class.italic]="getDriverLocationMuted(selectedDriver)" [class.text-slate-500]="getDriverLocationMuted(selectedDriver)">
+                {{ getDriverLocationDisplay(selectedDriver) }}
+              </span>
+            </div>
+          </div>
+
+          <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+            <div class="mb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+              Lat / Lng
+            </div>
+            <div class="font-medium text-slate-700">
+              {{ selectedDriverCoordinatesLabel }}
+            </div>
+          </div>
+
+          <a
+            *ngIf="selectedDriverGoogleMapsUrl as mapsUrl"
+            [href]="mapsUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 font-semibold text-blue-700 transition hover:border-blue-300 hover:bg-blue-50"
+          >
+            <span class="material-icons text-[16px]">open_in_new</span>
+            Open in Google Maps
+          </a>
         </div>
 
         <div class="grid grid-cols-2 gap-1.5">

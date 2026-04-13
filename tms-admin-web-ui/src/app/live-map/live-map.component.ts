@@ -31,6 +31,7 @@ import type { DriverAlert } from '../models/driver-alert.model';
 import { DriverAlertService } from '../services/driver-alert.service';
 import { DriverAlertToastComponent } from '../components/driver-alert-toast/driver-alert-toast.component';
 import { GeofenceService } from '../services/geofence.service';
+import type { GeofenceLoadState } from '../services/geofence.service';
 import type { Geofence, GeofenceEvent, GeofenceAlert } from '../models/geofence.model';
 import { AuthService } from '../services/auth.service';
 import { GeofenceType, GeofenceEventType } from '../models/geofence.model';
@@ -163,6 +164,7 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
   private websocketSub?: Subscription;
   private playbackSub?: Subscription;
   private refreshSub?: Subscription; // 30s REST fallback
+  private selectedDriverHydrationSub?: Subscription;
   private statusSub?: Subscription;
   private staleSweepSub?: Subscription;
   private mapIdleSub?: Subscription; // debounced map idle
@@ -206,6 +208,7 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
   showTrips = false; // Toggle to show/hide trip/dispatch overlays on map
   private geofenceSubscription?: Subscription;
   private geofenceAlertSubscription?: Subscription;
+  private geofenceStateSubscription?: Subscription;
 
   // ---- Proximity filter ----
   proximityFilterEnabled = false;
@@ -216,6 +219,10 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
   proximityFilterCircle?: L.Circle; // Visual circle for filter radius
   proximityClickMode = false; // Click-on-map mode to set filter point
   filteredDriversCount: number = 0;
+  geofenceAccessRestricted = false;
+  geofenceEndpointUnavailable = false;
+  lastLiveActivityAt = 0;
+  private selectedDriverCardAnchor: 'left' | 'right' | 'top' | 'bottom' = 'top';
 
   // ---- Presence tracking (online/offline) ----
   private lastSeenByDriver: Record<number, number> = {};
@@ -334,10 +341,18 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
     this.geofenceSubscription = this.geofenceService.loadGeofences(companyId).subscribe({
       next: (geofences) => {
         this.geofences = geofences;
+        this.renderGeofences();
         this.cdr.markForCheck();
       },
       error: (err) => console.error('Failed to load geofences:', err),
     });
+    this.geofenceStateSubscription = this.geofenceService.geofenceLoadState$.subscribe(
+      (state: GeofenceLoadState) => {
+        this.geofenceAccessRestricted = state.restricted;
+        this.geofenceEndpointUnavailable = state.unavailable;
+        this.cdr.markForCheck();
+      },
+    );
 
     // 8) Subscribe to geofence alert events from WebSocket
     this.geofenceAlertSubscription = this.driverLocationService
@@ -405,6 +420,9 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
       );
 
       this.mapsReady = true;
+      queueMicrotask(() => {
+        this.leafletMap?.invalidateSize();
+      });
     } catch (err) {
       this.mapsLoadError = 'Leaflet map failed to load';
       console.error('[LiveMap] Leaflet failed to load', err);
@@ -416,6 +434,7 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
     this.clearGeofenceOverlays();
     this.geofenceSubscription?.unsubscribe();
     this.geofenceAlertSubscription?.unsubscribe();
+    this.geofenceStateSubscription?.unsubscribe();
 
     // Cleanup history playback
     this.stopHistoryPlayback();
@@ -425,6 +444,7 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
     this.websocketSub?.unsubscribe();
     this.playbackSub?.unsubscribe();
     this.refreshSub?.unsubscribe();
+    this.selectedDriverHydrationSub?.unsubscribe();
     this.statusSub?.unsubscribe();
     this.staleSweepSub?.unsubscribe();
     this.mapIdleSub?.unsubscribe();
@@ -516,6 +536,7 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
         }),
       )
       .subscribe((liveRows) => {
+        if (liveRows.length > 0) this.markLiveActivity();
         for (const r of liveRows) {
           const d = this.allDrivers.find((x) => x.id === r.driverId);
           if (!d) continue;
@@ -530,6 +551,7 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
             ingestLagSeconds: (r as any).ingestLagSeconds,
             source: (r as any).source,
             locationName: (r as any).locationName,
+            geocodeStatus: (r as any).geocodeStatus,
             batteryLevel: (r as any).batteryLevel,
           } as any;
 
@@ -589,8 +611,23 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
     const tinyMove = this.distanceMeters(prevLat, prevLng, lat, lng);
     const reportedSpeed = typeof update?.speed === 'number' ? update.speed : (driver.speed ?? 0);
     if (tinyMove < 8 && reportedSpeed <= 1) {
+      const online = coalesceBool(
+        update?.online,
+        (update as any).isOnline,
+        (update as any).isONLINE,
+        driver.isOnline,
+      );
+      if (typeof online === 'boolean') driver.isOnline = online;
+      if (typeof update?.speed === 'number') driver.speed = update.speed;
       driver.lastUpdated = update?.lastUpdated ?? driver.lastUpdated ?? new Date().toISOString();
+      if (update?.locationName) driver.locationName = update.locationName;
+      if (update?.geocodeStatus != null) driver.geocodeStatus = update.geocodeStatus;
       if (update?.batteryLevel != null) (driver as any).batteryLevel = update.batteryLevel;
+      if (update?.lastSeenEpochMs != null) (driver as any).lastSeenEpochMs = update.lastSeenEpochMs;
+      if (update?.lastSeenSeconds != null) (driver as any).lastSeenSeconds = update.lastSeenSeconds;
+      if (update?.ingestLagSeconds != null)
+        (driver as any).ingestLagSeconds = update.ingestLagSeconds;
+      if (update?.source != null) (driver as any).source = update.source;
       const mk = this.markerMap[driver.id!];
       if (mk) mk.setOpacity((driver.isOnline ?? false) ? 1.0 : 0.6);
       return;
@@ -602,6 +639,7 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
     driver.lastUpdated = update?.lastUpdated ?? update?.updatedAt ?? new Date().toISOString();
     if (typeof update?.speed === 'number') driver.speed = update.speed;
     if (update?.locationName) driver.locationName = update.locationName;
+    if (update?.geocodeStatus != null) driver.geocodeStatus = update.geocodeStatus;
     if (update?.batteryLevel != null) (driver as any).batteryLevel = update.batteryLevel;
     if (update?.lastSeenEpochMs != null) (driver as any).lastSeenEpochMs = update.lastSeenEpochMs;
     if (update?.lastSeenSeconds != null) (driver as any).lastSeenSeconds = update.lastSeenSeconds;
@@ -653,6 +691,7 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
       next: (update) => {
         this.socketConnected = true;
         this.loadingSocket = false;
+        this.markLiveActivity();
 
         let driver = this.allDrivers.find((d) => d.id === update.driverId);
         if (!driver) {
@@ -691,6 +730,7 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
               : undefined) ??
             new Date().toISOString(),
           locationName: (update as any).locationName,
+          geocodeStatus: (update as any).geocodeStatus,
           batteryLevel: (update as any).batteryLevel,
         } as any;
 
@@ -738,6 +778,135 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
         this.cdr.markForCheck();
       },
     });
+  }
+
+  private markLiveActivity(): void {
+    this.lastLiveActivityAt = Date.now();
+  }
+
+  get staleVisibleCount(): number {
+    return this.filteredDrivers.filter((d) => this.telemetryHealthState(d) === 'stale').length;
+  }
+
+  get mapOpsSummary(): string {
+    if (!this.lastLiveActivityAt) return 'Awaiting live telemetry';
+    const ageSeconds = Math.max(0, Math.floor((Date.now() - this.lastLiveActivityAt) / 1000));
+    if (ageSeconds < 15) return `Updated ${ageSeconds}s ago`;
+    const ageMinutes = Math.floor(ageSeconds / 60);
+    if (ageMinutes < 1) return `Updated ${ageSeconds}s ago`;
+    return `Updated ${ageMinutes}m ago`;
+  }
+
+  get geofenceNotice(): string {
+    if (this.geofenceAccessRestricted) {
+      return 'Geofences hidden for this account';
+    }
+    if (this.geofenceEndpointUnavailable) {
+      return 'Geofence service unavailable';
+    }
+    return '';
+  }
+
+  get selectedDriverCardStyle(): Record<string, string> {
+    if (
+      !this.selectedDriver ||
+      !this.leafletMap ||
+      this.selectedDriver.currentLatitude == null ||
+      this.selectedDriver.currentLongitude == null
+    ) {
+      this.selectedDriverCardAnchor = 'top';
+      return {
+        right: '1rem',
+        bottom: '1rem',
+      };
+    }
+
+    const point = this.leafletMap.latLngToContainerPoint([
+      this.selectedDriver.currentLatitude,
+      this.selectedDriver.currentLongitude,
+    ]);
+    const size = this.leafletMap.getSize();
+    const cardWidth = 352;
+    const cardHeight = 320;
+    const gap = 18;
+    const viewportPad = 12;
+
+    let left = point.x - cardWidth / 2;
+    let top = point.y - cardHeight - gap;
+    this.selectedDriverCardAnchor = 'top';
+
+    if (top < viewportPad) {
+      top = point.y + gap;
+      this.selectedDriverCardAnchor = 'bottom';
+    }
+
+    if (top + cardHeight > size.y - viewportPad) {
+      top = Math.max(viewportPad, size.y - cardHeight - viewportPad);
+    }
+
+    left = Math.max(viewportPad, Math.min(left, size.x - cardWidth - viewportPad));
+
+    if (left <= viewportPad + 2) {
+      this.selectedDriverCardAnchor = 'left';
+    } else if (left >= size.x - cardWidth - viewportPad - 2) {
+      this.selectedDriverCardAnchor = 'right';
+    }
+
+    return {
+      left: `${left}px`,
+      top: `${top}px`,
+    };
+  }
+
+  get selectedDriverCardClass(): string {
+    return `driver-detail-card driver-detail-card--${this.selectedDriverCardAnchor}`;
+  }
+
+  get selectedDriverLatitude(): number | null {
+    return this.selectedDriver?.currentLatitude ?? null;
+  }
+
+  get selectedDriverLongitude(): number | null {
+    return this.selectedDriver?.currentLongitude ?? null;
+  }
+
+  get selectedDriverCoordinatesLabel(): string {
+    if (this.selectedDriverLatitude == null || this.selectedDriverLongitude == null) {
+      return 'Coordinates unavailable';
+    }
+    return `${this.selectedDriverLatitude.toFixed(6)}, ${this.selectedDriverLongitude.toFixed(6)}`;
+  }
+
+  get selectedDriverGoogleMapsUrl(): string | null {
+    if (this.selectedDriverLatitude == null || this.selectedDriverLongitude == null) {
+      return null;
+    }
+    return `https://www.google.com/maps?q=${this.selectedDriverLatitude},${this.selectedDriverLongitude}`;
+  }
+
+  getDriverGeocodeStatus(driver: Driver | null | undefined): 'resolved' | 'pending' | 'failed' {
+    if (!driver) return 'failed';
+    const explicit = String(driver.geocodeStatus || '')
+      .trim()
+      .toLowerCase();
+    if (explicit === 'resolved' || explicit === 'pending' || explicit === 'failed') {
+      return explicit;
+    }
+    if ((driver.locationName || '').trim().length > 0) return 'resolved';
+    return this.isOnline(driver) ? 'pending' : 'failed';
+  }
+
+  getDriverLocationDisplay(driver: Driver | null | undefined): string {
+    if (!driver) return this.t('liveMap.address_unavailable');
+    if ((driver.locationName || '').trim().length > 0) return driver.locationName!;
+    const status = this.getDriverGeocodeStatus(driver);
+    if (status === 'pending') return this.t('liveMap.resolving_address');
+    if (status === 'failed') return this.t('liveMap.address_unavailable');
+    return this.t('liveMap.no_telemetry_yet');
+  }
+
+  getDriverLocationMuted(driver: Driver | null | undefined): boolean {
+    return !driver?.locationName;
   }
 
   onMapIdle(): void {
@@ -1100,6 +1269,7 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
         lng: driver.currentLongitude ?? 0,
       };
       this.selectedDriver = driver;
+      this.hydrateSelectedDriverLatestLocation(driver);
       this.zoom = 16;
       this.leafletMap?.setView([this.mapCenter.lat, this.mapCenter.lng], this.zoom, {
         animate: true,
@@ -1576,6 +1746,7 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
   openInfoWindow(driver: Driver): void {
     if (driver.currentLatitude != null && driver.currentLongitude != null) {
       this.selectedDriver = driver;
+      this.hydrateSelectedDriverLatestLocation(driver);
       if (driver.locationName) {
         this.logDebug('Location: ' + driver.locationName);
       }
@@ -1586,6 +1757,46 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
       this.leafletMap?.panTo([this.mapCenter.lat, this.mapCenter.lng], { animate: true });
       this.syncMapLayers();
     }
+  }
+
+  private hydrateSelectedDriverLatestLocation(driver: Driver): void {
+    if (!driver?.id) return;
+
+    this.selectedDriverHydrationSub?.unsubscribe();
+    this.selectedDriverHydrationSub = this.driverLocationService
+      .getDriverLatestLocation(driver.id)
+      .pipe(
+        map((res) => res?.data ?? null),
+        catchError((err) => {
+          this.logDebug(` Latest location lookup failed for #${driver.id}: ${JSON.stringify(err)}`);
+          return of(null);
+        }),
+      )
+      .subscribe((latest) => {
+        if (!latest) return;
+
+        this.applyLiveUpdate(driver, {
+          latitude: latest.latitude ?? latest.lat,
+          longitude: latest.longitude ?? latest.lng,
+          speed: latest.speed,
+          online: coalesceBool(latest.isOnline, latest.online, latest.isONLINE, driver.isOnline),
+          lastUpdated: latest.updatedAt ?? latest.lastUpdated ?? driver.lastUpdated,
+          lastSeenEpochMs: latest.lastSeenEpochMs ?? latest.lastSeen,
+          lastSeenSeconds: latest.lastSeenSeconds,
+          ingestLagSeconds: latest.ingestLagSeconds,
+          source: latest.source,
+          locationName: latest.locationName,
+          geocodeStatus: latest.geocodeStatus,
+          batteryLevel: latest.batteryLevel ?? latest.battery,
+        });
+
+        if (this.selectedDriver?.id === driver.id) {
+          this.selectedDriver = driver;
+        }
+        this.refreshFilterOptions();
+        this.applyFilters();
+        this.cdr.markForCheck();
+      });
   }
 
   onMouseOut(): void {
@@ -2495,6 +2706,11 @@ ${geofence.speedLimitKmh ? `Speed Limit: ${geofence.speedLimitKmh} km/h` : ''}
    * Handle map click when in proximity click mode.
    */
   onMapClickForProximity(event: L.LeafletMouseEvent): void {
+    if (!this.proximityClickMode && this.selectedDriver) {
+      this.selectedDriver = null;
+      this.syncMapLayers();
+      this.cdr.markForCheck();
+    }
     if (!this.proximityClickMode) return;
 
     this.proximityFilterLat = event.latlng.lat.toFixed(6);

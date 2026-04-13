@@ -201,7 +201,8 @@ Tests run in parallel across 4 workers. Ensure:
 
 ### Quick Start
 ```bash
-cd tms-frontend
+cd tms-admin-web-ui
+npm run test:e2e:live-map
 SKIP_FRONTEND_CHECK=true npm run test:integration:api
 ```
 
@@ -223,8 +224,22 @@ npx playwright show-report
 ### CI/CD
 ```bash
 npm ci
+npm run test:e2e:live-map
 SKIP_FRONTEND_CHECK=true npm run test:integration:api
 ```
+
+### Live Map Regression
+Use the dedicated live-map regression when changing telemetry, geocoding, or selected-driver hydration:
+
+```bash
+cd tms-admin-web-ui
+npm run test:e2e:live-map
+```
+
+This spec validates:
+- selected driver hydration resolves the latest address
+- pending geocode state renders `Resolving address...`
+- failed geocode state renders `Address unavailable`
 
 ### Environment Variables
 - `API_BASE_URL`: Backend URL (default: http://localhost:8080)

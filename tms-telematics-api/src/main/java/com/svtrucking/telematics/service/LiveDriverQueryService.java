@@ -9,7 +9,6 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
@@ -26,18 +25,25 @@ import org.springframework.stereotype.Service;
 @Service
 @Slf4j
 public class LiveDriverQueryService {
+        private static final String GEOCODE_RESOLVED = "resolved";
+        private static final String GEOCODE_PENDING = "pending";
+        private static final String GEOCODE_FAILED = "failed";
+        private static final String UNKNOWN_LOCATION = "Unknown location";
 
         private final DriverLatestLocationRepository latestRepo;
         private final DriverSnapshotRepository snapshotRepo;
+        private final PresencePolicyService presencePolicyService;
         private final Counter liveFallbackCounter;
         private final Counter staleMarkedCounter;
 
         public LiveDriverQueryService(
                         DriverLatestLocationRepository latestRepo,
                         DriverSnapshotRepository snapshotRepo,
+                        PresencePolicyService presencePolicyService,
                         MeterRegistry meterRegistry) {
                 this.latestRepo = latestRepo;
                 this.snapshotRepo = snapshotRepo;
+                this.presencePolicyService = presencePolicyService;
                 this.liveFallbackCounter = Counter.builder("tracking.live.fallback.count")
                                 .description("Count of live query fallback executions").register(meterRegistry);
                 this.staleMarkedCounter = Counter.builder("tracking.stale.marked_offline.count")
@@ -51,10 +57,7 @@ public class LiveDriverQueryService {
 
                 final boolean wantOnline = Boolean.TRUE.equals(onlyOnline)
                                 || (onlineSeconds != null && onlineSeconds > 0);
-                final int windowSec = (onlineSeconds != null && onlineSeconds > 0) ? onlineSeconds : 120;
-                final Timestamp since = wantOnline
-                                ? Timestamp.from(Instant.now().minus(windowSec, ChronoUnit.SECONDS))
-                                : null;
+                final Timestamp since = wantOnline ? presencePolicyService.cutoffTimestampForSeconds(onlineSeconds) : null;
                 final boolean hasFullBbox = south != null && west != null && north != null && east != null;
 
                 List<DriverLatestLocation> rows;
@@ -65,10 +68,10 @@ public class LiveDriverQueryService {
 
                         if (rows.isEmpty()) {
                                 liveFallbackCounter.increment();
-                                Instant cutoff = Instant.now().minus(windowSec, ChronoUnit.SECONDS);
+                                Instant cutoff = since.toInstant();
                                 rows = latestRepo.findAllLive().stream()
-                                                .filter(r -> r.getLastSeen() != null
-                                                                && r.getLastSeen().toInstant().isAfter(cutoff))
+                                                .filter(r -> receivedAt(r) != null
+                                                                && receivedAt(r).toInstant().isAfter(cutoff))
                                                 .filter(r -> !hasFullBbox || inBbox(r, south, west, north, east))
                                                 .collect(Collectors.toList());
                         }
@@ -95,22 +98,24 @@ public class LiveDriverQueryService {
                 List<LiveDriverDto> out = new ArrayList<>(rows.size());
                 for (var r : rows) {
                         var snap = snapshots.get(r.getDriverId());
-                        Instant updatedAt = r.getLastSeen() != null ? r.getLastSeen().toInstant() : null;
+                        Instant updatedAt = receivedAt(r) != null ? receivedAt(r).toInstant() : null;
+                        Instant eventAt = r.getLastEventTime() != null ? r.getLastEventTime().toInstant() : null;
                         long nowMs = System.currentTimeMillis();
                         Long lastSeenEpochMs = updatedAt != null ? updatedAt.toEpochMilli() : null;
+                        Long lastEventEpochMs = eventAt != null ? eventAt.toEpochMilli() : null;
                         Long lastSeenSeconds = lastSeenEpochMs != null
                                         ? Math.max(0L, (nowMs - lastSeenEpochMs) / 1000L)
                                         : null;
+                        Long eventAgeSeconds = lastEventEpochMs != null
+                                        ? Math.max(0L, (nowMs - lastEventEpochMs) / 1000L)
+                                        : null;
+                        Long ingestLagSeconds = (lastSeenEpochMs != null && lastEventEpochMs != null)
+                                        ? Math.max(0L, (lastSeenEpochMs - lastEventEpochMs) / 1000L)
+                                        : lastSeenSeconds;
 
-                        boolean onlineFlag;
-                        if (wantOnline) {
-                                onlineFlag = Boolean.TRUE.equals(r.getIsOnline())
-                                                || (r.getLastSeen() != null
-                                                                && (since == null || r.getLastSeen().after(since)));
-                        } else {
-                                onlineFlag = Boolean.TRUE.equals(r.getIsOnline());
-                        }
+                        boolean onlineFlag = presencePolicyService.isOnline(lastSeenEpochMs);
 
+                        String locationName = normalizeLocationName(r.getLocationName());
                         out.add(LiveDriverDto.builder()
                                         .driverId(r.getDriverId())
                                         .driverName(snap != null ? snap.getFullName() : null)
@@ -121,13 +126,17 @@ public class LiveDriverQueryService {
                                         .speed(r.getSpeed())
                                         .heading(r.getHeading())
                                         .batteryLevel(r.getBatteryLevel())
-                                        .locationName(r.getLocationName())
+                                        .locationName(locationName)
+                                        .geocodeStatus(deriveGeocodeStatus(locationName, lastSeenEpochMs))
                                         .online(onlineFlag)
                                         .dispatchId(r.getDispatchId())
                                         .updatedAt(updatedAt)
+                                        .eventAt(eventAt)
                                         .lastSeenEpochMs(lastSeenEpochMs)
+                                        .lastEventEpochMs(lastEventEpochMs)
                                         .lastSeenSeconds(lastSeenSeconds)
-                                        .ingestLagSeconds(lastSeenSeconds)
+                                        .eventAgeSeconds(eventAgeSeconds)
+                                        .ingestLagSeconds(ingestLagSeconds)
                                         .source(r.getSource())
                                         .build());
                 }
@@ -136,12 +145,21 @@ public class LiveDriverQueryService {
 
         public Optional<LiveDriverDto> getLatestForDriver(Long driverId) {
                 return latestRepo.findById(driverId).map(r -> {
-                        Instant updatedAt = r.getLastSeen() != null ? r.getLastSeen().toInstant() : null;
+                        Instant updatedAt = receivedAt(r) != null ? receivedAt(r).toInstant() : null;
+                        Instant eventAt = r.getLastEventTime() != null ? r.getLastEventTime().toInstant() : null;
                         Long lastSeenEpochMs = updatedAt != null ? updatedAt.toEpochMilli() : null;
+                        Long lastEventEpochMs = eventAt != null ? eventAt.toEpochMilli() : null;
                         Long lastSeenSeconds = lastSeenEpochMs != null
                                         ? Math.max(0L, (System.currentTimeMillis() - lastSeenEpochMs) / 1000L)
                                         : null;
+                        Long eventAgeSeconds = lastEventEpochMs != null
+                                        ? Math.max(0L, (System.currentTimeMillis() - lastEventEpochMs) / 1000L)
+                                        : null;
+                        Long ingestLagSeconds = (lastSeenEpochMs != null && lastEventEpochMs != null)
+                                        ? Math.max(0L, (lastSeenEpochMs - lastEventEpochMs) / 1000L)
+                                        : lastSeenSeconds;
                         DriverSnapshot snap = snapshotRepo.findById(driverId).orElse(null);
+                        String locationName = normalizeLocationName(r.getLocationName());
                         return LiveDriverDto.builder()
                                         .driverId(r.getDriverId())
                                         .driverName(snap != null ? snap.getFullName() : null)
@@ -152,13 +170,17 @@ public class LiveDriverQueryService {
                                         .speed(r.getSpeed())
                                         .heading(r.getHeading())
                                         .batteryLevel(r.getBatteryLevel())
-                                        .locationName(r.getLocationName())
+                                        .locationName(locationName)
+                                        .geocodeStatus(deriveGeocodeStatus(locationName, lastSeenEpochMs))
                                         .online(Boolean.TRUE.equals(r.getIsOnline()))
                                         .dispatchId(r.getDispatchId())
                                         .updatedAt(updatedAt)
+                                        .eventAt(eventAt)
                                         .lastSeenEpochMs(lastSeenEpochMs)
+                                        .lastEventEpochMs(lastEventEpochMs)
                                         .lastSeenSeconds(lastSeenSeconds)
-                                        .ingestLagSeconds(lastSeenSeconds)
+                                        .eventAgeSeconds(eventAgeSeconds)
+                                        .ingestLagSeconds(ingestLagSeconds)
                                         .source(r.getSource())
                                         .build();
                 });
@@ -166,7 +188,7 @@ public class LiveDriverQueryService {
 
         @Scheduled(fixedDelay = 60_000)
         public void markStaleDriversOffline() {
-                final Timestamp cutoff = Timestamp.from(Instant.now().minus(3, ChronoUnit.MINUTES));
+                final Timestamp cutoff = presencePolicyService.offlineCutoffTimestamp();
                 int n = latestRepo.markOfflineIfLastSeenBefore(cutoff);
                 if (n > 0) {
                         staleMarkedCounter.increment(n);
@@ -174,9 +196,30 @@ public class LiveDriverQueryService {
                 }
         }
 
+        private static Timestamp receivedAt(DriverLatestLocation r) {
+                return r.getLastReceivedAt() != null ? r.getLastReceivedAt() : r.getLastSeen();
+        }
+
         private static boolean inBbox(DriverLatestLocation r,
                         double south, double west, double north, double east) {
                 return r.getLatitude() >= south && r.getLatitude() <= north
                                 && r.getLongitude() >= west && r.getLongitude() <= east;
+        }
+
+        private static String normalizeLocationName(String locationName) {
+                if (locationName == null)
+                        return null;
+                String normalized = locationName.trim();
+                if (normalized.isEmpty() || UNKNOWN_LOCATION.equalsIgnoreCase(normalized))
+                        return null;
+                return normalized;
+        }
+
+        private String deriveGeocodeStatus(String locationName, Long lastSeenEpochMs) {
+                if (locationName != null && !locationName.isBlank())
+                        return GEOCODE_RESOLVED;
+                if (lastSeenEpochMs != null && presencePolicyService.isOnline(lastSeenEpochMs))
+                        return GEOCODE_PENDING;
+                return GEOCODE_FAILED;
         }
 }

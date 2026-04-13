@@ -21,14 +21,18 @@ public class LiveDriverDto {
     private Double heading;
     private Integer batteryLevel;
     private String locationName;
+    private String geocodeStatus;
     private Boolean online;
 
     private Long dispatchId;
     private String vehiclePlate;
 
     private Instant updatedAt;
+    private Instant eventAt;
     private Long lastSeenEpochMs;
+    private Long lastEventEpochMs;
     private Long lastSeenSeconds;
+    private Long eventAgeSeconds;
     private Long ingestLagSeconds;
     private String source;
 }

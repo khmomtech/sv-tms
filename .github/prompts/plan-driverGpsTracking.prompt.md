@@ -10,7 +10,7 @@ Your current GPS tracking has **real-time capability** but suffers from **WebSoc
 
 ### 1. WebSocket Reliability
 
-- [driver-location.service.ts](tms-frontend/src/app/services/driver-location.service.ts#L83) uses basic exponential backoff (4s → capped at budget)
+- [driver-location.service.ts](tms-admin-web-ui/src/app/services/driver-location.service.ts#L83) uses basic exponential backoff (4s → capped at budget)
 - No adaptive reconnection based on network conditions
 - Multiple pending subscriptions can cause memory leaks
 - No circuit breaker pattern
@@ -43,7 +43,7 @@ Your current GPS tracking has **real-time capability** but suffers from **WebSoc
 
 #### 1.1 Improve WebSocket Reconnection Strategy
 
-**File**: [driver-location.service.ts](tms-frontend/src/app/services/driver-location.service.ts#L225)
+**File**: [driver-location.service.ts](tms-admin-web-ui/src/app/services/driver-location.service.ts#L225)
 
 Changes needed:
 
@@ -72,7 +72,7 @@ if (typeof window !== 'undefined') {
 
 #### 1.2 Add Network Quality Monitoring
 
-**New file**: `tms-frontend/src/app/services/network-quality.service.ts`
+**New file**: `tms-admin-web-ui/src/app/services/network-quality.service.ts`
 
 Features:
 
@@ -82,7 +82,7 @@ Features:
 
 #### 1.3 Implement Adaptive Polling
 
-**File**: [driver-location.service.ts](tms-frontend/src/app/services/driver-location.service.ts#L300)
+**File**: [driver-location.service.ts](tms-admin-web-ui/src/app/services/driver-location.service.ts#L300)
 
 Changes:
 
@@ -102,7 +102,7 @@ GET /api/admin/drivers/live-drivers?delta=true&lastTimestamp=1234567890
 
 #### 2.1 Add Marker Clustering
 
-**File**: [driver-gps-tracking.component.ts](tms-frontend/src/app/driver-gps-tracking/driver-gps-tracking.component.ts#L1) / [live-driver-location.component.ts](tms-frontend/src/app/live-driver-location/live-driver-location.component.ts)
+**File**: [driver-gps-tracking.component.ts](tms-admin-web-ui/src/app/driver-gps-tracking/driver-gps-tracking.component.ts#L1) / [live-driver-location.component.ts](tms-admin-web-ui/src/app/live-driver-location/live-driver-location.component.ts)
 
 Implementation:
 
@@ -119,7 +119,7 @@ npm install @googlemaps/markerclustererplus
 
 #### 2.2 Lazy Re-render Markers
 
-**File**: [driver-gps-tracking.component.ts](tms-frontend/src/app/driver-gps-tracking/driver-gps-tracking.component.ts#L350) - `applyLiveUpdate()` method
+**File**: [driver-gps-tracking.component.ts](tms-admin-web-ui/src/app/driver-gps-tracking/driver-gps-tracking.component.ts#L350) - `applyLiveUpdate()` method
 
 Changes:
 
@@ -154,7 +154,7 @@ if (tinyMove < threshold && reportedSpeed <= 1) {
 
 #### 2.3 Optimize Polyline History
 
-**File**: [driver-gps-tracking.component.ts](tms-frontend/src/app/driver-gps-tracking/driver-gps-tracking.component.ts#L375) - `getPolylinePath()` method
+**File**: [driver-gps-tracking.component.ts](tms-admin-web-ui/src/app/driver-gps-tracking/driver-gps-tracking.component.ts#L375) - `getPolylinePath()` method
 
 Changes:
 
@@ -226,7 +226,7 @@ export interface TelemetryData {
 
 #### 3.3 Alert UI Component
 
-**New file**: `tms-frontend/src/app/components/driver-alerts/driver-alerts.component.ts`
+**New file**: `tms-admin-web-ui/src/app/components/driver-alerts/driver-alerts.component.ts`
 
 Features:
 
@@ -240,7 +240,7 @@ Features:
 
 #### 4.1 Improve Presence Detection
 
-**File**: [driver-gps-tracking.component.ts](tms-frontend/src/app/driver-gps-tracking/driver-gps-tracking.component.ts#L150) - `isOnline()` method
+**File**: [driver-gps-tracking.component.ts](tms-admin-web-ui/src/app/driver-gps-tracking/driver-gps-tracking.component.ts#L150) - `isOnline()` method
 
 Align with Wialon's "last ping" model:
 
@@ -264,7 +264,7 @@ getPresenceStatus(driver: Driver): 'active' | 'idle' | 'offline' {
 
 #### 4.2 Stale Data Visual Indicator
 
-**File**: [driver-gps-tracking.component.html](tms-frontend/src/app/driver-gps-tracking/driver-gps-tracking.component.html)
+**File**: [driver-gps-tracking.component.html](tms-admin-web-ui/src/app/driver-gps-tracking/driver-gps-tracking.component.html)
 
 Changes:
 
@@ -314,7 +314,7 @@ driver:locations:{driverId}:history -> sorted set by timestamp
 
 #### 5.1 Add Sidebar Match Map Selection
 
-**Files**: [driver-gps-tracking.component.ts](tms-frontend/src/app/driver-gps-tracking/driver-gps-tracking.component.ts) + [driver-gps-tracking.component.html](tms-frontend/src/app/driver-gps-tracking/driver-gps-tracking.component.html)
+**Files**: [driver-gps-tracking.component.ts](tms-admin-web-ui/src/app/driver-gps-tracking/driver-gps-tracking.component.ts) + [driver-gps-tracking.component.html](tms-admin-web-ui/src/app/driver-gps-tracking/driver-gps-tracking.component.html)
 
 Changes:
 
