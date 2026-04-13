@@ -12,9 +12,36 @@
   </ng-container>
 
   <!-- Filter / Toolbar -->
-  <div class="flex flex-col gap-2 px-4 py-3 bg-gray-100 shadow">
+  <div class="flex flex-col gap-3 px-3 lg:px-4 py-3 bg-gray-100 shadow">
+    <div class="flex flex-wrap items-start justify-between gap-2 lg:gap-3">
+      <div class="min-w-0">
+        <h1 class="text-base lg:text-lg font-semibold text-slate-900">
+          {{ 'liveMap.title' | translate }}
+        </h1>
+        <p class="max-w-2xl text-xs lg:text-sm text-slate-500">
+          {{ 'liveMap.subtitle' | translate }}
+        </p>
+      </div>
+      <div
+        class="flex flex-wrap items-center gap-0 overflow-hidden text-xs bg-white border border-gray-200 rounded-md"
+      >
+        <span class="flex items-center gap-1 px-2 py-1 text-gray-700 border-r border-gray-200">
+          <span class="material-icons text-[14px] text-slate-500">groups</span>
+          {{ filteredDrivers.length }} {{ 'liveMap.visible_drivers' | translate }}
+        </span>
+        <span class="flex items-center gap-1 px-2 py-1 text-gray-700 border-r border-gray-200">
+          <span class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></span>
+          {{ onlineCount }} {{ 'common.online' | translate }}
+        </span>
+        <span class="flex items-center gap-1 px-2 py-1 text-gray-700">
+          <span class="w-2 h-2 rounded-full bg-gray-400 flex-shrink-0"></span>
+          {{ offlineCount }} {{ 'common.offline' | translate }}
+        </span>
+      </div>
+    </div>
+
     <!-- Row 1: Search + Filters + Status counts -->
-    <div class="flex flex-wrap items-center gap-2">
+    <div class="flex flex-wrap items-center gap-1.5 lg:gap-2">
       <!-- Search with icon prefix -->
       <div class="relative flex items-center">
         <span class="material-icons absolute left-2 text-gray-400 text-[18px] pointer-events-none"
@@ -24,7 +51,7 @@
           type="text"
           [(ngModel)]="searchTerm"
           (ngModelChange)="applyFilters()"
-          class="pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-md w-56 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          class="pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-md w-40 lg:w-44 xl:w-56 focus:outline-none focus:ring-2 focus:ring-indigo-400"
           [placeholder]="'liveMap.search_placeholder' | translate"
         />
       </div>
@@ -37,30 +64,13 @@
         <select
           [(ngModel)]="selectedStatus"
           (ngModelChange)="applyFilters()"
-          class="pl-7 pr-2 py-1.5 text-sm border border-gray-300 rounded-md appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          class="pl-7 pr-2 py-1.5 text-sm border border-gray-300 rounded-md appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 max-w-[120px] lg:max-w-[140px]"
         >
           <option value="all">{{ 'liveMap.all_status' | translate }}</option>
           <option value="online">{{ 'common.online' | translate }}</option>
           <option value="offline">{{ 'common.offline' | translate }}</option>
           <option value="idle">{{ 'liveMap.idle' | translate }}</option>
           <option value="on-trip">{{ 'liveMap.on_trip' | translate }}</option>
-        </select>
-      </div>
-
-      <!-- Vehicle type filter -->
-      <div class="relative flex items-center">
-        <span class="material-icons absolute left-2 text-gray-400 text-[16px] pointer-events-none"
-          >local_shipping</span
-        >
-        <select
-          [(ngModel)]="selectedType"
-          (ngModelChange)="applyFilters()"
-          class="pl-7 pr-2 py-1.5 text-sm border border-gray-300 rounded-md appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
-        >
-          <option value="all">{{ 'liveMap.all_types' | translate }}</option>
-          <option value="truck">{{ 'liveMap.truck' | translate }}</option>
-          <option value="van">{{ 'liveMap.van' | translate }}</option>
-          <option value="bike">{{ 'liveMap.bike' | translate }}</option>
         </select>
       </div>
 
@@ -72,7 +82,7 @@
         <select
           [(ngModel)]="selectedGroup"
           (ngModelChange)="applyFilters()"
-          class="pl-7 pr-2 py-1.5 text-sm border border-gray-300 rounded-md appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          class="pl-7 pr-2 py-1.5 text-sm border border-gray-300 rounded-md appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 max-w-[130px] lg:max-w-[160px]"
         >
           <option value="all">{{ 'liveMap.all_groups' | translate }}</option>
           <option *ngIf="hasUngroupedDrivers" [value]="UNASSIGNED_GROUP">
@@ -90,7 +100,7 @@
         <select
           [(ngModel)]="selectedZone"
           (ngModelChange)="applyFilters()"
-          class="pl-7 pr-2 py-1.5 text-sm border border-gray-300 rounded-md appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          class="pl-7 pr-2 py-1.5 text-sm border border-gray-300 rounded-md appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 max-w-[120px] lg:max-w-[150px]"
         >
           <option value="all">{{ 'liveMap.all_zones' | translate }}</option>
           <option *ngIf="hasUnzonedDrivers" [value]="UNASSIGNED_ZONE">
@@ -104,11 +114,24 @@
       <button
         type="button"
         (click)="resetFilters()"
-        class="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+        class="flex items-center gap-1 px-2.5 lg:px-3 py-1.5 text-sm text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
         [title]="'liveMap.reset_all_filters' | translate"
       >
         <span class="material-icons text-[16px]">filter_alt_off</span>
-        {{ 'common.clear' | translate }}
+        <span class="hidden xl:inline">{{ 'common.clear' | translate }}</span>
+      </button>
+
+      <button
+        type="button"
+        (click)="advancedControlsVisible = !advancedControlsVisible"
+        class="flex items-center gap-1 px-2.5 lg:px-3 py-1.5 text-sm text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+      >
+        <span class="material-icons text-[16px]">tune</span>
+        <span class="hidden xl:inline">{{
+          advancedControlsVisible
+            ? ('liveMap.hide_advanced' | translate)
+            : ('liveMap.show_advanced' | translate)
+        }}</span>
       </button>
 
       <!-- Active filter badge -->
@@ -150,95 +173,18 @@
         }}
       </span>
 
-      <!-- Online count -->
-      <span
-        class="flex items-center gap-1 px-2 py-1 text-xs text-gray-700 bg-white border border-gray-200 rounded-md"
-      >
-        <span class="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></span>
-        {{ onlineCount }} {{ 'common.online' | translate }}
-      </span>
-
-      <!-- Offline count -->
-      <span
-        class="flex items-center gap-1 px-2 py-1 text-xs text-gray-700 bg-white border border-gray-200 rounded-md"
-      >
-        <span class="w-2 h-2 rounded-full bg-gray-400 flex-shrink-0"></span>
-        {{ offlineCount }} {{ 'common.offline' | translate }}
-      </span>
-    </div>
-
-    <!-- Row 2: Telemetry filters + map controls + overlays -->
-    <div class="flex flex-wrap items-center gap-2">
-      <!-- Telemetry filter chips -->
-      <div class="flex items-center gap-1 p-1 bg-white border border-gray-200 rounded-md">
-        <button
-          type="button"
-          (click)="selectedTelemetry = 'all'; applyFilters()"
-          class="flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors"
-          [ngClass]="
-            selectedTelemetry === 'all'
-              ? 'text-indigo-700 bg-indigo-100 font-semibold'
-              : 'text-gray-600 hover:bg-gray-100'
-          "
-          [title]="'liveMap.show_all_telemetry_states' | translate"
-        >
-          <span class="material-icons text-[13px]">signal_cellular_alt</span>
-          {{ 'common.all' | translate }}
-        </button>
-        <button
-          type="button"
-          (click)="selectedTelemetry = 'healthy'; applyFilters()"
-          class="flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors"
-          [ngClass]="
-            selectedTelemetry === 'healthy'
-              ? 'text-green-700 bg-green-100 font-semibold'
-              : 'text-green-700 hover:bg-green-50'
-          "
-          [title]="'liveMap.show_healthy_telemetry_drivers' | translate"
-        >
-          <span class="material-icons text-[13px]">check_circle</span> {{ healthyCount }}
-        </button>
-        <button
-          type="button"
-          (click)="selectedTelemetry = 'delayed'; applyFilters()"
-          class="flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors"
-          [ngClass]="
-            selectedTelemetry === 'delayed'
-              ? 'text-amber-700 bg-amber-100 font-semibold'
-              : 'text-amber-700 hover:bg-amber-50'
-          "
-          [title]="'liveMap.show_delayed_telemetry_drivers' | translate"
-        >
-          <span class="material-icons text-[13px]">schedule</span> {{ delayedCount }}
-        </button>
-        <button
-          type="button"
-          (click)="selectedTelemetry = 'stale'; applyFilters()"
-          class="flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors"
-          [ngClass]="
-            selectedTelemetry === 'stale'
-              ? 'text-red-700 bg-red-100 font-semibold'
-              : 'text-red-700 hover:bg-red-50'
-          "
-          [title]="'liveMap.show_stale_telemetry_drivers' | translate"
-        >
-          <span class="material-icons text-[13px]">error_outline</span> {{ staleCount }}
-        </button>
-      </div>
-
-      <!-- Map action buttons -->
       <button
         (click)="recenterMap()"
-        class="flex items-center gap-1 px-3 py-1.5 text-sm text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
+        class="flex items-center gap-1 px-2.5 lg:px-3 py-1.5 text-sm text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
         [title]="'liveMap.recenter_map' | translate"
       >
         <span class="material-icons text-[16px]">center_focus_strong</span>
-        {{ 'liveMap.recenter' | translate }}
+        <span class="hidden xl:inline">{{ 'liveMap.recenter' | translate }}</span>
       </button>
 
       <button
         (click)="toggleAutoTracking()"
-        class="flex items-center gap-1 px-3 py-1.5 text-sm text-white rounded-md transition-colors"
+        class="flex items-center gap-1 px-2.5 lg:px-3 py-1.5 text-sm text-white rounded-md transition-colors"
         [ngClass]="
           autoTrackEnabled ? 'bg-blue-700 hover:bg-blue-800' : 'bg-gray-500 hover:bg-gray-600'
         "
@@ -251,12 +197,106 @@
         <span class="material-icons text-[16px]">{{
           autoTrackEnabled ? 'gps_fixed' : 'gps_not_fixed'
         }}</span>
-        {{
+        <span class="hidden 2xl:inline">{{
           autoTrackEnabled
             ? ('liveMap.tracking_on' | translate)
             : ('liveMap.tracking_off' | translate)
-        }}
+        }}</span>
       </button>
+
+      <button
+        type="button"
+        (click)="toggleSidebar()"
+        class="flex items-center gap-1 px-2.5 lg:px-3 py-1.5 text-sm text-white rounded-md transition-colors"
+        [ngClass]="
+          sidebarCollapsed ? 'bg-slate-500 hover:bg-slate-600' : 'bg-slate-700 hover:bg-slate-800'
+        "
+        [title]="'liveMap.show_or_hide_driver_list' | translate"
+        [attr.aria-pressed]="!sidebarCollapsed ? 'true' : 'false'"
+        [attr.aria-controls]="'driverList'"
+      >
+        <span class="material-icons text-[16px]">view_sidebar</span>
+        <span class="hidden 2xl:inline">{{
+          sidebarCollapsed ? ('liveMap.show_list' | translate) : ('liveMap.hide_list' | translate)
+        }}</span>
+      </button>
+
+      <button
+        (click)="fetchDriversFromBackend()"
+        class="flex items-center gap-1 px-2.5 lg:px-3 py-1.5 text-sm text-white bg-green-600 rounded-md hover:bg-green-700 transition-colors"
+        [title]="'liveMap.refresh_driver_data' | translate"
+      >
+        <span class="material-icons text-[16px]">refresh</span>
+        <span class="hidden xl:inline">{{ 'common.refresh' | translate }}</span>
+      </button>
+    </div>
+
+    <!-- Row 2: Telemetry filters + overlays + proximity -->
+    <div *ngIf="advancedControlsVisible" class="flex flex-wrap items-center gap-2">
+      <!-- Vehicle type filter -->
+      <div class="relative flex items-center">
+        <span class="material-icons absolute left-2 text-gray-400 text-[16px] pointer-events-none"
+          >local_shipping</span
+        >
+        <select
+          [(ngModel)]="selectedType"
+          (ngModelChange)="applyFilters()"
+          class="pl-7 pr-2 py-1.5 text-sm border border-gray-300 rounded-md appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+        >
+          <option value="all">{{ 'liveMap.all_types' | translate }}</option>
+          <option value="truck">{{ 'liveMap.truck' | translate }}</option>
+          <option value="van">{{ 'liveMap.van' | translate }}</option>
+          <option value="bike">{{ 'liveMap.bike' | translate }}</option>
+        </select>
+      </div>
+
+	      <!-- Telemetry segmented control -->
+	      <div class="flex items-center overflow-hidden bg-white border border-gray-200 rounded-md">
+	        <button
+	          type="button"
+	          (click)="selectedTelemetry = 'all'; applyFilters()"
+	          class="flex items-center gap-1 px-2.5 py-1.5 text-xs transition-colors border-r border-gray-200"
+	          [ngClass]="
+	            selectedTelemetry === 'all'
+	              ? 'text-indigo-700 bg-indigo-50 font-semibold'
+	              : 'text-gray-600 hover:bg-gray-50'
+	          "
+	          [title]="'liveMap.show_all_telemetry_states' | translate"
+	        >
+	          <span class="material-icons text-[13px]">signal_cellular_alt</span>
+	          <span class="hidden lg:inline">{{ 'common.all' | translate }}</span>
+	        </button>
+	        <button
+	          type="button"
+	          (click)="selectedTelemetry = 'healthy'; applyFilters()"
+	          class="flex items-center gap-1 px-2.5 py-1.5 text-xs transition-colors border-r border-gray-200"
+	          [ngClass]="
+	            selectedTelemetry === 'healthy'
+	              ? 'text-green-700 bg-green-50 font-semibold'
+	              : 'text-green-700 hover:bg-green-50'
+	          "
+	          [title]="'liveMap.show_healthy_telemetry_drivers' | translate"
+	        >
+	          <span class="material-icons text-[13px]">check_circle</span>
+            <span class="font-semibold">{{ healthyCount }}</span>
+            <span class="hidden xl:inline">{{ 'liveMap.healthy' | translate }}</span>
+	        </button>
+	        <button
+	          type="button"
+	          (click)="selectedTelemetry = 'delayed'; applyFilters()"
+	          class="flex items-center gap-1 px-2.5 py-1.5 text-xs transition-colors border-r border-gray-200"
+	          [ngClass]="
+	            selectedTelemetry === 'delayed'
+	              ? 'text-amber-700 bg-amber-50 font-semibold'
+	              : 'text-amber-700 hover:bg-amber-50'
+	          "
+	          [title]="'liveMap.show_delayed_telemetry_drivers' | translate"
+	        >
+	          <span class="material-icons text-[13px]">schedule</span>
+            <span class="font-semibold">{{ delayedCount }}</span>
+            <span class="hidden xl:inline">{{ 'liveMap.delayed' | translate }}</span>
+	        </button>
+	      </div>
 
       <!-- Overlays: Geofences & Trips -->
       <div class="flex items-center gap-3 px-3 py-1.5 bg-white border border-gray-300 rounded-md">
@@ -277,7 +317,8 @@
             (change)="toggleTrips()"
             class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
           />
-          <span class="material-icons text-[15px] text-blue-500">route</span> Trips
+          <span class="material-icons text-[15px] text-blue-500">route</span>
+          {{ 'liveMap.trips' | translate }}
         </label>
         <button
           *ngIf="selectedGeofenceId"
@@ -291,132 +332,102 @@
       </div>
 
       <!-- Proximity filter section -->
-      <div
-        class="flex flex-wrap items-center gap-1.5 px-3 py-1.5 bg-purple-50 border border-purple-300 rounded-md"
-      >
-        <span class="flex items-center gap-1 text-xs font-semibold text-purple-700">
-          <span class="material-icons text-[15px]">radar</span> {{ 'liveMap.nearby' | translate }}
-        </span>
-
-        <input
-          type="number"
-          [(ngModel)]="proximityFilterLat"
-          [placeholder]="'liveMap.lat' | translate"
-          class="w-20 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-purple-400"
-          step="0.0001"
-        />
-        <input
-          type="number"
-          [(ngModel)]="proximityFilterLng"
-          [placeholder]="'liveMap.lng' | translate"
-          class="w-20 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-purple-400"
-          step="0.0001"
-        />
-        <input
-          type="number"
-          [(ngModel)]="proximityFilterRadius"
-          (change)="onProximityRadiusChange()"
-          min="1"
-          step="0.5"
-          class="w-16 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-purple-400"
-          placeholder="km"
-        />
-
-        <button
-          (click)="useMyLocation()"
-          class="flex items-center gap-1 px-2 py-1 text-xs text-white bg-blue-500 rounded hover:bg-blue-600 transition-colors"
-          [title]="'liveMap.use_my_location' | translate"
+      <div class="flex items-center gap-2">
+        <div
+          class="flex flex-wrap items-center gap-1.5 px-2.5 py-1.5 bg-purple-50 border border-purple-300 rounded-md"
         >
-          <span class="material-icons text-[13px]">my_location</span>
-        </button>
+          <button
+            type="button"
+            (click)="proximityControlsVisible = !proximityControlsVisible"
+            class="flex items-center gap-1 text-xs font-semibold text-purple-700"
+          >
+            <span class="material-icons text-[15px]">radar</span>
+            {{ 'liveMap.nearby' | translate }}
+          </button>
 
-        <button
-          (click)="toggleProximityClickMode()"
-          class="flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors"
-          [ngClass]="
-            proximityClickMode
-              ? 'text-white bg-green-500 hover:bg-green-600'
-              : 'text-purple-600 bg-white border border-purple-400 hover:bg-purple-50'
-          "
-          [title]="'liveMap.click_on_map' | translate"
-        >
-          <span class="material-icons text-[13px]">{{
-            proximityClickMode ? 'check_circle' : 'place'
-          }}</span>
-          {{ proximityClickMode ? ('liveMap.picking' | translate) : ('liveMap.pick' | translate) }}
-        </button>
+          <span
+            *ngIf="proximityFilterEnabled"
+            class="px-1.5 py-0.5 text-[11px] font-semibold text-purple-700 bg-purple-100 border border-purple-300 rounded"
+          >
+            {{ proximityFilterRadius }}km ·
+            {{ 'liveMap.found_count' | translate: { count: filteredDriversCount } }}
+          </span>
 
-        <button
-          (click)="applyProximityFilter()"
-          class="flex items-center gap-1 px-2 py-1 text-xs text-white bg-purple-600 rounded hover:bg-purple-700 transition-colors"
-          [title]="'liveMap.apply_proximity_filter' | translate"
-        >
-          <span class="material-icons text-[13px]">search</span> {{ 'common.apply' | translate }}
-        </button>
+          <button
+            *ngIf="proximityFilterEnabled"
+            (click)="clearProximityFilter()"
+            class="flex items-center gap-1 px-1.5 py-1 text-xs text-white bg-red-500 rounded hover:bg-red-600 transition-colors"
+            [title]="'liveMap.clear_proximity_filter' | translate"
+          >
+            <span class="material-icons text-[13px]">close</span>
+          </button>
+        </div>
 
-        <button
-          *ngIf="proximityFilterEnabled"
-          (click)="clearProximityFilter()"
-          class="flex items-center gap-1 px-2 py-1 text-xs text-white bg-red-500 rounded hover:bg-red-600 transition-colors"
-          [title]="'liveMap.clear_proximity_filter' | translate"
+        <div
+          *ngIf="proximityControlsVisible"
+          class="flex flex-wrap items-center gap-1.5 px-2.5 py-1.5 bg-white border border-purple-300 rounded-md"
         >
-          <span class="material-icons text-[13px]">close</span>
-        </button>
+          <input
+            type="number"
+            [(ngModel)]="proximityFilterLat"
+            [placeholder]="'liveMap.lat' | translate"
+            class="w-20 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-purple-400"
+            step="0.0001"
+          />
+          <input
+            type="number"
+            [(ngModel)]="proximityFilterLng"
+            [placeholder]="'liveMap.lng' | translate"
+            class="w-20 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-purple-400"
+            step="0.0001"
+          />
+          <input
+            type="number"
+            [(ngModel)]="proximityFilterRadius"
+            (change)="onProximityRadiusChange()"
+            min="1"
+            step="0.5"
+            class="w-16 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-purple-400"
+            placeholder="km"
+          />
 
-        <span
-          *ngIf="proximityFilterEnabled"
-          class="px-1.5 py-0.5 text-xs font-semibold text-purple-700 bg-purple-100 border border-purple-300 rounded"
-        >
-          {{ 'liveMap.found_count' | translate: { count: filteredDriversCount } }}
-        </span>
+          <button
+            (click)="useMyLocation()"
+            class="flex items-center gap-1 px-2 py-1 text-xs text-white bg-blue-500 rounded hover:bg-blue-600 transition-colors"
+            [title]="'liveMap.use_my_location' | translate"
+          >
+            <span class="material-icons text-[13px]">my_location</span>
+          </button>
+
+          <button
+            (click)="toggleProximityClickMode()"
+            class="flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors"
+            [ngClass]="
+              proximityClickMode
+                ? 'text-white bg-green-500 hover:bg-green-600'
+                : 'text-purple-600 bg-white border border-purple-400 hover:bg-purple-50'
+            "
+            [title]="'liveMap.click_on_map' | translate"
+          >
+            <span class="material-icons text-[13px]">{{
+              proximityClickMode ? 'check_circle' : 'place'
+            }}</span>
+            {{ proximityClickMode ? ('liveMap.picking' | translate) : ('liveMap.pick' | translate) }}
+          </button>
+
+          <button
+            (click)="applyProximityFilter()"
+            class="flex items-center gap-1 px-2 py-1 text-xs text-white bg-purple-600 rounded hover:bg-purple-700 transition-colors"
+            [title]="'liveMap.apply_proximity_filter' | translate"
+          >
+            <span class="material-icons text-[13px]">search</span> {{ 'common.apply' | translate }}
+          </button>
+        </div>
       </div>
 
       <div class="flex-1"></div>
-
-      <!-- Show/Hide sidebar -->
-      <button
-        type="button"
-        (click)="toggleSidebar()"
-        class="flex items-center gap-1 px-3 py-1.5 text-sm text-white rounded-md transition-colors"
-        [ngClass]="
-          sidebarCollapsed ? 'bg-slate-500 hover:bg-slate-600' : 'bg-slate-700 hover:bg-slate-800'
-        "
-        [title]="'liveMap.show_or_hide_driver_list' | translate"
-        [attr.aria-pressed]="!sidebarCollapsed ? 'true' : 'false'"
-        [attr.aria-controls]="'driverList'"
-      >
-        <span class="material-icons text-[16px]">{{
-          sidebarCollapsed ? 'view_sidebar' : 'view_sidebar'
-        }}</span>
-        {{
-          sidebarCollapsed ? ('liveMap.show_list' | translate) : ('liveMap.hide_list' | translate)
-        }}
-      </button>
-
-      <!-- Refresh -->
-      <button
-        (click)="fetchDriversFromBackend()"
-        class="flex items-center gap-1 px-3 py-1.5 text-sm text-white bg-green-600 rounded-md hover:bg-green-700 transition-colors"
-        [title]="'liveMap.refresh_driver_data' | translate"
-      >
-        <span class="material-icons text-[16px]">refresh</span> {{ 'common.refresh' | translate }}
-      </button>
     </div>
   </div>
-
-  <!-- 🧲 Floating reopen button (visible only when list is hidden) -->
-  <button
-    *ngIf="sidebarCollapsed"
-    type="button"
-    (click)="toggleSidebar()"
-    class="fixed z-50 px-3 py-2 text-sm text-white rounded left-4 top-[84px] bg-slate-700 shadow-lg"
-    [title]="'liveMap.show_driver_list' | translate"
-    [attr.aria-label]="'liveMap.show_driver_list' | translate"
-    [attr.aria-controls]="'driverList'"
-    [attr.aria-expanded]="'false'"
-  >
-    {{ 'liveMap.show_list' | translate }}
-  </button>
 
   <!--  Main Layout -->
   <div class="relative flex flex-1 overflow-hidden">
@@ -433,19 +444,19 @@
       [attr.aria-hidden]="sidebarCollapsed ? 'true' : 'false'"
     >
       <!-- 🔧 Header with title + toolbar -->
-      <div class="flex items-center justify-between px-4 pt-4 pb-2">
+      <div class="flex items-center justify-between px-3 pt-3 pb-1.5">
         <h3 class="text-sm font-semibold">
           {{ 'liveMap.drivers_count' | translate: { count: filteredDrivers.length } }}
         </h3>
-        <button (click)="toggleSidebar()" class="text-xs text-gray-600 hover:underline">
-          {{ sidebarCollapsed ? ('common.show' | translate) : ('common.hide' | translate) }}
-        </button>
+        <span class="text-[11px] text-slate-500">
+          {{ 'liveMap.click_driver_to_focus' | translate }}
+        </span>
       </div>
 
-      <div class="flex items-center justify-between px-4 py-2 border-b bg-slate-50">
-        <div class="flex items-center gap-2 px-4 pb-2 text-sm text-slate-600">
+      <div class="flex items-center justify-between px-3 py-1.5 border-b bg-slate-50">
+        <div class="flex items-center gap-2 pl-1 text-xs text-slate-600">
           <label
-            class="flex items-center gap-2 text-sm text-slate-600"
+            class="flex items-center gap-2 text-xs text-slate-600"
             [title]="'liveMap.select_all_visible_drivers' | translate"
           >
             <input
@@ -456,72 +467,37 @@
             />
             ({{ selectedCount }})
           </label>
-          <button
-            type="button"
-            class="h-8 px-2 border rounded hover:bg-slate-50"
-            [title]="'liveMap.show_online_drivers' | translate"
-            (click)="selectedStatus = 'online'; applyFilters()"
-          >
-            <span class="material-icons text-sm align-middle text-green-500">circle</span>
-            {{ 'common.online' | translate }}
-          </button>
-
-          <button
-            type="button"
-            class="h-8 px-2 border rounded hover:bg-slate-50"
-            [title]="'liveMap.show_drivers_on_trip' | translate"
-            (click)="selectedStatus = 'on-trip'; applyFilters()"
-          >
-            <span class="material-icons text-sm align-middle text-orange-500">directions_car</span>
-            {{ 'liveMap.on_trip' | translate }}
-          </button>
-
-          <button
-            type="button"
-            class="h-8 px-2 border rounded hover:bg-slate-50"
-            [title]="'liveMap.show_trucks' | translate"
-            (click)="selectedType = 'truck'; applyFilters()"
-          >
-            {{ 'liveMap.truck' | translate }}
-          </button>
-
-          <button
-            type="button"
-            class="h-8 px-2 border rounded hover:bg-slate-50"
-            [title]="'liveMap.clear_filters' | translate"
-            (click)="selectedStatus = 'all'; selectedType = 'all'; searchTerm = ''; applyFilters()"
-          >
-            <span class="material-icons text-sm align-middle">clear</span>
-            {{ 'common.clear' | translate }}
-          </button>
           <span class="flex-1"></span>
         </div>
       </div>
 
       <cdk-virtual-scroll-viewport
-        itemSize="100"
-        class="block px-4"
-        [style.height]="'calc(100vh - 250px)'"
+        itemSize="84"
+        class="block"
+        [style.height]="'calc(100vh - 220px)'"
         [style.paddingBottom.px]="selectedCount > 0 ? 72 : 0"
       >
         <div
           *cdkVirtualFor="let driver of filteredDrivers; trackBy: trackByDriverId"
-          [ngClass]="{ 'bg-blue-100 border-blue-400': selectedDriver?.id === driver.id }"
-          class="relative flex items-stretch box-border px-3 py-2 transition border-l-4 border-transparent rounded shadow-sm hover:bg-blue-50 h-[100px] group"
-          (mouseenter)="hoveredDriver = driver"
-          (mouseleave)="hoveredDriver = null"
-          (click)="zoomToDriver(driver)"
-        >
-          <div class="flex flex-1 min-w-0 p-4 shadow-ms">
+	          [ngClass]="{
+              'bg-blue-100 border-blue-400 shadow-md': selectedDriver?.id === driver.id,
+              'bg-white': selectedDriver?.id !== driver.id
+            }"
+	          class="relative flex items-stretch box-border mx-3 my-1 px-2 py-1.5 transition border-l-4 border-transparent rounded-md shadow-sm hover:bg-blue-50 h-[84px] group"
+	          (mouseenter)="hoveredDriver = driver"
+	          (mouseleave)="hoveredDriver = null"
+	          (click)="zoomToDriver(driver)"
+	        >
+          <div class="flex flex-1 min-w-0 py-1.5 pr-2 shadow-ms">
             <input
               type="checkbox"
               [(ngModel)]="driver.selected"
               (click)="$event.stopPropagation()"
-              class="w-4 h-4 my-auto mr-2 text-blue-600 border-gray-300 rounded"
+              class="w-3.5 h-3.5 my-auto mr-2 text-blue-600 border-gray-300 rounded"
             />
-            <div class="relative flex-shrink-0 my-auto mr-3">
+            <div class="relative flex-shrink-0 my-auto mr-2">
               <div
-                class="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold select-none"
+                class="w-8 h-8 rounded-full flex items-center justify-center text-white text-[11px] font-bold select-none"
                 [style.backgroundColor]="getAvatarColor(driver)"
               >
                 {{ getInitials(driver) }}
@@ -533,7 +509,7 @@
             </div>
             <div class="flex flex-col justify-center min-w-0">
               <div class="flex items-center min-w-0 gap-2">
-                <strong class="block text-sm truncate max-w-[120px]">{{ driver.name }}</strong>
+                <strong class="block text-[13px] leading-4 truncate max-w-[120px]">{{ driver.name }}</strong>
                 <span
                   class="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded border"
                   [ngClass]="
@@ -563,7 +539,7 @@
               </div>
 
               <!-- Phone below name -->
-              <div class="flex items-center gap-1 mt-0.5">
+              <div class="flex items-center gap-1 mt-0.5 leading-3.5">
                 <span class="material-icons text-[11px] text-gray-400">phone</span>
                 <span class="text-[11px] text-gray-500 truncate">{{ driver.phone || '—' }}</span>
               </div>
@@ -571,7 +547,7 @@
               <!-- Active vehicle below phone -->
               <div
                 *ngIf="driver.currentVehiclePlate || driver.assignedVehicle?.licensePlate"
-                class="flex items-center gap-1 mt-0.5"
+                class="flex items-center gap-1 mt-0.5 leading-3.5"
               >
                 <span class="material-icons text-[11px] text-blue-400">directions_car</span>
                 <span class="text-[11px] font-medium text-gray-700 truncate">
@@ -583,17 +559,24 @@
                   >{{ driver.vehicleType }}</span
                 >
               </div>
-              <div class="flex items-center text-[11px] text-gray-600 mt-0.5">
-                <span *ngIf="driver.locationName; else noLoc">{{ driver.locationName }}</span>
-                <ng-template #noLoc
-                  ><span class="italic text-gray-400">No address yet</span></ng-template
-                >
+	              <div class="flex items-center text-[10px] text-gray-600 mt-0.5 leading-3.5">
+	                <span *ngIf="selectedDriver?.id === driver.id; else compactMeta">
+                    <span *ngIf="driver.locationName; else noLoc">{{ driver.locationName }}</span>
+                    <ng-template #noLoc
+                      ><span class="italic text-gray-400">No address yet</span></ng-template
+                    >
+                  </span>
+                  <ng-template #compactMeta>
+                    <span class="truncate">
+                      {{ driver.lastUpdated | date: 'shortTime' }}
+                    </span>
+                  </ng-template>
 
-                <!-- Distance Badge (when proximity filter active) -->
-                <ng-container
-                  *ngIf="proximityFilterEnabled && getDistanceToFilterPoint(driver) as distance"
-                >
-                  <span class="mx-2 text-gray-400">•</span>
+	                <!-- Distance Badge (when proximity filter active) -->
+	                <ng-container
+	                  *ngIf="selectedDriver?.id === driver.id && proximityFilterEnabled && getDistanceToFilterPoint(driver) as distance"
+	                >
+	                  <span class="mx-2 text-gray-400">•</span>
                   <span
                     class="px-1.5 py-0.5 text-[10px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded"
                     title="Distance from filter point"
@@ -603,23 +586,23 @@
                   </span>
                 </ng-container>
 
-                <span class="mx-2 text-gray-400">•</span>
-                <span title="Last Updated"
-                  ><span class="material-icons text-[10px]">schedule</span>
-                  {{ driver.lastUpdated | date: 'shortTime' }}</span
-                >
-                <ng-container *ngIf="heartbeatAgeSeconds(driver) as hbAge">
-                  <span class="mx-2 text-gray-400">•</span>
-                  <span title="Heartbeat age from latest presence/location"
-                    ><span class="material-icons text-[10px]">favorite</span> {{ hbAge }}s</span
-                  >
-                </ng-container>
-                <span class="mx-2 text-gray-400">•</span>
-                <span
-                  class="px-1.5 py-0.5 text-[10px] font-semibold border rounded"
-                  [ngClass]="telemetryHealthClass(driver)"
-                  [title]="'Ingest lag: ' + (ingestLagSeconds(driver) ?? '-') + 's'"
-                >
+	                <span class="mx-2 text-gray-400" *ngIf="selectedDriver?.id === driver.id">•</span>
+	                <span title="Last Updated" *ngIf="selectedDriver?.id === driver.id"
+	                  ><span class="material-icons text-[10px]">schedule</span>
+	                  {{ driver.lastUpdated | date: 'shortTime' }}</span
+	                >
+	                <ng-container *ngIf="selectedDriver?.id === driver.id && heartbeatAgeSeconds(driver) as hbAge">
+	                  <span class="mx-2 text-gray-400">•</span>
+	                  <span title="Heartbeat age from latest presence/location"
+	                    ><span class="material-icons text-[10px]">favorite</span> {{ hbAge }}s</span
+	                  >
+	                </ng-container>
+	                <span class="mx-2 text-gray-400" *ngIf="selectedDriver?.id === driver.id">•</span>
+	                <span
+	                  class="px-1.5 py-0.5 text-[10px] font-semibold border rounded"
+	                  [ngClass]="telemetryHealthClass(driver)"
+	                  [title]="'Ingest lag: ' + (ingestLagSeconds(driver) ?? '-') + 's'"
+	                >
                   {{ telemetryHealthLabel(driver) }}
                 </span>
               </div>
@@ -664,41 +647,45 @@
                 (click)="zoomToDriver(driver); closeCardMenu()"
                 class="w-full px-3 py-2 text-left text-xs hover:bg-gray-50 flex items-center gap-2"
               >
-                <span class="material-icons text-sm text-blue-500">my_location</span> Zoom to Driver
+                <span class="material-icons text-sm text-blue-500">my_location</span>
+                {{ 'liveMap.zoom_to_driver' | translate }}
               </button>
               <button
                 (click)="viewHistory(driver); closeCardMenu()"
                 class="w-full px-3 py-2 text-left text-xs hover:bg-gray-50 flex items-center gap-2"
               >
-                <span class="material-icons text-sm text-blue-500">history</span> View History
+                <span class="material-icons text-sm text-blue-500">history</span>
+                {{ 'liveMap.view_history' | translate }}
               </button>
               <button
                 (click)="sendMessage(driver); closeCardMenu()"
                 class="w-full px-3 py-2 text-left text-xs hover:bg-gray-50 flex items-center gap-2"
               >
-                <span class="material-icons text-sm text-indigo-500">mail</span> Send Message
+                <span class="material-icons text-sm text-indigo-500">mail</span>
+                {{ 'liveMap.send_message' | translate }}
               </button>
               <button
                 (click)="forceOpenDriverApp(driver); closeCardMenu()"
                 class="w-full px-3 py-2 text-left text-xs hover:bg-gray-50 flex items-center gap-2"
               >
-                <span class="material-icons text-sm text-orange-500">open_in_new</span> Force Open
-                (Track)
+                <span class="material-icons text-sm text-orange-500">open_in_new</span>
+                {{ 'liveMap.force_open_track' | translate }}
               </button>
               <div class="my-1 border-t border-gray-100"></div>
               <button
                 (click)="disableDriver(driver); closeCardMenu()"
                 class="w-full px-3 py-2 text-left text-xs text-red-600 hover:bg-red-50 flex items-center gap-2"
               >
-                <span class="material-icons text-sm">block</span> Disable Driver
+                <span class="material-icons text-sm">block</span>
+                {{ 'liveMap.disable_driver' | translate }}
               </button>
             </div>
           </div>
 
-          <div
-            *ngIf="hoveredDriver?.id === driver.id && activeMenuDriverId !== driver.id"
-            class="absolute z-10 w-56 p-3 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl left-1/2 -translate-x-1/2 top-full pointer-events-none"
-          >
+	          <div
+	            *ngIf="hoveredDriver?.id === driver.id && activeMenuDriverId !== driver.id"
+		            class="absolute z-10 w-52 p-2 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg left-1/2 -translate-x-1/2 top-full pointer-events-none"
+		          >
             <!-- Mini avatar header -->
             <div class="flex items-center gap-2 mb-2 pb-2 border-b border-gray-100">
               <div
@@ -709,46 +696,67 @@
               </div>
               <div class="min-w-0">
                 <div class="font-semibold text-gray-800 truncate text-[12px]">
-                  {{ driver.name || 'Driver' }}
+                  {{ driver.name || ('liveMap.driver' | translate) }}
                 </div>
-                <div class="text-gray-400 text-[10px]">{{ driver.phone || 'N/A' }}</div>
+                <div class="text-gray-400 text-[10px]">
+                  {{ driver.phone || ('liveMap.not_available' | translate) }}
+                </div>
               </div>
             </div>
             <!-- Telemetry rows -->
-            <div class="space-y-1.5 text-[11px]">
+	            <div class="space-y-1 text-[10px]">
               <div class="flex items-center justify-between">
                 <span class="flex items-center gap-1 text-gray-400"
-                  ><span class="material-icons text-[12px]">speed</span>Speed</span
+                  ><span class="material-icons text-[12px]">speed</span
+                  >{{ 'liveMap.speed' | translate }}</span
                 >
-                <span class="font-medium text-gray-700">{{ driver.speed ?? 'N/A' }} km/h</span>
+                <span class="font-medium text-gray-700">
+                  {{ driver.speed ?? ('liveMap.not_available' | translate) }}
+                  {{ 'liveMap.km_h' | translate }}
+                </span>
               </div>
               <div class="flex items-center justify-between">
                 <span class="flex items-center gap-1 text-gray-400"
-                  ><span class="material-icons text-[12px]">vpn_key</span>Ignition</span
+                  ><span class="material-icons text-[12px]">vpn_key</span
+                  >{{ 'liveMap.ignition' | translate }}</span
                 >
                 <span
                   class="font-medium"
                   [ngClass]="driver.ignition ? 'text-green-600' : 'text-red-500'"
-                  >{{ driver.ignition ? 'On' : 'Off' }}</span
+                  >{{
+                    driver.ignition
+                      ? ('liveMap.on' | translate)
+                      : ('liveMap.off' | translate)
+                  }}</span
                 >
               </div>
               <div class="flex items-center justify-between">
                 <span class="flex items-center gap-1 text-gray-400"
-                  ><span class="material-icons text-[12px]">battery_full</span>Battery</span
+                  ><span class="material-icons text-[12px]">battery_full</span
+                  >{{ 'liveMap.battery' | translate }}</span
                 >
-                <span class="font-medium text-gray-700">{{ driver.vehicleBattery ?? 'N/A' }}%</span>
+                <span class="font-medium text-gray-700">
+                  {{ driver.vehicleBattery ?? ('liveMap.not_available' | translate) }}%
+                </span>
               </div>
               <div class="flex items-center justify-between">
                 <span class="flex items-center gap-1 text-gray-400"
-                  ><span class="material-icons text-[12px]">route</span>Odometer</span
+                  ><span class="material-icons text-[12px]">route</span
+                  >{{ 'liveMap.odometer' | translate }}</span
                 >
-                <span class="font-medium text-gray-700">{{ driver.odometer ?? 'N/A' }} km</span>
+                <span class="font-medium text-gray-700">
+                  {{ driver.odometer ?? ('liveMap.not_available' | translate) }}
+                  {{ 'liveMap.km' | translate }}
+                </span>
               </div>
               <div class="flex items-center justify-between">
                 <span class="flex items-center gap-1 text-gray-400"
-                  ><span class="material-icons text-[12px]">satellite_alt</span>Satellites</span
+                  ><span class="material-icons text-[12px]">satellite_alt</span
+                  >{{ 'liveMap.satellites' | translate }}</span
                 >
-                <span class="font-medium text-gray-700">{{ driver.satelliteCount ?? 'N/A' }}</span>
+                <span class="font-medium text-gray-700">
+                  {{ driver.satelliteCount ?? ('liveMap.not_available' | translate) }}
+                </span>
               </div>
               <div
                 *ngIf="driver.locationName"
@@ -763,286 +771,175 @@
           </div>
         </div>
       </cdk-virtual-scroll-viewport>
-      <div *ngIf="selectedCount > 0" class="fixed z-40 bottom-3 left-4 right-4">
-        <div
-          class="mx-auto max-w-[640px] rounded-lg shadow-lg border bg-white/95 backdrop-blur px-3 py-2 flex items-center gap-2"
-        >
-          <span class="text-sm text-slate-700"
-            >Selected: <strong>{{ selectedCount }}</strong></span
-          >
-          <span class="text-slate-300">|</span>
-          <button
-            type="button"
-            class="px-2 py-1 text-xs text-white bg-indigo-600 rounded hover:bg-indigo-700"
-            (click)="bulkMessage()"
-          >
-            <span class="material-icons text-sm align-middle">mail</span> Message
-          </button>
-          <button
-            type="button"
-            class="px-2 py-1 text-xs text-white bg-orange-600 rounded hover:bg-orange-700"
-            (click)="bulkForceOpen()"
-          >
-            <span class="material-icons text-sm align-middle">open_in_new</span> Force Open
-          </button>
-          <button
-            type="button"
-            class="px-2 py-1 text-xs text-white bg-red-600 rounded hover:bg-red-700"
-            (click)="bulkDisable()"
-          >
-            <span class="material-icons text-sm align-middle">block</span> Disable
-          </button>
-          <button
-            type="button"
-            class="px-2 py-1 text-xs text-white rounded bg-emerald-600 hover:bg-emerald-700"
-            (click)="bulkAssignRoute()"
-          >
-            <span class="material-icons text-sm align-middle">alt_route</span> Assign Route
-          </button>
-          <span class="flex-1"></span>
-          <button
-            type="button"
-            class="px-2 py-1 text-xs border rounded text-slate-700 hover:bg-slate-50"
-            (click)="clearSelection()"
-          >
-            Clear
-          </button>
-        </div>
-      </div>
+	      <div *ngIf="selectedCount > 0" class="fixed z-40 bottom-3 left-4 right-4 pointer-events-none">
+	        <div
+	          class="mx-auto max-w-[520px] rounded-full shadow-lg border bg-white/95 backdrop-blur px-2.5 py-1.5 flex items-center gap-1.5 pointer-events-auto"
+	        >
+	          <span class="text-xs text-slate-700 whitespace-nowrap"
+	            >{{ 'liveMap.selected_count' | translate: { count: selectedCount } }}</span
+	          >
+	          <span class="text-slate-300">|</span>
+	          <button
+	            type="button"
+	            class="px-2 py-1 text-[11px] text-white bg-indigo-600 rounded-full hover:bg-indigo-700"
+	            (click)="bulkMessage()"
+	          >
+	            <span class="material-icons text-sm align-middle">mail</span>
+	          </button>
+	          <button
+	            type="button"
+	            class="px-2 py-1 text-[11px] text-white bg-orange-600 rounded-full hover:bg-orange-700"
+	            (click)="bulkForceOpen()"
+              [title]="'liveMap.force_open' | translate"
+	          >
+	            <span class="material-icons text-sm align-middle">open_in_new</span>
+	          </button>
+	          <button
+	            type="button"
+	            class="px-2 py-1 text-[11px] text-white bg-red-600 rounded-full hover:bg-red-700"
+	            (click)="bulkDisable()"
+              [title]="'liveMap.disable' | translate"
+	          >
+	            <span class="material-icons text-sm align-middle">block</span>
+	          </button>
+	          <button
+	            type="button"
+	            class="px-2 py-1 text-[11px] text-white rounded-full bg-emerald-600 hover:bg-emerald-700"
+	            (click)="bulkAssignRoute()"
+	          >
+	            <span class="material-icons text-sm align-middle">alt_route</span>
+	          </button>
+	          <span class="flex-1"></span>
+	          <button
+	            type="button"
+	            class="px-2 py-1 text-[11px] border rounded-full text-slate-700 hover:bg-slate-50"
+	            (click)="clearSelection()"
+	          >
+	            {{ 'common.clear' | translate }}
+	          </button>
+	        </div>
+	      </div>
     </aside>
 
     <div class="resizer" (mousedown)="startResizing($event)" *ngIf="!sidebarCollapsed"></div>
 
     <main class="relative flex-1">
-      <google-map
-        height="100%"
-        width="100%"
-        [center]="mapCenter"
-        [zoom]="zoom"
-        (mapIdle)="onMapIdle()"
-        (mapClick)="onMapClickForProximity($event)"
-        [options]="{ mapTypeId: 'roadmap', clickableIcons: false }"
+      <div
+        *ngIf="!mapsReady && !mapsLoadError"
+        class="absolute inset-0 flex items-center justify-center bg-white"
       >
-        <ng-container *ngFor="let driver of filteredDrivers; trackBy: trackByDriverId">
-          <map-marker
-            *ngIf="driver.currentLatitude != null && driver.currentLongitude != null"
-            #markerRef="mapMarker"
-            [position]="{ lat: driver.currentLatitude, lng: driver.currentLongitude }"
-            [icon]="getMarkerIcon(driver)"
-            [label]="getMarkerLabelFor(driver)"
-            [title]="driver.name"
-            aria-label="{{ (driver.name || 'Driver') + ' - ' + getDriverStatus(driver) }}"
-            (mapClick)="openInfoWindow(markerRef, driver)"
-            (mapReady)="onMarkerReady(driver.id, markerRef)"
+        <div class="px-4 py-2 text-sm text-gray-700 bg-white border rounded shadow">
+          Loading map...
+        </div>
+      </div>
+
+      <div
+        *ngIf="mapsLoadError"
+        class="absolute inset-0 flex items-center justify-center bg-white"
+      >
+        <div class="max-w-md px-4 py-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded shadow">
+          {{ mapsLoadError }}
+        </div>
+      </div>
+
+      <div *ngIf="mapsReady" #leafletMap class="h-full w-full"></div>
+
+      <div
+        *ngIf="selectedDriver"
+        class="absolute bottom-4 right-4 z-[500] w-72 rounded-xl border border-slate-200 bg-white/95 p-4 shadow-2xl backdrop-blur"
+      >
+        <div class="mb-3 flex items-center gap-3">
+          <div
+            class="flex h-11 w-11 items-center justify-center rounded-full text-sm font-bold text-white"
+            [style.backgroundColor]="getAvatarColor(selectedDriver)"
           >
-          </map-marker>
-
-          <map-marker
-            *ngIf="driver.dispatch?.pickup"
-            [position]="{
-              lat: driver.dispatch?.pickup?.lat!,
-              lng: driver.dispatch?.pickup?.lng!,
-            }"
-            [label]="{ text: 'P', color: 'white', fontSize: '11px', fontWeight: 'bold' }"
-            [icon]="{
-              path: 0,
-              scale: 10,
-              fillColor: '#22c55e',
-              fillOpacity: 1,
-              strokeColor: '#ffffff',
-              strokeWeight: 2,
-            }"
-            [title]="'Pickup: ' + (driver.dispatch?.pickup?.locationName || 'Unknown')"
-          >
-          </map-marker>
-
-          <map-marker
-            *ngIf="driver.dispatch?.dropoff"
-            [position]="{
-              lat: driver.dispatch?.dropoff?.lat!,
-              lng: driver.dispatch?.dropoff?.lng!,
-            }"
-            [label]="{ text: 'D', color: 'white', fontSize: '11px', fontWeight: 'bold' }"
-            [icon]="{
-              path: 0,
-              scale: 10,
-              fillColor: '#ef4444',
-              fillOpacity: 1,
-              strokeColor: '#ffffff',
-              strokeWeight: 2,
-            }"
-            [title]="'Drop-off: ' + (driver.dispatch?.dropoff?.locationName || 'Unknown')"
-          >
-          </map-marker>
-
-          <map-polyline
-            *ngIf="driver.dispatch?.pickup && driver.dispatch?.dropoff"
-            [path]="[
-              { lat: driver.dispatch?.pickup?.lat!, lng: driver.dispatch?.pickup?.lng! },
-              { lat: driver.dispatch?.dropoff?.lat!, lng: driver.dispatch?.dropoff?.lng! },
-            ]"
-            [options]="{
-              strokeColor: '#FF9800',
-              strokeOpacity: 1.0,
-              strokeWeight: 4,
-            }"
-          >
-          </map-polyline>
-        </ng-container>
-
-        <map-polyline
-          *ngIf="(isReplayMode || autoTrackEnabled) && selectedDriver"
-          [path]="getPolylinePath(selectedDriver)"
-          [options]="{
-            strokeColor: '#2196F3',
-            strokeOpacity: 0.8,
-            strokeWeight: 3,
-            icons: [
-              {
-                icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, scale: 4 },
-                offset: '0',
-                repeat: '10px',
-              },
-            ],
-          }"
-        >
-        </map-polyline>
-
-        <map-info-window #infoWindow="mapInfoWindow">
-          <div *ngIf="selectedDriver" class="w-64 text-sm">
-            <!-- Avatar header -->
-            <div class="flex items-center gap-3 mb-3 pb-3 border-b border-gray-100">
-              <div class="relative flex-shrink-0">
-                <div
-                  class="w-11 h-11 rounded-full flex items-center justify-center text-white text-sm font-bold select-none"
-                  [style.backgroundColor]="getAvatarColor(selectedDriver!)"
-                >
-                  {{ getInitials(selectedDriver!) }}
-                </div>
-                <span
-                  class="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white"
-                  [ngClass]="isOnline(selectedDriver!) ? 'bg-green-500' : 'bg-gray-400'"
-                ></span>
-              </div>
-              <div class="min-w-0 flex-1">
-                <div class="font-semibold text-gray-900 truncate">
-                  {{ selectedDriver.name || 'Driver' }}
-                </div>
-                <div class="text-xs text-gray-500 flex items-center gap-1">
-                  <span class="material-icons text-[11px]">phone</span>
-                  {{ selectedDriver.phone || 'N/A' }}
-                </div>
-              </div>
+            {{ getInitials(selectedDriver) }}
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="truncate font-semibold text-slate-900">
+              {{ selectedDriver.name || ('liveMap.driver' | translate) }}
             </div>
-
-            <!-- Status + telemetry badge row -->
-            <div class="flex items-center justify-between mb-3 text-[11px]">
-              <span
-                class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border font-medium"
-                [ngClass]="
-                  isOnline(selectedDriver!)
-                    ? 'bg-green-50 text-green-700 border-green-200'
-                    : 'bg-gray-50 text-gray-500 border-gray-200'
-                "
-                aria-live="polite"
-              >
-                <span
-                  class="w-1.5 h-1.5 rounded-full"
-                  [ngClass]="isOnline(selectedDriver!) ? 'bg-green-500' : 'bg-gray-400'"
-                ></span>
-                {{ isOnline(selectedDriver!) ? 'Online' : 'Offline' }}
-              </span>
-              <span
-                class="px-2 py-0.5 text-[10px] font-semibold border rounded-full"
-                [ngClass]="telemetryHealthClass(selectedDriver!)"
-                [title]="'Ingest lag: ' + (ingestLagSeconds(selectedDriver!) ?? '-') + 's'"
-                >{{ telemetryHealthLabel(selectedDriver!) }}</span
-              >
-            </div>
-
-            <!-- Telemetry grid -->
-            <div class="grid grid-cols-2 gap-x-2 gap-y-2 text-[11px] text-gray-700 mb-3">
-              <div class="flex items-center gap-1.5">
-                <span class="material-icons text-[13px] text-blue-400">speed</span>
-                <span>{{ selectedDriver.speed ?? 'N/A' }} km/h</span>
-              </div>
-              <div class="flex items-center gap-1.5">
-                <span
-                  class="material-icons text-[13px]"
-                  [ngClass]="selectedDriver.ignition ? 'text-green-500' : 'text-red-400'"
-                  >vpn_key</span
-                >
-                <span>{{ selectedDriver.ignition ? 'On' : 'Off' }}</span>
-              </div>
-              <div class="flex items-center gap-1.5">
-                <span class="material-icons text-[13px] text-yellow-500">battery_full</span>
-                <span
-                  >{{
-                    $any(selectedDriver).batteryLevel ?? selectedDriver.vehicleBattery ?? 'N/A'
-                  }}%</span
-                >
-              </div>
-              <div class="flex items-center gap-1.5">
-                <span class="material-icons text-[13px] text-blue-500">satellite_alt</span>
-                <span>{{ selectedDriver.satelliteCount ?? 'N/A' }} sat</span>
-              </div>
-              <div class="flex items-center gap-1.5">
-                <span class="material-icons text-[13px] text-gray-400">route</span>
-                <span>{{ selectedDriver.odometer ?? 'N/A' }} km</span>
-              </div>
-              <div class="flex items-center gap-1.5">
-                <span class="material-icons text-[13px] text-purple-400">favorite</span>
-                <span>{{ heartbeatAgeSeconds(selectedDriver!) ?? 'N/A' }}s ago</span>
-              </div>
-            </div>
-
-            <!-- Location -->
-            <div
-              class="flex items-start gap-1.5 text-[11px] text-gray-600 mb-3 pb-3 border-b border-gray-100"
-            >
-              <span class="material-icons text-sm text-red-400 flex-shrink-0 mt-px"
-                >location_on</span
-              >
-              <span class="leading-4">{{ selectedDriver.locationName || 'No address yet' }}</span>
-            </div>
-
-            <!-- Action buttons -->
-            <div class="grid grid-cols-2 gap-1.5">
-              <button
-                class="col-span-2 flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
-                (click)="viewHistory(selectedDriver)"
-              >
-                <span class="material-icons text-sm">history</span> View History
-              </button>
-              <button
-                class="flex items-center justify-center gap-1 px-2 py-1.5 text-xs text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition-colors"
-                (click)="sendMessage(selectedDriver)"
-              >
-                <span class="material-icons text-sm">mail</span> Message
-              </button>
-              <button
-                class="flex items-center justify-center gap-1 px-2 py-1.5 text-xs text-white bg-orange-500 rounded-md hover:bg-orange-600 transition-colors"
-                (click)="forceOpenDriverApp(selectedDriver)"
-              >
-                <span class="material-icons text-sm">open_in_new</span> Force Open
-              </button>
-              <button
-                class="col-span-2 flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs text-white bg-red-600 rounded-md hover:bg-red-700 transition-colors"
-                (click)="disableDriver(selectedDriver)"
-              >
-                <span class="material-icons text-sm">block</span> Disable Driver
-              </button>
+            <div class="truncate text-xs text-slate-500">
+              {{ selectedDriver.phone || ('liveMap.not_available' | translate) }}
             </div>
           </div>
-        </map-info-window>
-      </google-map>
+          <button
+            type="button"
+            class="rounded-md p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+            (click)="selectedDriver = null; syncMapLayers()"
+          >
+            <span class="material-icons text-[18px]">close</span>
+          </button>
+        </div>
+
+        <div class="mb-3 flex items-center justify-between text-[11px]">
+          <span
+            class="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-medium"
+            [ngClass]="
+              isOnline(selectedDriver)
+                ? 'border-green-200 bg-green-50 text-green-700'
+                : 'border-gray-200 bg-gray-50 text-gray-500'
+            "
+          >
+            <span
+              class="h-1.5 w-1.5 rounded-full"
+              [ngClass]="isOnline(selectedDriver) ? 'bg-green-500' : 'bg-gray-400'"
+            ></span>
+            {{ isOnline(selectedDriver) ? ('common.online' | translate) : ('common.offline' | translate) }}
+          </span>
+          <span
+            class="rounded-full border px-2 py-0.5 text-[10px] font-semibold"
+            [ngClass]="telemetryHealthClass(selectedDriver)"
+          >
+            {{ telemetryHealthLabel(selectedDriver) }}
+          </span>
+        </div>
+
+        <div class="mb-3 grid grid-cols-2 gap-2 text-[11px] text-slate-700">
+          <div>{{ 'liveMap.speed' | translate }}: {{ selectedDriver.speed ?? '-' }}</div>
+          <div>{{ 'liveMap.km' | translate }}: {{ selectedDriver.odometer ?? '-' }}</div>
+          <div>{{ 'liveMap.battery' | translate }}: {{ $any(selectedDriver).batteryLevel ?? selectedDriver.vehicleBattery ?? '-' }}%</div>
+          <div>{{ 'liveMap.sat' | translate }}: {{ selectedDriver.satelliteCount ?? '-' }}</div>
+        </div>
+
+        <div class="mb-3 text-[11px] leading-4 text-slate-600">
+          {{ selectedDriver.locationName || ('liveMap.no_address_yet' | translate) }}
+        </div>
+
+        <div class="grid grid-cols-2 gap-1.5">
+          <button
+            class="col-span-2 rounded-md bg-blue-600 px-2 py-1.5 text-xs text-white transition hover:bg-blue-700"
+            (click)="viewHistory(selectedDriver)"
+          >
+            {{ 'liveMap.view_history' | translate }}
+          </button>
+          <button
+            class="rounded-md bg-indigo-600 px-2 py-1.5 text-xs text-white transition hover:bg-indigo-700"
+            (click)="sendMessage(selectedDriver)"
+          >
+            {{ 'liveMap.message' | translate }}
+          </button>
+          <button
+            class="rounded-md bg-orange-500 px-2 py-1.5 text-xs text-white transition hover:bg-orange-600"
+            (click)="forceOpenDriverApp(selectedDriver)"
+          >
+            {{ 'liveMap.force_open' | translate }}
+          </button>
+          <button
+            class="col-span-2 rounded-md bg-red-600 px-2 py-1.5 text-xs text-white transition hover:bg-red-700"
+            (click)="disableDriver(selectedDriver)"
+          >
+            {{ 'liveMap.disable_driver' | translate }}
+          </button>
+        </div>
+      </div>
 
       <div
         *ngIf="loadingSocket && !socketConnected"
         class="absolute inset-0 flex items-center justify-center bg-white pointer-events-none bg-opacity-60"
       >
         <div class="px-4 py-2 text-sm text-gray-700 bg-white border rounded shadow">
-          Connecting to live updates…
+          {{ 'liveMap.connecting_live_updates' | translate }}
         </div>
       </div>
     </main>
@@ -1051,20 +948,20 @@
   <!-- Modal reused -->
   <div
     *ngIf="showMessageModal"
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
   >
     <div class="w-full max-w-sm p-6 bg-white rounded-lg shadow-lg">
       <h2 class="mb-4 text-lg font-semibold text-gray-800">
-        Send Message to {{ selectedDriver?.name }}
+        {{ 'liveMap.send_message_to' | translate: { name: selectedDriver?.name } }}
       </h2>
       <input
         [(ngModel)]="messageTitle"
-        placeholder="Enter title (e.g. Road condition, Job update)"
+        [placeholder]="'liveMap.message_title_placeholder' | translate"
         class="w-full p-2 mb-3 border rounded"
       />
       <textarea
         [(ngModel)]="messageContent"
-        placeholder="Enter your message here..."
+        [placeholder]="'liveMap.message_body_placeholder' | translate"
         class="w-full p-2 mb-4 border rounded resize-none"
         rows="4"
       ></textarea>
@@ -1077,7 +974,7 @@
           (click)="closeMessageModal()"
           [disabled]="isSendingMessage"
         >
-          Cancel
+          {{ 'common.cancel' | translate }}
         </button>
         <button
           class="px-4 py-1 text-sm text-white bg-indigo-600 rounded hover:bg-indigo-700"
@@ -1085,7 +982,11 @@
           [disabled]="isSendingMessage"
         >
           <span class="material-icons text-sm align-middle">mail</span>
-          {{ isSendingMessage ? 'Sending...' : 'Send' }}
+          {{
+            isSendingMessage
+              ? ('liveMap.sending' | translate)
+              : ('liveMap.send' | translate)
+          }}
         </button>
       </div>
     </div>
@@ -1096,60 +997,61 @@
 <div
   *ngIf="historyMode"
   class="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-2xl"
-  style="max-height: 340px"
+  style="max-height: 280px"
 >
   <!-- Header -->
-  <div class="flex items-center gap-3 px-4 py-2 bg-gray-50 border-b border-gray-200">
+  <div class="flex items-center gap-2 px-3 py-2 bg-gray-50 border-b border-gray-200">
     <span class="text-sm font-semibold text-gray-800">
-      History — {{ historyDriver?.name ?? 'Driver' }}
+      {{ 'liveMap.history_title' | translate: { name: historyDriver?.name ?? ('liveMap.driver' | translate) } }}
     </span>
-    <span *ngIf="historyPoints.length > 0" class="text-xs text-gray-500">
-      {{ historyPoints.length }} points &nbsp;·&nbsp; {{ historyTotalDistanceKm }} km
+    <span *ngIf="historyPoints.length > 0" class="text-[11px] text-gray-500">
+      {{ 'liveMap.history_points_summary' | translate: { count: historyPoints.length, distance: historyTotalDistanceKm } }}
     </span>
     <div class="flex-1"></div>
     <button
-      class="px-3 py-1 text-xs text-gray-600 border rounded hover:bg-gray-100"
+      class="px-2.5 py-1 text-[11px] text-gray-600 border rounded hover:bg-gray-100"
       (click)="closeHistoryMode()"
     >
-      <span class="material-icons text-sm align-middle">close</span> Close
+      <span class="material-icons text-sm align-middle">close</span>
+      {{ 'common.close' | translate }}
     </button>
   </div>
 
   <!-- Date range + load -->
-  <div class="flex flex-wrap items-center gap-3 px-4 py-2 border-b border-gray-100">
-    <label class="text-xs text-gray-600 font-medium whitespace-nowrap">From</label>
+  <div class="flex flex-wrap items-center gap-2 px-3 py-2 border-b border-gray-100">
+    <label class="text-[11px] text-gray-600 font-medium whitespace-nowrap">{{ 'common.from' | translate }}</label>
     <input
       type="datetime-local"
       [(ngModel)]="historyFromDate"
-      class="text-xs border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400"
+      class="text-[11px] border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400"
     />
-    <label class="text-xs text-gray-600 font-medium whitespace-nowrap">To</label>
+    <label class="text-[11px] text-gray-600 font-medium whitespace-nowrap">{{ 'common.to' | translate }}</label>
     <input
       type="datetime-local"
       [(ngModel)]="historyToDate"
-      class="text-xs border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400"
+      class="text-[11px] border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400"
     />
     <button
-      class="px-4 py-1 text-xs text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50"
+      class="px-3 py-1 text-[11px] text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50"
       [disabled]="historyLoading"
       (click)="loadHistory()"
     >
-      {{ historyLoading ? 'Loading…' : 'Load History' }}
+      {{ historyLoading ? ('liveMap.loading' | translate) : ('liveMap.load_history' | translate) }}
     </button>
     <span *ngIf="historyError" class="text-xs text-red-600">{{ historyError }}</span>
     <span
       *ngIf="!historyLoading && historyPoints.length === 0 && !historyError"
       class="text-xs text-gray-400"
     >
-      No data yet — select a date range and click Load.
+      {{ 'liveMap.no_history_data' | translate }}
     </span>
   </div>
 
   <!-- Playback controls (only when points loaded) -->
-  <div *ngIf="historyPoints.length > 0" class="px-4 py-2">
+  <div *ngIf="historyPoints.length > 0" class="px-3 py-2">
     <!-- Scrubber -->
     <div class="flex items-center gap-2 mb-2">
-      <span class="text-[11px] text-gray-500 w-36 shrink-0">
+      <span class="text-[10px] text-gray-500 w-24 shrink-0">
         {{ historyCurrentPoint ? (historyCurrentPoint.timestamp | date: 'HH:mm:ss') : '–' }}
       </span>
       <input
@@ -1160,38 +1062,41 @@
         [value]="historyPlaybackIndex"
         (input)="onHistorySliderChange($event)"
       />
-      <span class="text-[11px] text-gray-500 w-36 text-right shrink-0">
+      <span class="text-[10px] text-gray-500 w-24 text-right shrink-0">
         {{ historyPoints[historyPoints.length - 1].timestamp | date: 'HH:mm:ss' }}
       </span>
     </div>
 
     <!-- Buttons + telemetry -->
-    <div class="flex flex-wrap items-center gap-2">
+    <div class="flex flex-wrap items-center gap-1.5">
       <button
         *ngIf="!historyIsPlaying"
-        class="px-3 py-1 text-xs text-white bg-green-600 rounded hover:bg-green-700"
+        class="px-2.5 py-1 text-[11px] text-white bg-green-600 rounded hover:bg-green-700"
         (click)="startHistoryPlayback()"
       >
-        <span class="material-icons text-sm align-middle">play_arrow</span> Play
+        <span class="material-icons text-sm align-middle">play_arrow</span>
+        {{ 'common.play' | translate }}
       </button>
       <button
         *ngIf="historyIsPlaying"
-        class="px-3 py-1 text-xs text-white bg-yellow-500 rounded hover:bg-yellow-600"
+        class="px-2.5 py-1 text-[11px] text-white bg-yellow-500 rounded hover:bg-yellow-600"
         (click)="pauseHistoryPlayback()"
       >
-        <span class="material-icons text-sm align-middle">pause</span> Pause
+        <span class="material-icons text-sm align-middle">pause</span>
+        {{ 'common.pause' | translate }}
       </button>
       <button
-        class="px-3 py-1 text-xs text-gray-700 border rounded hover:bg-gray-100"
+        class="px-2.5 py-1 text-[11px] text-gray-700 border rounded hover:bg-gray-100"
         (click)="stopHistoryPlayback()"
       >
-        <span class="material-icons text-sm align-middle">stop</span> Reset
+        <span class="material-icons text-sm align-middle">stop</span>
+        {{ 'common.reset' | translate }}
       </button>
 
-      <span class="text-xs text-gray-500 ml-2">Speed:</span>
+      <span class="text-[11px] text-gray-500 ml-1.5">{{ 'liveMap.speed_label' | translate }}</span>
       <button
         *ngFor="let s of [1, 2, 5, 10]"
-        class="px-2 py-0.5 text-xs border rounded"
+        class="px-2 py-0.5 text-[11px] border rounded"
         [ngClass]="
           historyPlaybackSpeed === s
             ? 'bg-blue-600 text-white border-blue-600'
@@ -1204,7 +1109,7 @@
 
       <div
         *ngIf="historyCurrentPoint"
-        class="flex items-center gap-3 ml-4 text-[11px] text-gray-600"
+        class="flex items-center gap-2 ml-2 text-[10px] text-gray-600 flex-wrap"
       >
         <span>
           <strong>{{ historyPlaybackIndex + 1 }}</strong
@@ -1212,7 +1117,7 @@
         </span>
         <span *ngIf="historyCurrentPoint.speed != null">
           <span class="material-icons text-[10px]">speed</span>
-          {{ historyCurrentPoint.speed | number: '1.0-1' }} km/h
+          {{ historyCurrentPoint.speed | number: '1.0-1' }} {{ 'liveMap.km_h' | translate }}
         </span>
         <span *ngIf="historyCurrentPoint.batteryLevel != null">
           <span class="material-icons text-[10px]">battery_full</span>

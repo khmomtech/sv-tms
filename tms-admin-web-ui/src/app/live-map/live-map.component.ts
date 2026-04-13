@@ -6,19 +6,19 @@ import {
   Component,
   HostListener,
   ViewChild,
+  ElementRef,
   ChangeDetectionStrategy,
   NgZone,
   ChangeDetectorRef,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { MapMarker } from '@angular/google-maps';
-import { GoogleMap, GoogleMapsModule, MapInfoWindow } from '@angular/google-maps';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import type { Subscription } from 'rxjs';
 import { interval, of, Subject } from 'rxjs';
 import { catchError, map, auditTime } from 'rxjs/operators';
-import { MarkerClusterer } from '@googlemaps/markerclusterer';
+import * as L from 'leaflet';
+import 'leaflet.markercluster';
 
 import type { Driver } from '../models/driver.model';
 import { ConfirmService } from '../services/confirm.service';
@@ -35,6 +35,8 @@ import type { Geofence, GeofenceEvent, GeofenceAlert } from '../models/geofence.
 import { AuthService } from '../services/auth.service';
 import { GeofenceType, GeofenceEventType } from '../models/geofence.model';
 import { DriverChatService } from '../features/drivers/driver-messages/driver-chat.service';
+
+type MapLatLngLiteral = { lat: number; lng: number };
 
 // ---- Status typing helpers (keep in sync with Driver model) ----
 export type DriverStatusLiteral = 'online' | 'offline' | 'busy' | 'idle' | 'on-trip';
@@ -76,7 +78,6 @@ const coalesceBool = (...vals: any[]): boolean | undefined => {
   imports: [
     CommonModule,
     FormsModule,
-    GoogleMapsModule,
     RouterModule,
     ScrollingModule,
     DriverAlertToastComponent,
@@ -87,12 +88,16 @@ const coalesceBool = (...vals: any[]): boolean | undefined => {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
-  @ViewChild(GoogleMap) map!: GoogleMap;
-  @ViewChild(MapInfoWindow) infoWindow!: MapInfoWindow;
+  @ViewChild('leafletMap') mapElement?: ElementRef<HTMLDivElement>;
 
   // ---- Map state ----
   zoom = 12;
-  mapCenter: google.maps.LatLngLiteral = { lat: 11.556, lng: 104.928 };
+  mapCenter: MapLatLngLiteral = { lat: 11.556, lng: 104.928 };
+  private leafletMap: L.Map | null = null;
+  private driverClusterGroup?: L.MarkerClusterGroup;
+  private dispatchLayerGroup?: L.LayerGroup;
+  private selectedDriverLayerGroup?: L.LayerGroup;
+  private historyEndpointMarkers: L.Marker[] = [];
 
   // ---- Tunables / thresholds ----
   private readonly MIN_REST_REFRESH_MS = 10_000; // throttle REST refreshes
@@ -107,7 +112,7 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
 
   // ---- UI filters / state ----
   searchTerm = '';
-  selectedStatus: 'all' | 'online' | 'offline' | 'idle' | 'on-trip' = 'online';
+  selectedStatus: 'all' | 'online' | 'offline' | 'idle' | 'on-trip' = 'all';
   selectedType: 'all' | 'truck' | 'van' | 'bike' | string = 'all';
   selectedTelemetry: 'all' | 'healthy' | 'delayed' | 'stale' = 'all';
   selectedGroup: string = 'all';
@@ -120,12 +125,16 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
   hasUnzonedDrivers = false;
   sidebarCollapsed = false;
   autoTrackEnabled = false;
+  advancedControlsVisible = false;
+  proximityControlsVisible = false;
 
   // ---- WS status / debug ----
   lastSocketMessage = '';
   loadingSocket = true;
   socketConnected = false;
   debugLogs: string[] = [];
+  mapsReady = false;
+  mapsLoadError = '';
 
   // ---- Replay / simulation ----
   isReplayMode = false;
@@ -146,9 +155,8 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
   historyPlaybackSpeed = 1;
   historyTotalDistanceKm = 0;
   private historyPlaybackInterval: ReturnType<typeof setInterval> | null = null;
-  private historyPolyline: google.maps.Polyline | null = null;
-  private historyPlaybackMarker: google.maps.Marker | null = null;
-  private historyInfoWindow: google.maps.InfoWindow | null = null;
+  private historyPolyline: L.Polyline | null = null;
+  private historyPlaybackMarker: L.Marker | null = null;
 
   // ---- Subscriptions ----
   private simulationSub?: Subscription;
@@ -175,12 +183,15 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
   bulkMode = false; // when true, message modal sends to selectedIds
 
   // ---- Markers ----
-  markerMap: { [driverId: number]: google.maps.Marker } = {};
+  markerMap: { [driverId: number]: L.Marker } = {};
   /** Only render text labels when zoomed-in or for the selected driver (perf). */
+
+  private t(key: string, params?: Record<string, unknown>): string {
+    return this.translate.instant(key, params);
+  }
   readonly labelZoom = 14;
 
   // ---- Marker clustering ----
-  private markerClusterer?: MarkerClusterer;
   private readonly CLUSTER_THRESHOLD_ZOOM = 13; // cluster when zoom < 13
   private clusteringEnabled = true;
 
@@ -189,7 +200,7 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
 
   // ---- Geofences ----
   geofences: Geofence[] = [];
-  geofenceMap: Map<number, google.maps.Polygon | google.maps.Circle> = new Map();
+  geofenceMap: Map<number, L.Polygon | L.Circle> = new Map();
   selectedGeofenceId: number | null = null; // Track selected geofence for zoom
   showGeofences = true; // Toggle to show/hide geofence overlays on map
   showTrips = false; // Toggle to show/hide trip/dispatch overlays on map
@@ -201,8 +212,8 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
   proximityFilterLat: string = ''; // Filter: latitude
   proximityFilterLng: string = ''; // Filter: longitude
   proximityFilterRadius: number = 10; // Filter: radius in km
-  proximityFilterMarker?: google.maps.Marker; // Visual marker for filter point
-  proximityFilterCircle?: google.maps.Circle; // Visual circle for filter radius
+  proximityFilterMarker?: L.Marker; // Visual marker for filter point
+  proximityFilterCircle?: L.Circle; // Visual circle for filter radius
   proximityClickMode = false; // Click-on-map mode to set filter point
   filteredDriversCount: number = 0;
 
@@ -287,13 +298,10 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
   ngOnInit(): void {
     // Update page/tab title to new name
     try {
-      document.title = 'Driver GPS & Tracking';
+      document.title = this.t('liveMap.title');
     } catch {}
 
     this.loadTelemetryFilterFromUrl();
-
-    // 1) Seed the list immediately (REST), already filtered to 'online'
-    this.fetchDriversFromBackend();
 
     // 2) Background timers (outside of change detection churn)
     this.startAutoRefresh();
@@ -343,43 +351,67 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   ngAfterViewInit(): void {
-    // Ensure the first REST live-map fetch uses real map bounds once the map exists.
-    // If the GoogleMap view child is not ready synchronously, schedule a microtask.
-    Promise.resolve().then(() => {
-      try {
-        const hasMap = !!this.map?.googleMap;
-        if (hasMap) {
-          this.refreshFromLiveMap();
-          this.tryInitialAutoCenter();
-          // Watch map zoom changes for clustering
-          this.map?.googleMap?.addListener('zoom_changed', () => this.onMapZoomChanged());
-          this.updateClustering();
-          // Render geofences on map
-          this.renderGeofences();
-        } else {
-          setTimeout(() => {
-            this.refreshFromLiveMap();
-            this.tryInitialAutoCenter();
-            // Watch map zoom changes for clustering
-            this.map?.googleMap?.addListener('zoom_changed', () => this.onMapZoomChanged());
-            this.updateClustering();
-            // Render geofences on map
-            this.renderGeofences();
-          }, 0);
-        }
-      } finally {
-        this.cdr.markForCheck();
-      }
-    });
+    this.initLeafletMap();
+    this.fetchDriversFromBackend();
+    this.tryInitialAutoCenter();
+    this.refreshFromLiveMap();
+    this.renderGeofences();
+    this.cdr.markForCheck();
+  }
+
+  private initLeafletMap(): void {
+    if (this.leafletMap || !this.mapElement?.nativeElement) return;
+
+    this.mapsLoadError = '';
+
+    try {
+      this.leafletMap = L.map(this.mapElement.nativeElement, {
+        center: [this.mapCenter.lat, this.mapCenter.lng],
+        zoom: this.zoom,
+        zoomControl: false,
+        preferCanvas: true,
+      });
+
+      L.control
+        .zoom({
+          position: 'bottomright',
+        })
+        .addTo(this.leafletMap);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 19,
+      }).addTo(this.leafletMap);
+
+      this.driverClusterGroup = L.markerClusterGroup({
+        disableClusteringAtZoom: this.CLUSTER_THRESHOLD_ZOOM,
+        showCoverageOnHover: false,
+        spiderfyOnMaxZoom: true,
+      });
+      this.driverClusterGroup.addTo(this.leafletMap);
+
+      this.dispatchLayerGroup = L.layerGroup().addTo(this.leafletMap);
+      this.selectedDriverLayerGroup = L.layerGroup().addTo(this.leafletMap);
+
+      this.leafletMap.on('moveend', () => this.ngZone.run(() => this.onMapIdle()));
+      this.leafletMap.on('zoomend', () =>
+        this.ngZone.run(() => {
+          this.zoom = this.leafletMap?.getZoom() ?? this.zoom;
+          this.onMapZoomChanged();
+        }),
+      );
+      this.leafletMap.on('click', (event: L.LeafletMouseEvent) =>
+        this.ngZone.run(() => this.onMapClickForProximity(event)),
+      );
+
+      this.mapsReady = true;
+    } catch (err) {
+      this.mapsLoadError = 'Leaflet map failed to load';
+      console.error('[LiveMap] Leaflet failed to load', err);
+    }
   }
 
   ngOnDestroy(): void {
-    // Cleanup clusterer
-    if (this.markerClusterer) {
-      this.markerClusterer.clearMarkers();
-      this.markerClusterer = undefined;
-    }
-
     // Cleanup geofences
     this.clearGeofenceOverlays();
     this.geofenceSubscription?.unsubscribe();
@@ -397,6 +429,8 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
     this.staleSweepSub?.unsubscribe();
     this.mapIdleSub?.unsubscribe();
     this.driverLocationService.disconnect();
+    this.leafletMap?.remove();
+    this.leafletMap = null;
     this.mapIdle$.complete();
     if (this.isResizing) {
       document.removeEventListener('mousemove', this.resizeSidebar);
@@ -459,7 +493,8 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
     if (now - this.lastRestRefreshAt < this.MIN_REST_REFRESH_MS) return;
     this.lastRestRefreshAt = now;
 
-    const bbox = this.getCurrentBounds();
+    const rawBbox = this.getCurrentBounds();
+    const bbox = this.isUsableLiveBounds(rawBbox) ? rawBbox : null;
     const params = bbox
       ? {
           onlyOnline: true,
@@ -593,15 +628,12 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
       if (moved) {
         const dist = this.distanceMeters(prevLat, prevLng, lat, lng);
         if (dist < 500) {
-          this.animateMarkerTransition(
-            marker,
-            new google.maps.LatLng(prevLat, prevLng),
-            new google.maps.LatLng(lat, lng),
-          );
+          this.animateMarkerTransition(marker, { lat: prevLat, lng: prevLng }, { lat, lng });
         } else {
-          marker.setPosition(new google.maps.LatLng(lat, lng));
+          marker.setLatLng([lat, lng]);
         }
       }
+      marker.setIcon(this.createDriverIcon(driver));
     }
 
     // Check for alerts on location update
@@ -712,17 +744,13 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
     this.mapIdle$.next();
   }
 
-  animateMarkerTransition(
-    marker: google.maps.Marker,
-    from: google.maps.LatLng,
-    to: google.maps.LatLng,
-  ) {
+  animateMarkerTransition(marker: L.Marker, from: MapLatLngLiteral, to: MapLatLngLiteral) {
     const durationMs = 450;
     const start = performance.now();
-    const fromLat = from.lat();
-    const fromLng = from.lng();
-    const dLat = to.lat() - fromLat;
-    const dLng = to.lng() - fromLng;
+    const fromLat = from.lat;
+    const fromLng = from.lng;
+    const dLat = to.lat - fromLat;
+    const dLng = to.lng - fromLng;
 
     const ease = (t: number) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t);
 
@@ -731,7 +759,7 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
       const e = ease(p);
       const lat = fromLat + dLat * e;
       const lng = fromLng + dLng * e;
-      marker.setPosition(new google.maps.LatLng(lat, lng));
+      marker.setLatLng([lat, lng]);
       if (p < 1) requestAnimationFrame(step);
     };
     requestAnimationFrame(step);
@@ -742,67 +770,10 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
    * Clusters markers when zoom < CLUSTER_THRESHOLD_ZOOM (13) and count > 20.
    */
   updateClustering(): void {
-    if (!this.clusteringEnabled || !this.map?.googleMap) {
+    if (!this.clusteringEnabled || !this.leafletMap || !this.driverClusterGroup) {
       return;
     }
-
-    const currentZoom = this.map.googleMap.getZoom() ?? 12;
-    const markerCount = Object.keys(this.markerMap).length;
-
-    // Enable clustering only when zoomed out (< 13) and enough markers (> 20)
-    if (currentZoom < this.CLUSTER_THRESHOLD_ZOOM && markerCount > 20) {
-      if (!this.markerClusterer) {
-        // Initialize clusterer with default algorithm
-        this.markerClusterer = new MarkerClusterer({
-          map: this.map.googleMap,
-          markers: Object.values(this.markerMap),
-          renderer: {
-            render: ({ count, position }) => {
-              // Estimate percentage of online drivers in cluster
-              const markersList = Array.from(Object.values(this.markerMap));
-              const onlineCount = markersList.filter((m) => {
-                const pos = m.getPosition();
-                // Rough approximation: check if marker position is near cluster position
-                return pos && this.getDistance(pos, position) < 5000; // 5km radius
-              }).length;
-              const onlinePercent = Math.round(
-                (onlineCount / Math.max(1, Math.min(count, markersList.length))) * 100,
-              );
-              const isHealthy = onlinePercent >= 50;
-
-              // Create custom SVG cluster icon
-              const svg = `
-                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
-                  <circle cx="24" cy="24" r="20" fill="${isHealthy ? '#4CAF50' : '#F44336'}" opacity="0.8"/>
-                  <circle cx="24" cy="24" r="20" fill="none" stroke="white" stroke-width="2"/>
-                  <text x="24" y="28" text-anchor="middle" font-size="16" font-weight="bold" fill="white">${count}</text>
-                </svg>
-              `.trim();
-
-              return new google.maps.Marker({
-                position,
-                icon: {
-                  url: `data:image/svg+xml;base64,${btoa(svg)}`,
-                  scaledSize: new google.maps.Size(48, 48),
-                  anchor: new google.maps.Point(24, 24),
-                },
-                title: `${count} drivers (${onlinePercent}% online)`,
-              });
-            },
-          },
-        });
-      } else {
-        // Update existing clusterer with current markers
-        this.markerClusterer.clearMarkers();
-        this.markerClusterer.addMarkers(Object.values(this.markerMap));
-      }
-    } else {
-      // Disable clustering at high zoom or low marker count
-      if (this.markerClusterer) {
-        this.markerClusterer.clearMarkers();
-        this.markerClusterer = undefined;
-      }
-    }
+    this.zoom = this.leafletMap.getZoom();
   }
 
   /**
@@ -816,38 +787,38 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
   /**
    * Calculate distance between two LatLng points in meters.
    */
-  private getDistance(pos1: google.maps.LatLng | null, pos2: google.maps.LatLng): number {
-    if (!pos1) return Infinity;
-    const R = 6371000; // Earth radius in meters
-    const dLat = ((pos2.lat() - pos1.lat()) * Math.PI) / 180;
-    const dLng = ((pos2.lng() - pos1.lng()) * Math.PI) / 180;
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos((pos1.lat() * Math.PI) / 180) *
-        Math.cos((pos2.lat() * Math.PI) / 180) *
-        Math.sin(dLng / 2) *
-        Math.sin(dLng / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-  }
-
-  onMarkerReady(driverId: number, markerRef: MapMarker) {
-    const marker = markerRef.marker as google.maps.Marker;
-    if (marker) this.markerMap[driverId] = marker;
-  }
-
   getCurrentBounds(): {
     south: number;
     west: number;
     north: number;
     east: number;
   } | null {
-    if (!this.map?.googleMap) return null;
-    const b = this.map.googleMap.getBounds();
-    if (!b) return null;
-    const ne = b.getNorthEast();
-    const sw = b.getSouthWest();
-    return { south: sw.lat(), west: sw.lng(), north: ne.lat(), east: ne.lng() };
+    if (!this.leafletMap) return null;
+    const b = this.leafletMap.getBounds();
+    return { south: b.getSouth(), west: b.getWest(), north: b.getNorth(), east: b.getEast() };
+  }
+
+  private isUsableLiveBounds(
+    bbox: { south: number; west: number; north: number; east: number } | null,
+  ): bbox is { south: number; west: number; north: number; east: number } {
+    if (!bbox) return false;
+
+    const values = [bbox.south, bbox.west, bbox.north, bbox.east];
+    if (values.some((value) => !Number.isFinite(value))) return false;
+    if (bbox.south >= bbox.north || bbox.west >= bbox.east) return false;
+
+    const centerLat = (bbox.south + bbox.north) / 2;
+    const centerLng = (bbox.west + bbox.east) / 2;
+    const latSpan = bbox.north - bbox.south;
+    const lngSpan = bbox.east - bbox.west;
+
+    // Ignore bogus near-origin bounds observed during early map lifecycle.
+    if (Math.abs(centerLat) < 1 && Math.abs(centerLng) < 1 && latSpan < 1 && lngSpan < 1) {
+      this.logDebug(` Ignoring suspicious map bbox near origin: ${JSON.stringify(bbox)}`);
+      return false;
+    }
+
+    return true;
   }
 
   applyFilters(): void {
@@ -930,6 +901,7 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
     });
 
     this.syncTelemetryFilterToUrl();
+    this.syncMapLayers();
   }
 
   private loadTelemetryFilterFromUrl(): void {
@@ -956,22 +928,30 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
 
   resetFilters(): void {
     this.searchTerm = '';
-    this.selectedStatus = 'online';
+    this.selectedStatus = 'all';
     this.selectedType = 'all';
     this.selectedTelemetry = 'all';
     this.selectedGroup = 'all';
     this.selectedZone = 'all';
+    if (this.proximityFilterEnabled) {
+      this.clearProximityFilter();
+    }
+    if (this.selectedGeofenceId) {
+      this.clearSelectedGeofence();
+    }
     this.applyFilters();
   }
 
   get activeFilterCount(): number {
     let count = 0;
     if ((this.searchTerm || '').trim().length > 0) count++;
-    if (this.selectedStatus !== 'online') count++;
+    if (this.selectedStatus !== 'all') count++;
     if (this.selectedType !== 'all') count++;
     if (this.selectedTelemetry !== 'all') count++;
     if (this.selectedGroup !== 'all') count++;
     if (this.selectedZone !== 'all') count++;
+    if (this.proximityFilterEnabled) count++;
+    if (this.selectedGeofenceId != null) count++;
     return count;
   }
 
@@ -1082,8 +1062,8 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
       this.adminNotificationService
         .sendNotificationToDriver({
           driverId: id,
-          title: 'Force Open',
-          message: 'Admin requested app wake-up',
+          title: this.t('liveMap.force_open'),
+          message: this.t('liveMap.force_open_message'),
           type: 'force-track',
           severity: 'high',
           sender: 'ADMIN_UI',
@@ -1098,7 +1078,7 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
   async bulkDisable(): Promise<void> {
     const ids = this.selectedIds;
     if (!ids.length) return;
-    const ok = await this.confirm.confirm(`Disable ${ids.length} driver(s)?`);
+    const ok = await this.confirm.confirm(this.t('liveMap.disable_selected_confirm', { count: ids.length }));
     if (!ok) return;
     ids.forEach((id) => this.logDebug(`🚫 Driver #${id} disabled (bulk)`));
   }
@@ -1121,6 +1101,9 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
       };
       this.selectedDriver = driver;
       this.zoom = 16;
+      this.leafletMap?.setView([this.mapCenter.lat, this.mapCenter.lng], this.zoom, {
+        animate: true,
+      });
     }
   }
 
@@ -1137,6 +1120,9 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
   recenterMap(): void {
     this.mapCenter = { lat: 11.556, lng: 104.928 };
     this.zoom = 12;
+    this.leafletMap?.setView([this.mapCenter.lat, this.mapCenter.lng], this.zoom, {
+      animate: true,
+    });
   }
 
   getDriverStatus(driver: Driver): string {
@@ -1146,14 +1132,14 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
     if (status === 'idle' || status === 'on-trip' || status === 'busy') {
       return online
         ? status === 'on-trip'
-          ? '🟠 On Trip'
+          ? `🟠 ${this.t('liveMap.on_trip')}`
           : status === 'idle'
-            ? '🟡 Idle'
-            : '🟠 Busy'
-        : '🔴 Offline';
+            ? `🟡 ${this.t('liveMap.idle')}`
+            : `🟠 ${this.t('liveMap.busy')}`
+        : `🔴 ${this.t('common.offline')}`;
     }
 
-    return online ? '🟢 Online' : '🔴 Offline';
+    return online ? `🟢 ${this.t('common.online')}` : `🔴 ${this.t('common.offline')}`;
   }
 
   toggleAutoTracking(): void {
@@ -1171,6 +1157,7 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
         lng: driver.currentLongitude ?? 0,
       };
       this.selectedDriver = driver;
+      this.leafletMap?.panTo([this.mapCenter.lat, this.mapCenter.lng], { animate: true });
     }
   }
 
@@ -1306,6 +1293,144 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
     return `hsl(${hue},60%,42%)`;
   }
 
+  private syncMapLayers(): void {
+    if (!this.leafletMap || !this.driverClusterGroup) return;
+    this.syncDriverMarkers();
+    this.syncDispatchOverlays();
+    this.syncSelectedDriverTrail();
+    if (this.showGeofences) {
+      this.renderGeofences();
+    }
+  }
+
+  private syncDriverMarkers(): void {
+    if (!this.driverClusterGroup) return;
+
+    this.driverClusterGroup.clearLayers();
+    this.markerMap = {};
+
+    for (const driver of this.filteredDrivers) {
+      if (driver.currentLatitude == null || driver.currentLongitude == null) continue;
+
+      const marker = L.marker([driver.currentLatitude, driver.currentLongitude], {
+        icon: this.createDriverIcon(driver),
+        opacity: this.isOnline(driver) ? 1 : 0.6,
+      });
+
+      marker.on('click', () => {
+        this.ngZone.run(() => this.openInfoWindow(driver));
+      });
+
+      marker.bindTooltip(driver.name || this.t('liveMap.driver'), {
+        direction: 'top',
+        offset: [0, -48],
+        opacity: 0.95,
+      });
+
+      this.markerMap[driver.id!] = marker;
+      this.driverClusterGroup.addLayer(marker);
+    }
+  }
+
+  private syncDispatchOverlays(): void {
+    if (!this.dispatchLayerGroup) return;
+    this.dispatchLayerGroup.clearLayers();
+
+    for (const driver of this.filteredDrivers) {
+      const pickup = driver.dispatch?.pickup;
+      const dropoff = driver.dispatch?.dropoff;
+
+      if (pickup) {
+        this.dispatchLayerGroup.addLayer(
+          L.marker([pickup.lat, pickup.lng], {
+            icon: this.createStopIcon('P', '#22c55e'),
+          }).bindTooltip(
+            `${this.t('liveMap.pickup')}: ${pickup.locationName || this.t('liveMap.unknown')}`,
+          ),
+        );
+      }
+
+      if (dropoff) {
+        this.dispatchLayerGroup.addLayer(
+          L.marker([dropoff.lat, dropoff.lng], {
+            icon: this.createStopIcon('D', '#ef4444'),
+          }).bindTooltip(
+            `${this.t('liveMap.dropoff')}: ${dropoff.locationName || this.t('liveMap.unknown')}`,
+          ),
+        );
+      }
+
+      if (pickup && dropoff) {
+        this.dispatchLayerGroup.addLayer(
+          L.polyline(
+            [
+              [pickup.lat, pickup.lng],
+              [dropoff.lat, dropoff.lng],
+            ],
+            {
+              color: '#FF9800',
+              weight: 4,
+              opacity: 0.95,
+            },
+          ),
+        );
+      }
+    }
+  }
+
+  private syncSelectedDriverTrail(): void {
+    if (!this.selectedDriverLayerGroup) return;
+    this.selectedDriverLayerGroup.clearLayers();
+
+    if (!(this.isReplayMode || this.autoTrackEnabled) || !this.selectedDriver) return;
+
+    const path = this.getPolylinePath(this.selectedDriver);
+    if (path.length < 2) return;
+
+    this.selectedDriverLayerGroup.addLayer(
+      L.polyline(
+        path.map((point) => [point.lat, point.lng] as [number, number]),
+        {
+          color: '#2196F3',
+          weight: 3,
+          opacity: 0.85,
+          dashArray: '8 8',
+        },
+      ),
+    );
+  }
+
+  private createDriverIcon(driver: Driver): L.DivIcon {
+    const online = this.isOnline(driver);
+    const initials = this.getInitials(driver);
+    const label = this.zoom >= this.labelZoom || this.selectedDriver?.id === driver.id ? driver.name : '';
+
+    return L.divIcon({
+      className: 'leaflet-driver-marker',
+      html: `
+        <div class="driver-marker-shell ${online ? 'online' : 'offline'} ${this.selectedDriver?.id === driver.id ? 'selected' : ''}">
+          <div class="driver-marker-pin">
+            <div class="driver-marker-avatar" style="background:${this.getAvatarColor(driver)}">${initials}</div>
+            <span class="driver-marker-presence ${online ? 'online' : 'offline'}"></span>
+          </div>
+          ${label ? `<div class="driver-marker-label">${label}</div>` : ''}
+        </div>
+      `,
+      iconSize: [44, 56],
+      iconAnchor: [22, 54],
+      tooltipAnchor: [0, -48],
+    });
+  }
+
+  private createStopIcon(label: string, color: string): L.DivIcon {
+    return L.divIcon({
+      className: 'leaflet-stop-marker',
+      html: `<div class="stop-marker" style="background:${color}">${label}</div>`,
+      iconSize: [26, 26],
+      iconAnchor: [13, 13],
+    });
+  }
+
   getMarkerIcon(driver: Driver): google.maps.Icon {
     const online = this.isOnline(driver);
     const pinColor = online ? '#15803d' : '#64748b';
@@ -1398,8 +1523,8 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
     this.adminNotificationService
       .sendNotificationToDriver({
         driverId: driver.id,
-        title: 'Force Open',
-        message: 'Admin requested app wake-up',
+          title: this.t('liveMap.force_open'),
+          message: this.t('liveMap.force_open_message'),
         type: 'force-track',
         severity: 'high',
         sender: 'ADMIN_UI',
@@ -1408,7 +1533,7 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
         next: () => this.logDebug(` 🚀 FORCE_OPEN sent to ${driver.name} (#${driver.id})`),
         error: (err) => {
           console.error(' Error sending FORCE_OPEN:', err);
-          this.notify.error('Failed to send FORCE_OPEN.');
+          this.notify.error(this.t('liveMap.force_open_failed'));
         },
       });
   }
@@ -1416,13 +1541,13 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
   getDriverStatusText(status: string): string {
     switch ((status || '').toLowerCase()) {
       case 'online':
-        return '🟢 Online';
+        return `🟢 ${this.t('common.online')}`;
       case 'offline':
-        return '🔴 Offline';
+        return `🔴 ${this.t('common.offline')}`;
       case 'idle':
-        return '🟡 Idle';
+        return `🟡 ${this.t('liveMap.idle')}`;
       case 'on-trip':
-        return '🟠 Trip';
+        return `🟠 ${this.t('liveMap.trips')}`;
       default:
         return '❓';
     }
@@ -1448,7 +1573,7 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
     return this.isOnline(driver) ? '#FF9800' : '#999';
   }
 
-  openInfoWindow(marker: MapMarker, driver: Driver): void {
+  openInfoWindow(driver: Driver): void {
     if (driver.currentLatitude != null && driver.currentLongitude != null) {
       this.selectedDriver = driver;
       if (driver.locationName) {
@@ -1458,26 +1583,25 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
         lat: driver.currentLatitude ?? 0,
         lng: driver.currentLongitude ?? 0,
       };
-      this.infoWindow.open(marker);
+      this.leafletMap?.panTo([this.mapCenter.lat, this.mapCenter.lng], { animate: true });
+      this.syncMapLayers();
     }
   }
 
   onMouseOut(): void {
-    this.infoWindow.close();
+    // No-op for Leaflet overlay card flow.
   }
 
   async disableDriver(driver: Driver): Promise<void> {
     if (!driver?.id) return;
-    const confirmed = await this.confirm.confirm(
-      `Are you sure you want to disable ${driver.name}?`,
-    );
+    const confirmed = await this.confirm.confirm(this.t('liveMap.disable_driver_confirm', { name: driver.name }));
     if (confirmed) this.logDebug(`🚫 Driver #${driver.id} (${driver.name}) disabled`);
   }
 
   sendMessage(driver: Driver): void {
     this.bulkMode = false;
     this.selectedDriver = driver;
-    this.messageTitle = `Message to ${driver.name}`;
+    this.messageTitle = this.t('liveMap.message_to_driver', { name: driver.name });
     this.messageContent = '';
     this.showMessageModal = true;
   }
@@ -1493,14 +1617,14 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
   sendMessageToDriver(): void {
     const msg = this.messageContent.trim();
     if (!msg) {
-      this.notify.error('Please enter a message.');
+      this.notify.error(this.t('liveMap.enter_message_required'));
       return;
     }
 
-    const title = this.messageTitle.trim() || 'Message from Admin';
+    const title = this.messageTitle.trim() || this.t('liveMap.message_from_admin');
 
     if (this.isSendingMessage) {
-      this.notify.info('Sending in progress, please wait...');
+      this.notify.info(this.t('liveMap.sending_in_progress'));
       return;
     }
 
@@ -1510,7 +1634,7 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
     if (this.bulkMode) {
       const ids = this.selectedIds;
       if (!ids.length) {
-        this.notify.error('No drivers selected.');
+        this.notify.error(this.t('liveMap.no_drivers_selected'));
         return;
       }
       ids.forEach((id) => {
@@ -1541,7 +1665,7 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
     }
 
     if (!this.selectedDriver) {
-      this.notify.error('No driver selected.');
+      this.notify.error(this.t('liveMap.no_driver_selected'));
       this.isSendingMessage = false;
       return;
     }
@@ -1568,13 +1692,13 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
       .subscribe({
         next: () => {
           this.logDebug(`✉️ Notification sent to ${this.selectedDriver?.name}`);
-          this.notify.success('Message sent to driver.');
+          this.notify.success(this.t('liveMap.message_sent'));
           this.closeMessageModal();
         },
         error: (err) => {
           console.error(' Error sending notification:', err);
-          this.sendMessageError = 'Failed to send message. Please retry.';
-          this.notify.error('Failed to send message.');
+          this.sendMessageError = this.t('liveMap.message_send_failed');
+          this.notify.error(this.t('liveMap.message_send_failed'));
         },
         complete: () => {
           this.isSendingMessage = false;
@@ -1609,7 +1733,7 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
         updatedFromSocket: false,
         logs: [],
         id: 0,
-        name: 'Unknown',
+        name: this.t('liveMap.unknown'),
         licenseNumber: '',
         phone: '',
         rating: 0,
@@ -1627,7 +1751,6 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
 
   viewHistory(driver: Driver): void {
     if (!driver?.id) return;
-    this.infoWindow.close();
     this.historyDriver = driver;
     this.historyMode = true;
     this.historyPoints = [];
@@ -1662,13 +1785,13 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
         this.drawHistoryPolyline();
         if (this.historyPoints.length > 0) {
           const first = this.historyPoints[0];
-          this.map.googleMap?.panTo({ lat: first.latitude, lng: first.longitude });
+          this.leafletMap?.panTo([first.latitude, first.longitude], { animate: true });
         }
         this.cdr.markForCheck();
       },
       error: (err) => {
         this.historyLoading = false;
-        this.historyError = err?.message ?? 'Failed to load history';
+        this.historyError = err?.message ?? this.t('liveMap.failed_to_load_history');
         this.cdr.markForCheck();
       },
     });
@@ -1691,40 +1814,30 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
     }
     this.historyIsPlaying = true;
 
-    const gmap = this.map.googleMap;
-    if (!gmap) return;
+    if (!this.leafletMap) return;
 
     if (!this.historyPlaybackMarker) {
-      this.historyPlaybackMarker = new google.maps.Marker({
-        map: gmap,
-        icon: {
-          url: 'assets/icons/driver.png',
-          scaledSize: new google.maps.Size(40, 40),
-          anchor: new google.maps.Point(20, 20),
-        },
-        title: this.historyDriver?.name ?? 'Driver',
-        zIndex: 999,
+      const current = this.historyPoints[this.historyPlaybackIndex];
+      this.historyPlaybackMarker = L.marker([current.latitude, current.longitude], {
+        icon: this.createStopIcon('D', '#2563eb'),
+        zIndexOffset: 999,
       });
-    } else {
-      this.historyPlaybackMarker.setMap(gmap);
+      this.historyPlaybackMarker.addTo(this.leafletMap);
     }
 
-    if (!this.historyInfoWindow) {
-      this.historyInfoWindow = new google.maps.InfoWindow();
-    }
-
-    this.historyPlaybackMarker.addListener('click', () => {
-      const p = this.historyPoints[this.historyPlaybackIndex];
-      if (!p || !this.historyInfoWindow) return;
-      this.historyInfoWindow.setContent(`
+    this.historyPlaybackMarker.on('click', () => {
+      const p = this.historyPoints[Math.max(0, this.historyPlaybackIndex - 1)];
+      if (!p) return;
+      this.historyPlaybackMarker?.bindPopup(`
         <div style="min-width:190px;font-size:12px">
-          <strong>${this.historyDriver?.name ?? 'Driver'}</strong><br>
-          Time: ${new Date(p.timestamp).toLocaleString()}<br>
-          Speed: ${p.speed != null ? p.speed + ' km/h' : 'N/A'}<br>
-          Battery: ${p.batteryLevel != null ? p.batteryLevel + '%' : 'N/A'}<br>
-          Source: ${p.locationSource ?? p.source ?? 'N/A'}
-        </div>`);
-      this.historyInfoWindow.open(gmap, this.historyPlaybackMarker!);
+          <strong>${this.historyDriver?.name ?? this.t('liveMap.driver')}</strong><br>
+          ${this.t('liveMap.time')}: ${new Date(p.timestamp).toLocaleString()}<br>
+          ${this.t('liveMap.speed')}: ${p.speed != null ? p.speed + ' ' + this.t('liveMap.km_h') : this.t('liveMap.not_available')}<br>
+          ${this.t('liveMap.battery')}: ${p.batteryLevel != null ? p.batteryLevel + '%' : this.t('liveMap.not_available')}<br>
+          ${this.t('liveMap.source')}: ${p.locationSource ?? p.source ?? this.t('liveMap.not_available')}
+        </div>
+      `);
+      this.historyPlaybackMarker?.openPopup();
     });
 
     const intervalMs = Math.max(50, 1000 / this.historyPlaybackSpeed);
@@ -1735,9 +1848,8 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
           return;
         }
         const p = this.historyPoints[this.historyPlaybackIndex];
-        const pos = { lat: p.latitude, lng: p.longitude };
-        this.historyPlaybackMarker?.setPosition(pos);
-        gmap.panTo(pos);
+        this.historyPlaybackMarker?.setLatLng([p.latitude, p.longitude]);
+        this.leafletMap?.panTo([p.latitude, p.longitude], { animate: true });
         this.historyPlaybackIndex++;
         this.cdr.markForCheck();
       });
@@ -1760,7 +1872,7 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
     }
     this.historyIsPlaying = false;
     this.historyPlaybackIndex = 0;
-    this.historyInfoWindow?.close();
+    this.historyPlaybackMarker?.closePopup();
     this.cdr.markForCheck();
   }
 
@@ -1777,9 +1889,8 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
     this.historyPlaybackIndex = idx;
     const p = this.historyPoints[idx];
     if (p) {
-      const pos = { lat: p.latitude, lng: p.longitude };
-      this.historyPlaybackMarker?.setPosition(pos);
-      this.map.googleMap?.panTo(pos);
+      this.historyPlaybackMarker?.setLatLng([p.latitude, p.longitude]);
+      this.leafletMap?.panTo([p.latitude, p.longitude], { animate: true });
     }
     this.cdr.markForCheck();
   }
@@ -1789,62 +1900,31 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   private drawHistoryPolyline(): void {
-    const gmap = this.map.googleMap;
-    if (!gmap || this.historyPoints.length === 0) return;
+    if (!this.leafletMap || this.historyPoints.length === 0) return;
     this.clearHistoryOverlays();
-    const path = this.historyPoints.map((p) => ({ lat: p.latitude, lng: p.longitude }));
-    this.historyPolyline = new google.maps.Polyline({
-      path,
-      map: gmap,
-      strokeColor: '#1976D2',
-      strokeOpacity: 0.85,
-      strokeWeight: 4,
-      icons: [
-        {
-          icon: { path: google.maps.SymbolPath.FORWARD_OPEN_ARROW, scale: 2.5 },
-          offset: '100%',
-          repeat: '80px',
-        },
-      ],
-    });
+    const path = this.historyPoints.map((p) => [p.latitude, p.longitude] as [number, number]);
+    this.historyPolyline = L.polyline(path, {
+      color: '#1976D2',
+      opacity: 0.85,
+      weight: 4,
+    }).addTo(this.leafletMap);
 
-    // Start/end pins
-    new google.maps.Marker({
-      position: path[0],
-      map: gmap,
-      label: { text: 'S', color: '#fff', fontWeight: 'bold' },
-      icon: {
-        path: google.maps.SymbolPath.CIRCLE,
-        scale: 10,
-        fillColor: '#4CAF50',
-        fillOpacity: 1,
-        strokeColor: '#fff',
-        strokeWeight: 2,
-      },
-      title: 'Start',
-    });
-    new google.maps.Marker({
-      position: path[path.length - 1],
-      map: gmap,
-      label: { text: 'E', color: '#fff', fontWeight: 'bold' },
-      icon: {
-        path: google.maps.SymbolPath.CIRCLE,
-        scale: 10,
-        fillColor: '#F44336',
-        fillOpacity: 1,
-        strokeColor: '#fff',
-        strokeWeight: 2,
-      },
-      title: 'End',
-    });
+    const startMarker = L.marker(path[0], {
+      icon: this.createStopIcon('S', '#4CAF50'),
+    }).addTo(this.leafletMap);
+    const endMarker = L.marker(path[path.length - 1], {
+      icon: this.createStopIcon('E', '#F44336'),
+    }).addTo(this.leafletMap);
+    this.historyEndpointMarkers = [startMarker, endMarker];
   }
 
   private clearHistoryOverlays(): void {
-    this.historyPolyline?.setMap(null);
+    this.historyPolyline?.remove();
     this.historyPolyline = null;
-    this.historyPlaybackMarker?.setMap(null);
+    this.historyPlaybackMarker?.remove();
     this.historyPlaybackMarker = null;
-    this.historyInfoWindow?.close();
+    this.historyEndpointMarkers.forEach((marker) => marker.remove());
+    this.historyEndpointMarkers = [];
   }
 
   private calcHistoryDistance(points: HistoryPoint[]): number {
@@ -1950,7 +2030,7 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
    * Colors are based on alert type (ENTER/EXIT/BOTH/NONE).
    */
   private renderGeofences(): void {
-    if (!this.map?.googleMap) return;
+    if (!this.leafletMap || !this.showGeofences) return;
 
     // Clear existing geofence overlays
     this.clearGeofenceOverlays();
@@ -1977,25 +2057,22 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
    * Render a circular geofence on the map.
    */
   private renderCircleGeofence(geofence: Geofence): void {
-    if (!this.map?.googleMap) return;
+    if (!this.leafletMap) return;
 
     const isSelected = this.selectedGeofenceId === geofence.id;
     const baseColor = this.geofenceService.getCircleColor(geofence);
 
-    const circle = new google.maps.Circle({
-      center: { lat: geofence.centerLatitude!, lng: geofence.centerLongitude! },
+    const circle = L.circle([geofence.centerLatitude!, geofence.centerLongitude!], {
       radius: geofence.radiusMeters || 1000,
-      map: this.map.googleMap,
       fillColor: baseColor,
-      fillOpacity: isSelected ? 0.4 : 0.2, // Increase opacity when selected
-      strokeColor: isSelected ? '#FFD700' : baseColor, // Gold border for selected
-      strokeOpacity: isSelected ? 1.0 : 0.8,
-      strokeWeight: isSelected ? 4 : 2, // Thicker border when selected
-      clickable: true,
-    });
+      fillOpacity: isSelected ? 0.4 : 0.2,
+      color: isSelected ? '#FFD700' : baseColor,
+      opacity: isSelected ? 1.0 : 0.8,
+      weight: isSelected ? 4 : 2,
+    }).addTo(this.leafletMap);
 
     // Add click listener to show geofence details and zoom
-    circle.addListener('click', () => {
+    circle.on('click', () => {
       this.showGeofenceInfo(geofence);
     });
 
@@ -2009,7 +2086,7 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
    * Render a polygon geofence on the map.
    */
   private renderPolygonGeofence(geofence: Geofence): void {
-    if (!this.map?.googleMap) return;
+    if (!this.leafletMap) return;
 
     const coordinates = this.geofenceService.parseGeoJsonCoordinates(
       geofence.geoJsonCoordinates || '',
@@ -2022,19 +2099,19 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
     const isSelected = this.selectedGeofenceId === geofence.id;
     const baseColor = this.geofenceService.getPolygonColor(geofence);
 
-    const polygon = new google.maps.Polygon({
-      paths: coordinates.map((c) => ({ lat: c[0], lng: c[1] })),
-      map: this.map.googleMap,
-      fillColor: baseColor,
-      fillOpacity: isSelected ? 0.4 : 0.2, // Increase opacity when selected
-      strokeColor: isSelected ? '#FFD700' : baseColor, // Gold border for selected
-      strokeOpacity: isSelected ? 1.0 : 0.8,
-      strokeWeight: isSelected ? 4 : 2, // Thicker border when selected
-      clickable: true,
-    });
+    const polygon = L.polygon(
+      coordinates.map((c) => [c[0], c[1]] as [number, number]),
+      {
+        fillColor: baseColor,
+        fillOpacity: isSelected ? 0.4 : 0.2,
+        color: isSelected ? '#FFD700' : baseColor,
+        opacity: isSelected ? 1.0 : 0.8,
+        weight: isSelected ? 4 : 2,
+      },
+    ).addTo(this.leafletMap);
 
     // Add click listener to show geofence details and zoom
-    polygon.addListener('click', () => {
+    polygon.on('click', () => {
       this.showGeofenceInfo(geofence);
     });
 
@@ -2046,7 +2123,7 @@ export class LiveMapComponent implements OnInit, OnDestroy, AfterViewInit {
    */
   private clearGeofenceOverlays(): void {
     this.geofenceMap.forEach((overlay) => {
-      overlay.setMap(null);
+      overlay.remove();
     });
     this.geofenceMap.clear();
   }
@@ -2184,38 +2261,36 @@ ${geofence.speedLimitKmh ? `Speed Limit: ${geofence.speedLimitKmh} km/h` : ''}
    * Zoom and pan map to show a circle geofence centered with appropriate zoom level.
    */
   private zoomToCircleGeofence(geofence: Geofence): void {
-    if (!this.map?.googleMap || !geofence.centerLatitude || !geofence.centerLongitude) return;
+    if (!this.leafletMap || !geofence.centerLatitude || !geofence.centerLongitude) return;
 
     const center = { lat: geofence.centerLatitude, lng: geofence.centerLongitude };
     const radiusMeters = geofence.radiusMeters || 1000;
 
     // Pan map to center of circle
-    this.map.googleMap.panTo(center);
+    this.leafletMap.panTo([center.lat, center.lng], { animate: true });
 
     // Calculate appropriate zoom level based on radius
     // Formula: zoom = log2(circumference / (width * sin(latitude)))
     // Simplified: zoom = 21 - log2(radius in meters)
     const zoom = Math.max(12, 21 - Math.log2(radiusMeters));
-    this.map.googleMap.setZoom(Math.round(zoom));
+    this.leafletMap.setZoom(Math.round(zoom));
   }
 
   /**
    * Zoom and pan map to show a polygon geofence with all vertices visible.
    */
   private zoomToPolygonGeofence(geofence: Geofence): void {
-    if (!this.map?.googleMap || !geofence.geoJsonCoordinates) return;
+    if (!this.leafletMap || !geofence.geoJsonCoordinates) return;
 
     const coordinates = this.geofenceService.parseGeoJsonCoordinates(geofence.geoJsonCoordinates);
     if (coordinates.length < 2) return;
 
     // Create bounds that include all polygon vertices
-    const bounds = new google.maps.LatLngBounds();
-    coordinates.forEach((coord) => {
-      bounds.extend({ lat: coord[0], lng: coord[1] });
-    });
+    const bounds = L.latLngBounds(
+      coordinates.map((coord) => [coord[0], coord[1]] as [number, number]),
+    );
 
-    // Fit map to bounds with padding
-    this.map.googleMap.fitBounds(bounds, { top: 100, right: 100, bottom: 100, left: 100 });
+    this.leafletMap.fitBounds(bounds, { padding: [100, 100] });
   }
 
   /**
@@ -2296,7 +2371,7 @@ ${geofence.speedLimitKmh ? `Speed Limit: ${geofence.speedLimitKmh} km/h` : ''}
     const lat = parseFloat(this.proximityFilterLat);
     const lng = parseFloat(this.proximityFilterLng);
 
-    if (isNaN(lat) || isNaN(lng) || !this.map?.googleMap) {
+    if (isNaN(lat) || isNaN(lng) || !this.leafletMap) {
       this.notify.error('Please enter valid latitude and longitude');
       return;
     }
@@ -2307,56 +2382,46 @@ ${geofence.speedLimitKmh ? `Speed Limit: ${geofence.speedLimitKmh} km/h` : ''}
 
     // Clean up existing marker and circle
     if (this.proximityFilterMarker) {
-      this.proximityFilterMarker.setMap(null);
+      this.proximityFilterMarker.remove();
     }
     if (this.proximityFilterCircle) {
-      this.proximityFilterCircle.setMap(null);
+      this.proximityFilterCircle.remove();
     }
 
     // Add visual marker for filter point (draggable)
-    this.proximityFilterMarker = new google.maps.Marker({
-      position: { lat, lng },
-      map: this.map.googleMap,
-      title: `Filter Point (${this.proximityFilterRadius}km radius) - Drag to move`,
+    this.proximityFilterMarker = L.marker([lat, lng], {
+      icon: this.createStopIcon('F', '#4F46E5'),
       draggable: true,
-      icon: {
-        path: google.maps.SymbolPath.CIRCLE,
-        scale: 8,
-        fillColor: '#4F46E5',
-        fillOpacity: 1,
-        strokeColor: '#fff',
-        strokeWeight: 2,
-      },
-    });
+    }).addTo(this.leafletMap);
+    this.proximityFilterMarker.bindTooltip(
+      `Filter Point (${this.proximityFilterRadius}km radius) - Drag to move`,
+    );
 
     // Add drag listener to update filter on drag
-    this.proximityFilterMarker.addListener('dragend', (event: google.maps.MapMouseEvent) => {
-      if (event.latLng) {
-        this.proximityFilterLat = event.latLng.lat().toFixed(6);
-        this.proximityFilterLng = event.latLng.lng().toFixed(6);
-        this.updateProximityFilterVisuals();
-        this.applyFilters();
-        this.cdr.markForCheck();
-      }
+    this.proximityFilterMarker.on('dragend', () => {
+      const position = this.proximityFilterMarker?.getLatLng();
+      if (!position) return;
+      this.proximityFilterLat = position.lat.toFixed(6);
+      this.proximityFilterLng = position.lng.toFixed(6);
+      this.updateProximityFilterVisuals();
+      this.applyFilters();
+      this.cdr.markForCheck();
     });
 
     // Draw circle showing filter radius
-    this.proximityFilterCircle = new google.maps.Circle({
-      center: { lat, lng },
+    this.proximityFilterCircle = L.circle([lat, lng], {
       radius: this.proximityFilterRadius * 1000, // Convert km to meters
-      map: this.map.googleMap,
       fillColor: '#4F46E5',
       fillOpacity: 0.1,
-      strokeColor: '#4F46E5',
-      strokeOpacity: 0.5,
-      strokeWeight: 2,
-      clickable: false,
-    });
+      color: '#4F46E5',
+      opacity: 0.5,
+      weight: 2,
+    }).addTo(this.leafletMap);
 
     // Zoom to show filter area
-    this.map.googleMap.panTo({ lat, lng });
+    this.leafletMap.panTo([lat, lng], { animate: true });
     const zoom = Math.max(10, 21 - Math.log2(this.proximityFilterRadius * 1000));
-    this.map.googleMap.setZoom(Math.round(zoom));
+    this.leafletMap.setZoom(Math.round(zoom));
 
     this.applyFilters();
     this.cdr.markForCheck();
@@ -2372,17 +2437,17 @@ ${geofence.speedLimitKmh ? `Speed Limit: ${geofence.speedLimitKmh} km/h` : ''}
     const lat = parseFloat(this.proximityFilterLat);
     const lng = parseFloat(this.proximityFilterLng);
 
-    if (isNaN(lat) || isNaN(lng) || !this.map?.googleMap) return;
+    if (isNaN(lat) || isNaN(lng) || !this.leafletMap) return;
 
     // Update circle position and radius
     if (this.proximityFilterCircle) {
-      this.proximityFilterCircle.setCenter({ lat, lng });
+      this.proximityFilterCircle.setLatLng([lat, lng]);
       this.proximityFilterCircle.setRadius(this.proximityFilterRadius * 1000);
     }
 
-    // Update marker title
     if (this.proximityFilterMarker) {
-      this.proximityFilterMarker.setTitle(
+      this.proximityFilterMarker.setLatLng([lat, lng]);
+      this.proximityFilterMarker.bindTooltip(
         `Filter Point (${this.proximityFilterRadius}km radius) - Drag to move`,
       );
     }
@@ -2399,15 +2464,13 @@ ${geofence.speedLimitKmh ? `Speed Limit: ${geofence.speedLimitKmh} km/h` : ''}
     this.proximityFilterRadius = 10;
     this.filteredDriversCount = 0;
 
-    // Clean up marker
     if (this.proximityFilterMarker) {
-      this.proximityFilterMarker.setMap(null);
+      this.proximityFilterMarker.remove();
       this.proximityFilterMarker = undefined;
     }
 
-    // Clean up circle
     if (this.proximityFilterCircle) {
-      this.proximityFilterCircle.setMap(null);
+      this.proximityFilterCircle.remove();
       this.proximityFilterCircle = undefined;
     }
 
@@ -2431,11 +2494,11 @@ ${geofence.speedLimitKmh ? `Speed Limit: ${geofence.speedLimitKmh} km/h` : ''}
   /**
    * Handle map click when in proximity click mode.
    */
-  onMapClickForProximity(event: google.maps.MapMouseEvent): void {
-    if (!this.proximityClickMode || !event.latLng) return;
+  onMapClickForProximity(event: L.LeafletMouseEvent): void {
+    if (!this.proximityClickMode) return;
 
-    this.proximityFilterLat = event.latLng.lat().toFixed(6);
-    this.proximityFilterLng = event.latLng.lng().toFixed(6);
+    this.proximityFilterLat = event.latlng.lat.toFixed(6);
+    this.proximityFilterLng = event.latlng.lng.toFixed(6);
     this.applyProximityFilter();
   }
 

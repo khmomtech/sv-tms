@@ -14,6 +14,7 @@ import 'package:tms_driver_app/core/network/api_constants.dart';
 import 'package:tms_driver_app/core/network/dio_client.dart';
 import 'package:tms_driver_app/models/chat_message_model.dart';
 import 'package:tms_driver_app/providers/call_provider.dart';
+import 'package:tms_driver_app/utils/error_handler.dart';
 import 'package:tms_driver_app/utils/notification_helper.dart';
 
 // ─── Queued message (offline send) ───────────────────────────────────────────
@@ -192,7 +193,8 @@ class ChatProvider with ChangeNotifier, WidgetsBindingObserver {
 
       _errorMessage = null;
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage =
+          _friendlyError(e, fallback: 'Unable to load support messages right now.');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -267,7 +269,7 @@ class ChatProvider with ChangeNotifier, WidgetsBindingObserver {
       return true;
     } catch (e) {
       if (optimistic != null) _removeMessage(optimistic.id);
-      _errorMessage = e is DioException ? e.message : e.toString();
+      _errorMessage = _friendlyError(e, fallback: 'Failed to send message');
       notifyListeners();
       return false;
     } finally {
@@ -313,7 +315,7 @@ class ChatProvider with ChangeNotifier, WidgetsBindingObserver {
       _errorMessage = null;
       return true;
     } catch (e) {
-      _errorMessage = e is DioException ? e.message : e.toString();
+      _errorMessage = _friendlyError(e, fallback: 'Failed to upload voice note');
       return false;
     } finally {
       _isSending = false;
@@ -359,7 +361,7 @@ class ChatProvider with ChangeNotifier, WidgetsBindingObserver {
       _errorMessage = null;
       return true;
     } catch (e) {
-      _errorMessage = e is DioException ? e.message : e.toString();
+      _errorMessage = _friendlyError(e, fallback: 'Failed to upload video');
       return false;
     } finally {
       _isSending = false;
@@ -395,7 +397,7 @@ class ChatProvider with ChangeNotifier, WidgetsBindingObserver {
       _errorMessage = null;
       return true;
     } catch (e) {
-      _errorMessage = e is DioException ? e.message : e.toString();
+      _errorMessage = _friendlyError(e, fallback: 'Failed to send location');
       return false;
     } finally {
       _isSending = false;
@@ -475,18 +477,18 @@ class ChatProvider with ChangeNotifier, WidgetsBindingObserver {
   Future<bool> requestCall() async {
     if (_isSending) return false;
     _isSending = true;
+    _errorMessage = null;
     notifyListeners();
 
     try {
       final driverId = await _resolveDriverIdFn();
       if (driverId == null) throw Exception('Missing driver ID');
       final path = _resolvePath('/driver/chat/$driverId/start-call');
-      final resp = await _http.post(path);
+      Response<dynamic> resp = await _http.post(path);
 
       if (resp.statusCode == 404) {
-        final fallback =
-            _resolvePath('/driver/chat/$driverId/call-request');
-        await _http.post(fallback);
+        final fallback = _resolvePath('/driver/chat/$driverId/call-request');
+        resp = await _http.post(fallback);
       }
 
       if (resp.statusCode != 200) {
@@ -503,7 +505,7 @@ class ChatProvider with ChangeNotifier, WidgetsBindingObserver {
       _errorMessage = null;
       return true;
     } catch (e) {
-      _errorMessage = e is DioException ? e.message : e.toString();
+      _errorMessage = _friendlyError(e, fallback: 'Failed to request call');
       return false;
     } finally {
       _isSending = false;
@@ -535,7 +537,7 @@ class ChatProvider with ChangeNotifier, WidgetsBindingObserver {
       _errorMessage = null;
       return true;
     } catch (e) {
-      _errorMessage = e is DioException ? e.message : e.toString();
+      _errorMessage = _friendlyError(e, fallback: 'Failed to accept call');
       return false;
     } finally {
       _isSending = false;
@@ -650,6 +652,31 @@ class ChatProvider with ChangeNotifier, WidgetsBindingObserver {
         await _connectRealtime(_subscribedDriverId!);
       }
     });
+  }
+
+  String _friendlyError(dynamic error, {required String fallback}) {
+    if (error is DioException) {
+      final status = error.response?.statusCode;
+      if (status != null) {
+        return ErrorHandler.fromStatusCode(status);
+      }
+
+      final responseData = error.response?.data;
+      if (responseData is Map && responseData['message'] is String) {
+        return responseData['message'] as String;
+      }
+
+      if (error.type == DioExceptionType.connectionError ||
+          error.type == DioExceptionType.connectionTimeout ||
+          error.type == DioExceptionType.receiveTimeout ||
+          error.type == DioExceptionType.sendTimeout) {
+        return ErrorHandler.getFriendlyMessage(error.error ?? error.message ?? fallback);
+      }
+
+      return fallback;
+    }
+
+    return ErrorHandler.getFriendlyMessage(error);
   }
 
   // ─── Realtime payload processing ───────────────────────────────────────────

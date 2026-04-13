@@ -118,3 +118,122 @@
   position: relative;
   z-index: 10;
 }
+
+:host ::ng-deep cdk-virtual-scroll-viewport {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+:host ::ng-deep cdk-virtual-scroll-viewport::-webkit-scrollbar {
+  width: 8px;
+}
+
+:host ::ng-deep cdk-virtual-scroll-viewport::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+
+:host ::ng-deep .leaflet-container {
+  height: 100%;
+  width: 100%;
+  background: #e2e8f0;
+  font-family: inherit;
+}
+
+:host ::ng-deep .leaflet-driver-marker,
+:host ::ng-deep .leaflet-stop-marker {
+  background: transparent;
+  border: 0;
+}
+
+:host ::ng-deep .driver-marker-shell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+:host ::ng-deep .driver-marker-pin {
+  position: relative;
+  display: flex;
+  height: 44px;
+  width: 44px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: #1e293b;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.28);
+  border: 3px solid #fff;
+}
+
+:host ::ng-deep .driver-marker-shell.online .driver-marker-pin {
+  background: #166534;
+}
+
+:host ::ng-deep .driver-marker-shell.offline .driver-marker-pin {
+  background: #64748b;
+}
+
+:host ::ng-deep .driver-marker-shell.selected .driver-marker-pin {
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.22), 0 10px 25px rgba(15, 23, 42, 0.28);
+}
+
+:host ::ng-deep .driver-marker-avatar {
+  display: flex;
+  height: 32px;
+  width: 32px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+:host ::ng-deep .driver-marker-presence {
+  position: absolute;
+  right: -2px;
+  top: -2px;
+  height: 12px;
+  width: 12px;
+  border-radius: 9999px;
+  border: 2px solid #fff;
+}
+
+:host ::ng-deep .driver-marker-presence.online {
+  background: #22c55e;
+}
+
+:host ::ng-deep .driver-marker-presence.offline {
+  background: #94a3b8;
+}
+
+:host ::ng-deep .driver-marker-label {
+  margin-top: 6px;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #0f172a;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.18);
+}
+
+:host ::ng-deep .stop-marker {
+  display: flex;
+  height: 26px;
+  width: 26px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  border: 2px solid #fff;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.22);
+}

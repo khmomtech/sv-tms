@@ -29,7 +29,12 @@
               "html2canvas",
               "qrcode",
               "raf",
-              "rgbcolor"
+              "rgbcolor",
+              "@stomp/stompjs",
+              "agora-rtc-sdk-ng",
+              "mapbox-gl",
+              "leaflet",
+              "leaflet.markercluster"
             ],
             "assets": [
               "src/favicon.ico",
@@ -42,11 +47,13 @@
               "node_modules/@fortawesome/fontawesome-free/css/all.min.css",
               "node_modules/bootstrap/dist/css/bootstrap.min.css",
               "node_modules/bootstrap-icons/font/bootstrap-icons.css",
+              "node_modules/leaflet/dist/leaflet.css",
+              "node_modules/leaflet.markercluster/dist/MarkerCluster.css",
+              "node_modules/leaflet.markercluster/dist/MarkerCluster.Default.css",
               "src/styles.css"
             ],
             "scripts": [
-              "node_modules/bootstrap/dist/js/bootstrap.bundle.min.js",
-              "node_modules/sockjs-client/dist/sockjs.min.js"
+              "node_modules/bootstrap/dist/js/bootstrap.bundle.min.js"
             ]
 
           },
@@ -54,13 +61,13 @@
             "production": {
               "budgets": [{
                   "type": "initial",
-                  "maximumWarning": "1.5mb",
-                  "maximumError": "2mb"
+                  "maximumWarning": "1.9mb",
+                  "maximumError": "2.4mb"
                 },
                 {
                   "type": "anyComponentStyle",
-                  "maximumWarning": "20kb",
-                  "maximumError": "30kb"
+                  "maximumWarning": "32kb",
+                  "maximumError": "40kb"
                 },
                 {
                   "type": "bundle",
@@ -135,6 +142,9 @@
               "@angular/material/prebuilt-themes/pink-bluegrey.css",
               "node_modules/@fortawesome/fontawesome-free/css/all.min.css",
               "node_modules/bootstrap-icons/font/bootstrap-icons.css",
+              "node_modules/leaflet/dist/leaflet.css",
+              "node_modules/leaflet.markercluster/dist/MarkerCluster.css",
+              "node_modules/leaflet.markercluster/dist/MarkerCluster.Default.css",
               "src/styles.test.css"
             ],
             "scripts": [

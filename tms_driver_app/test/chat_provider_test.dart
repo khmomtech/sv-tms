@@ -220,7 +220,8 @@ void main() {
 
     expect(ok, isTrue);
     expect(captured.path, '/api/driver/chat/99/start-call');
-    expect(provider.messages.single.message, '📞 Call request from driver');
+    expect(provider.messages, isEmpty);
+    expect(provider.errorMessage, isNull);
   });
 
   // ── Voice send e2e ──────────────────────────────────────────────────────────
@@ -354,7 +355,8 @@ void main() {
     expect(ok, isTrue);
     expect(paths.first, '/api/driver/chat/99/start-call');
     expect(paths[1], '/api/driver/chat/99/call-request');
-    expect(provider.messages.single.message, '📞 Call request from driver');
+    expect(provider.messages, isEmpty);
+    expect(provider.errorMessage, isNull);
   });
 
   test('requestCall returns false and sets errorMessage on persistent failure', () async {
