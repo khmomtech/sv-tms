@@ -44,6 +44,17 @@ import { NotificationService } from '../../../../services/notification.service';
               <label class="label">Latest Version *</label>
               <input class="input w-full" formControlName="latestVersion" placeholder="2.5.0" />
             </div>
+            <div>
+              <label class="label">Min Supported Version</label>
+              <input
+                class="input w-full"
+                formControlName="minSupportedVersion"
+                placeholder="2.3.0"
+              />
+              <p class="text-xs text-gray-500 mt-1">
+                Versions below this are blocked when force update is enabled.
+              </p>
+            </div>
             <div class="flex items-center gap-3 pt-5">
               <input
                 type="checkbox"
@@ -463,6 +474,10 @@ export class AppVersionManagementComponent implements OnInit {
       latestVersion: [
         data.latestVersion,
         [Validators.required, Validators.pattern(/^\d+\.\d+\.\d+$/)],
+      ],
+      minSupportedVersion: [
+        data.minSupportedVersion,
+        [Validators.pattern(/^$|^\d+\.\d+\.\d+$/)],
       ],
       mandatoryUpdate: [data.mandatoryUpdate],
       playstoreUrl: [data.playstoreUrl],

@@ -55,20 +55,42 @@ class VersionService {
 
   /// Mandatory block if backend says so OR current < minSupportedVersion
   Future<bool> isMandatoryBlock(VersionInfo info) async {
-    if (info.mandatoryUpdate) return true;
+    if (info.effectiveMandatoryUpdate) return true;
     final cur = await currentVersion();
-    return _isLower(cur, info.minSupportedVersion);
+    final minSupported = info.minSupportedVersion.trim();
+    if (minSupported.isEmpty) {
+      return false;
+    }
+    return _isLower(cur, minSupported);
   }
 
   /// Optional banner if current < latest
   Future<bool> shouldShowUpdate(VersionInfo info) async {
     final cur = await currentVersion();
-    return _isLower(cur, info.latestVersion);
+    final latest = info.effectiveLatestVersion;
+    if (latest.isEmpty) {
+      return false;
+    }
+    return _isLower(cur, latest);
+  }
+
+  Future<bool> isMaintenanceBlockActive(VersionInfo info) async {
+    if (!info.maintenanceActive) {
+      return false;
+    }
+    final untilRaw = info.maintenanceUntil.trim();
+    if (untilRaw.isEmpty) {
+      return true;
+    }
+    try {
+      return DateTime.parse(untilRaw).isAfter(DateTime.now());
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<void> openStore(VersionInfo info) async {
-    final url =
-        info.playStoreUrl.isNotEmpty ? info.playStoreUrl : info.appStoreUrl;
+    final url = info.effectiveStoreUrl;
     if (url.isEmpty) return;
     final uri = Uri.tryParse(url);
     if (uri != null) await launchUrl(uri, mode: LaunchMode.externalApplication);

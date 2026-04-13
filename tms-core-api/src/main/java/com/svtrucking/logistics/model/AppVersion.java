@@ -26,6 +26,9 @@ public class AppVersion {
   @Column(name = "latest_version", nullable = false)
   private String latestVersion;
 
+  @Column(name = "min_supported_version")
+  private String minSupportedVersion;
+
   @Column(name = "mandatory_update", nullable = false)
   private boolean mandatoryUpdate;
 

@@ -10,6 +10,7 @@ class VersionChecker extends StatefulWidget {
   final Duration delay;
   final bool checkOnResume;
   final bool showBannerForOptional;
+  final bool checkInitially;
 
   const VersionChecker({
     super.key,
@@ -17,6 +18,7 @@ class VersionChecker extends StatefulWidget {
     this.delay = const Duration(seconds: 2),
     this.checkOnResume = true,
     this.showBannerForOptional = true,
+    this.checkInitially = true,
   });
 
   @override
@@ -34,8 +36,10 @@ class _VersionCheckerState extends State<VersionChecker>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
 
-    // delayed check (let first frame render)
-    Future.delayed(widget.delay, _check);
+    if (widget.checkInitially) {
+      // delayed check (let first frame render)
+      Future.delayed(widget.delay, _check);
+    }
   }
 
   @override
@@ -54,10 +58,13 @@ class _VersionCheckerState extends State<VersionChecker>
 
       if (info == null) return;
 
+      final maintenanceBlock = await widget.service.isMaintenanceBlockActive(info);
       final mustBlock = await widget.service.isMandatoryBlock(info);
       final shouldShow = await widget.service.shouldShowUpdate(info);
 
-      if (mustBlock) {
+      if (maintenanceBlock) {
+        _openMaintenanceDialog(info);
+      } else if (mustBlock) {
         _openMandatoryDialog(info);
       } else if (shouldShow && widget.showBannerForOptional) {
         setState(() => _showOptionalBanner = true);
@@ -72,8 +79,7 @@ class _VersionCheckerState extends State<VersionChecker>
     _dialogOpen = true;
 
     final isKm = context.locale.languageCode == 'km';
-    final notes =
-        isKm && info.noteKm.trim().isNotEmpty ? info.noteKm : info.noteEn;
+    final notes = info.effectiveReleaseNote(isKhmer: isKm);
 
     final curVer = await widget.service.currentVersion();
     final curBuild = await widget.service.currentBuild();
@@ -95,7 +101,7 @@ class _VersionCheckerState extends State<VersionChecker>
             children: [
               Text(tr('update.required')), // add to your i18n
               const SizedBox(height: 4),
-              Text('v$curVer ($curBuild) → ${info.latestVersion}',
+              Text('v$curVer ($curBuild) → ${info.effectiveLatestVersion}',
                   style: Theme.of(context).textTheme.bodySmall),
             ],
           ),
@@ -135,6 +141,41 @@ class _VersionCheckerState extends State<VersionChecker>
     _dialogOpen = false;
   }
 
+  Future<void> _openMaintenanceDialog(VersionInfo info) async {
+    if (_dialogOpen || !mounted) return;
+    _dialogOpen = true;
+
+    final isKm = context.locale.languageCode == 'km';
+    final message = isKm && info.maintenanceMessageKm.trim().isNotEmpty
+        ? info.maintenanceMessageKm.trim()
+        : info.maintenanceMessageEn.trim();
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) {},
+        child: AlertDialog(
+          title: const Text('Maintenance'),
+          content: Text(message.isEmpty ? 'System is under maintenance.' : message),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                _dialogOpen = false;
+                await _check();
+              },
+              child: const Text('Refresh'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    _dialogOpen = false;
+  }
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
@@ -149,8 +190,7 @@ class _VersionCheckerState extends State<VersionChecker>
 
     final info = _latest!;
     final isKm = context.locale.languageCode == 'km';
-    final notes =
-        isKm && info.noteKm.trim().isNotEmpty ? info.noteKm : info.noteEn;
+    final notes = info.effectiveReleaseNote(isKhmer: isKm);
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
